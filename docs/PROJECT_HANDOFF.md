@@ -7,20 +7,20 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 ## Aktueller Stand
 
 - Stand: 2026-10-30
-- Branch/Commit: `docs/gate-a-adoption-plan` / _wird mit dem Dokumentations-PR ergänzt_
-- Aktive Aufgabe: Gate-A-Dokumentation zur Prüfung bereitstellen.
+- Branch/Commit: `docs/gate-a-adoption-plan` / `571aeb4` (PR #3)
+- Aktive Aufgabe: Gate-A-Dokumentation in PR #3 prüfen lassen.
 - Erledigt:
   - Repository aus `t0003`-Basisdateien initialisiert.
   - Generator-Zweck in README, DV-Konzept und Metadaten verankert.
   - Gate-A-Übernahmematrix, Generator-Modi und PR-Reihenfolge verbindlich ergänzt.
   - Keycloak, Colyseus und API-Service-Rezept für Release 1 zurückgestellt.
 - Offen:
-  - Dokumentations-PR prüfen und mergen.
+  - Dokumentations-PR #3 prüfen und mergen.
   - Erst danach die PR-Etappen `new`, `migrate`, CI-Ergänzungen und `verify` gemäß
     [DV_KONZEPT.md](DV_KONZEPT.md) planen; keine Generator-Funktionen vorab implementieren.
 - Blocker: keine
 - Letzte Prüfergebnisse: `python scripts/check.py` erfolgreich; keine projektspezifischen Prüfungen konfiguriert
-- Nicht synchronisierte Änderungen: lokal, bis zum Dokumentations-PR noch nicht gepusht
+- Nicht synchronisierte Änderungen: keine; Dokumentationsbranch ist in PR #3 zur Prüfung geöffnet
 
 ## Nächster Schritt
 
