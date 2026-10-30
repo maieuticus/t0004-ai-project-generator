@@ -16,7 +16,8 @@ import projectcfg
 SKIP_DIRS = {".git", ".venv", "node_modules", ".artifacts", "__pycache__", "target", "dist", "build", "exports", "backups"}
 REQUIRED = (
     "README.md", "AGENTS.md", "config/project.yaml",
-    "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md", "docs/SDD_QUICKSTART.md", "docs/QUICKSTART.md",
+    "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md", "docs/GENERATOR_CONTRACT.md",
+    "docs/SDD_QUICKSTART.md", "docs/QUICKSTART.md",
 )
 HANDOFF_SECTIONS = ("## Aktueller Stand", "## Nächster Schritt")
 

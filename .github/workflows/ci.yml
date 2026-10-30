@@ -1,4 +1,4 @@
-name: Template-Prüfung
+name: Generator-Basisprüfung
 on:
   push:
     branches: ["**"]
@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 jobs:
-  template:
+  baseline:
     strategy:
       fail-fast: false
       matrix:

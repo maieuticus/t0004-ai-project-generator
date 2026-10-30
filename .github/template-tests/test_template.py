@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import projectcfg  # noqa: E402
 
 OFFLINE = os.environ.get("TEMPLATE_TEST_OFFLINE") == "1"
-FORBIDDEN_NEUTRAL = (".specify", "openspec", ".devcontainer", "templates", "profiles", "src", "IMPLEMENTIERUNGSVORGABE.md")
+FORBIDDEN_BASELINE = (".specify", "openspec", ".devcontainer", "IMPLEMENTIERUNGSVORGABE.md")
 
 
 def git(cwd: Path, *args: str) -> str:
@@ -65,7 +65,7 @@ class ProjectConfig(unittest.TestCase):
             projectcfg.checks("checks:\n  - not-a-list\n")
 
 
-class NeutralProject(unittest.TestCase):
+class GeneratorBootstrap(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
@@ -75,11 +75,12 @@ class NeutralProject(unittest.TestCase):
     def tearDownClass(cls):
         cls.temp.cleanup()
 
-    def test_contains_no_profiles_generator_or_forced_sdd(self):
-        for name in FORBIDDEN_NEUTRAL:
+    def test_contains_bootstrap_baseline_without_forced_sdd(self):
+        for name in FORBIDDEN_BASELINE:
             self.assertFalse((self.project / name).exists(), name)
         config = projectcfg.read_text(self.project / "config/project.yaml")
         self.assertIsNone(projectcfg.get(config, "sdd", "tool"))
+        self.assertTrue((self.project / "docs/GENERATOR_CONTRACT.md").is_file())
 
     def test_no_agent_installer_or_privilege_escalation(self):
         for path in self.project.rglob("*"):
