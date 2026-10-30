@@ -1,0 +1,24 @@
+# Single source of truth for project metadata. Keep this file simple:
+# scalar values and one JSON list per line under `checks`.
+schema_version: 1
+project:
+  name: "t0004-ai-project-generator"
+template:
+  source: https://github.com/maieuticus/t0003-ai-project-template
+  # Template release this project was copied from. Never equate it with the
+  # latest upstream release; `python scripts/update_check.py` compares both.
+  release: 0.1.0
+  base_commit: null
+  last_update_check: null
+sdd:
+  # Set only after the user approved the choice: speckit | openspec.
+  tool: null
+  version: null
+generator:
+  # Runtime metadata written by generator runs in generated projects.
+  # In this repository, implementation starts with version null.
+  version: null
+  modules: []
+# Project checks run by `python scripts/check.py`, one JSON list per line.
+# Example:  - ["python", "-m", "unittest", "discover"]
+checks: []
