@@ -6,18 +6,22 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 ## Aktueller Stand
 
-- Stand: _Datum_
-- Branch/Commit: _nach erstem Commit eintragen_
-- Aktive Aufgabe: Projekt gestartet, noch keine Projektidee erfasst.
-- Erledigt: –
-- Offen: Projektidee beschreiben, SDD-Werkzeug wählen, Architektur freigeben.
+- Stand: 2026-10-30
+- Branch/Commit: `chore/bootstrap-from-t0003-v0.1.0` / _wird beim Merge ergänzt_
+- Aktive Aufgabe: PR 1 Bootstrap von `t0003 v0.1.0` und Generator-Basisdokumente.
+- Erledigt:
+  - Repository aus `t0003`-Basisdateien initialisiert.
+  - Generator-Zweck in README, DV-Konzept und Metadaten verankert.
+- Offen:
+  - `docs/GENERATOR_CONTRACT.md` finalisieren und validieren.
+  - Checks/Tests auf Generator-Baseline anpassen und PR öffnen.
 - Blocker: keine
-- Letzte Prüfergebnisse: noch nicht ausgeführt
-- Nicht synchronisierte Änderungen: keine
+- Letzte Prüfergebnisse: ausstehend für diesen Branch
+- Nicht synchronisierte Änderungen: lokal, noch nicht gepusht
 
 ## Nächster Schritt
 
-Projektidee frei beschreiben; der Agent klärt danach Anforderungen und empfiehlt SDD-Werkzeug und Architektur.
+Generator-Vertrag und Test-/Check-Baseline abschließen, anschließend Branch pushen und PR erstellen.
 
 ## Entscheidungen und Quellen
 

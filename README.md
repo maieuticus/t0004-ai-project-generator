@@ -1,31 +1,28 @@
-# Projekt
+# t0004-ai-project-generator
 
-> Dieses Projekt wurde aus `t0003-ai-project-template` erstellt. Es ist technologieneutral:
-> Sprache, Datenbank und Architektur sind noch nicht festgelegt. Zuerst kommt die Idee.
+> Eigenständiges Generator-Repository auf Basis von `t0003-ai-project-template`.
+> Ziel ist eine sichere, nachvollziehbare Python-CLI mit `dry-run` als Standard.
 
 ## Einstieg
 
-1. Beschreibe deine Projektidee frei in einer Sitzung mit deinem KI-Agenten.
-2. Der Agent klärt Anforderungen, empfiehlt ein SDD-Werkzeug (Spec Kit oder OpenSpec) und
-   schlägt eine Architektur vor. Du gibst beides frei.
-3. Danach richtet der Agent nur das Nötige ein.
-
-Kurzanleitung: [docs/QUICKSTART.md](docs/QUICKSTART.md) · SDD-Wahl:
-[docs/SDD_QUICKSTART.md](docs/SDD_QUICKSTART.md)
+1. Regeln und Arbeitsstand lesen: `AGENTS.md`, `docs/PROJECT_HANDOFF.md`, `docs/DV_KONZEPT.md`.
+2. Generator-Vertrag prüfen: `docs/GENERATOR_CONTRACT.md`.
+3. Änderungen über den SDD-Ablauf planen und umsetzen.
 
 ## Wichtige Dateien
 
 | Datei | Zweck |
 |---|---|
 | [AGENTS.md](AGENTS.md) | Arbeitsregeln für alle KI-Agenten |
-| [docs/DV_KONZEPT.md](docs/DV_KONZEPT.md) | verbindliche Projektbeschreibung und Architektur |
-| [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md) | aktueller Arbeitsstand für die Übergabe |
+| [docs/DV_KONZEPT.md](docs/DV_KONZEPT.md) | verbindliche Generator-Ziele und Architektur |
+| [docs/GENERATOR_CONTRACT.md](docs/GENERATOR_CONTRACT.md) | CLI-Vertrag inkl. Dry-run/Apply/Backup-Rollback |
+| [docs/PROJECT_HANDOFF.md](docs/PROJECT_HANDOFF.md) | aktueller Arbeitsstand für Übergaben |
 | [config/project.yaml](config/project.yaml) | Projekt-, Template- und SDD-Metadaten |
-| [CHANGELOG.md](CHANGELOG.md) | Änderungen des Templates |
 
 ## Prüfen
 
 ```text
-python scripts/check.py        # Dokumente, Pflichtdateien, projektspezifische Prüfungen
-python scripts/status.py       # dokumentierten Arbeitsstand anzeigen
+python scripts/check.py
+python scripts/status.py
+python -m unittest discover -s .github/template-tests -v
 ```
