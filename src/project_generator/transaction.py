@@ -12,7 +12,7 @@ import stat
 from .config import ConfigurationError, VERSION
 from .plan import (
     BACKUP_PREFIX, MAX_CONFIG_BYTES, PathSafetyError, choose_backup_id, create_plan,
-    file_attributes, metadata_result, read_target,
+    file_attributes, metadata_result, read_target, _windows_security_component,
 )
 
 ID_PATTERN = re.compile(r"[0-9a-f]{32}")
@@ -249,6 +249,23 @@ def _replace(source: Path, target: Path) -> None:
     if os.name == "nt":
         from ctypes import wintypes
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+        advapi.GetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p,
+                                             wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+        advapi.GetFileSecurityW.restype = wintypes.BOOL
+        advapi.SetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p]
+        advapi.SetFileSecurityW.restype = wintypes.BOOL
+        size = wintypes.DWORD()
+        advapi.GetFileSecurityW(str(target), 4, None, 0, ctypes.byref(size))
+        if not size.value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        descriptor = ctypes.create_string_buffer(size.value)
+        if not advapi.GetFileSecurityW(str(target), 4, descriptor, size, ctypes.byref(size)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if not advapi.SetFileSecurityW(str(source), 4, descriptor):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if _windows_security_component(source, 4) != _windows_security_component(target, 4):
+            raise TransactionError("Windows-DACL der temporären Datei konnte nicht sicher übernommen werden.")
         kernel.ReplaceFileW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
                                         wintypes.DWORD, ctypes.c_void_p, ctypes.c_void_p]
         kernel.ReplaceFileW.restype = wintypes.BOOL
