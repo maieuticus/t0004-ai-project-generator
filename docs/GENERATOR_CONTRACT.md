@@ -118,6 +118,52 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Eine SDD-Auswahl wird auf Konsistenz und Versionsformat geprüft; ihre Laufzeit- und
   Integrationskompatibilität bleibt ausdrücklich ungeprüft. `plan` und `new` benötigen Git nicht.
 
+### Interne Mehrdatei-Pläne
+
+- Die bestehende Engine unterstützt intern Planformat 4 mit deterministisch sortierten
+  `create`- und `modify`-Operationen. Es gibt dafür noch keinen öffentlichen Planer oder
+  CLI-Einstieg: `new`, `plan` und das öffentliche `apply` bleiben bei Format 3. Format 4
+  wird ausschließlich mit vertrauenswürdigem, intern bereitgestelltem Operationsinhalt
+  erzeugt und angewendet; JSON-Planinhalte werden nicht als auszuführende Dateiinhalte
+  übernommen.
+- Format 4 bindet Generatorversion, Ausgangskonfiguration, Projekt- und Speicherort,
+  Operationen, Verzeichniszustände, Warnungen und Backup-ID an seine Plan-ID. Pro Datei
+  sind Aktion, relativer Pfad, Originalhash und Zugriffs-Fingerabdruck beziehungsweise
+  ausdrückliche Abwesenheit sowie der Hash des Ergebnisses enthalten. Dateiinhalt und
+  Zugriffsmetadaten selbst werden nicht ausgegeben.
+- Vor dem ersten Projekt-Schreibzugriff werden alle geplanten Dateien und Verzeichnisse
+  erneut geprüft und alle vorhandenen Originaldateien zusammen mit den Abwesenheiten in
+  einem geschützten Snapshot mit Manifestformat 3 dokumentiert. Das interne Apply berechnet
+  den gesamten Plan aus vertrauenswürdigen Operationen neu; Abweichungen verhindern
+  sämtliche Projektänderungen.
+- Relative Pfade sind auf portable ASCII-Namen und höchstens 16 Komponenten beziehungsweise
+  240 Zeichen begrenzt. Traversal, `.git`, Windows-Gerätenamen, nicht reguläre Dateien,
+  Symlinks/Junctions, Hardlinks, erkannte Dateisystemgrenzen sowie doppelte oder
+  plattformabhängig kollidierende Pfade sind nicht zulässig. Eine Transaktion umfasst
+  höchstens 32 Dateien und 64 Verzeichnisse; pro Datei sind höchstens 1 MiB und für
+  Original- beziehungsweise Zielinhalte jeweils insgesamt höchstens 8 MiB zulässig.
+  Bind-Mounts auf demselben Dateisystem sind nicht zuverlässig erkennbar.
+- Neue Dateien werden exklusiv erstellt. Fortschritt und lesbare Teilzustände werden im
+  geschützten Backup protokolliert. Das öffentliche `restore` unterstützt Manifestformat 3:
+  Es prüft zuerst sämtliche Dateien, Verzeichnisse, Zugriffsmetadaten und Originale.
+  Eine fremde Zwischenänderung verhindert die gesamte automatische Rücknahme. Ursprünglich
+  fehlende Dateien werden nur bei dokumentiertem Generatorzustand entfernt; neu angelegte
+  Verzeichnisse werden nur leer entfernt. Fremde Inhalte in ihnen bleiben erhalten.
+- Nach einem abgefangenen Fehler können dokumentierte Teilzustände erneut geprüft und
+  zurückgenommen werden. Bei abruptem Abbruch vor der Protokollierung oder wenn diese
+  fehlschlägt, kann manuelle Wiederherstellung nötig sein. Auch Restore selbst kann
+  teilweise scheitern; ein erneuter Aufruf prüft die verbleibenden Zustände. Ein
+  Mehrdatei-Apply oder -Restore ist nicht atomar.
+- Für eine zurückzunehmende Datei hat ein vorhandener protokollierter Teilzustand Vorrang
+  vor einem älteren Generatorergebnis. Weicht die Datei vom zuletzt protokollierten Zustand
+  ab, wird Restore verweigert, auch wenn sie wieder den alten Ergebnisbytes entspricht.
+  Ohne Dateiprotokoll kann der bekannte Ergebniszustand als Rückfall dienen; ursprünglich
+  fehlende Dateien benötigen weiterhin einen dokumentierten Generatorzustand.
+- Format-3-Pläne bleiben unter den bisherigen Versions- und Zustandsbedingungen ausführbar;
+  Manifestformat-2-Backups bleiben wiederherstellbar. Plan- und Backup-IDs sind
+  Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
+  denselben Bytes und Zugriffsmetadaten nicht von Generatorzuständen unterscheidbar.
+
 ## Sicherheit und Änderungsstrategie
 
 - Für jeden Aufruf von `apply` oder `restore` muss das Zielprojekt exklusiv genutzt werden:
@@ -161,13 +207,15 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Zugriffsmetadaten mit Fingerabdruck im geschützten Backup protokolliert. `restore` darf
   diesen Zustand nur zurücknehmen, wenn Inhalt und Rechte unverändert sind. Bei einem
   abrupten Abbruch vor der Protokollierung oder wenn die Protokollierung fehlschlägt,
-  muss ein Teilzustand manuell aus dem Snapshot wiederhergestellt werden.
+  muss ein Teilzustand manuell aus dem Snapshot wiederhergestellt werden. Auch bei
+  Manifestformat 2 hat ein vorhandenes Teilzustandsprotokoll Vorrang vor den älteren
+  Generator-Ergebnisbytes.
 - Die Zielzustandsprüfung nach `apply` und `restore` umfasst Dateiinhalt und
   Zugriffs-Fingerabdruck. Ein fehlgeschlagenes `apply` nennt die Backup-ID, sofern die
   Transaktion bereits begonnen wurde. Ist der Zielzustand weder Original, berechnetes
   Ergebnis noch protokollierter Teilzustand, ist nur manuelle Wiederherstellung zulässig.
   Gleiches gilt bei fremden Zwischenänderungen, geänderten Berechtigungen oder beschädigtem Backup.
-- `restore` ändert nur die geplante Datei, falls sie dem Generatorergebnis oder einem
+- Bei Manifestformat 2 ändert `restore` nur die geplante Datei, falls sie dem Generatorergebnis oder einem
   protokollierten Teilzustand entspricht;
   ein bereits wiederhergestellter Originalzustand ist ein No-op. Es löscht weder das
   Backup noch andere Dateien. Nicht abgeschlossene temporäre Dateien sind manuell zu

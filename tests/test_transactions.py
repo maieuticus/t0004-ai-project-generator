@@ -579,6 +579,23 @@ class Transactions(unittest.TestCase):
             transaction.restore(str(self.project), backup_id)
         self.assertEqual(self.config.read_bytes(), changed)
 
+    def test_foreign_return_to_generator_result_after_partial_apply_is_refused(self):
+        plan = self.plan()
+        result = transaction.metadata_result(self.original, installed_version())
+
+        def partial_write(source, target):
+            target.write_bytes(b"partial")
+            raise OSError("injected partial write")
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_write):
+            with self.assertRaises(transaction.TransactionError) as raised:
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        backup_id = self.backup_id(str(raised.exception))
+        self.config.write_bytes(result)
+        with self.assertRaisesRegex(transaction.TransactionError, "Fremde Zwischenänderung"):
+            transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), result)
+
     def test_low_level_write_failure_can_be_restored(self):
         plan = self.plan()
         original_open = Path.open
@@ -706,6 +723,25 @@ class Transactions(unittest.TestCase):
                 transaction.restore(str(self.project), backup_id)
         transaction.restore(str(self.project), backup_id)
         self.assertEqual(self.config.read_bytes(), self.original)
+
+    def test_foreign_return_to_generator_result_after_partial_restore_is_refused(self):
+        plan = self.plan()
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        backup_id = self.backup_id(applied.stdout)
+        result = self.config.read_bytes()
+
+        def partial_restore(source, target):
+            target.write_bytes(b"partial")
+            raise OSError("injected partial restore")
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_restore):
+            with self.assertRaisesRegex(transaction.TransactionError, "Teilzustand erfasst"):
+                transaction.restore(str(self.project), backup_id)
+        self.config.write_bytes(result)
+        with self.assertRaisesRegex(transaction.TransactionError, "Fremde Zwischenänderung"):
+            transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), result)
 
     @unittest.skipIf(os.name == "nt", "POSIX cross-device rename")
     def test_cross_device_fallback_and_hardlink_protection(self):

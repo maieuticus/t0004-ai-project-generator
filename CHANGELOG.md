@@ -7,6 +7,13 @@ Projektstruktur, Adapter, CI, Sicherheit, Breaking Changes, Migrationshinweise.
 ## [Unveröffentlicht]
 
 ### Sicherheit
+- Restore verweigert für beide Manifestformate auch dann eine zwischenzeitliche Änderung,
+  wenn diese nach einem protokollierten Teilzustand wieder dem älteren Generatorergebnis
+  entspricht.
+- Interne Mehrdatei-Transaktionen mit Planformat 4 und Manifestformat 3 prüfen sämtliche
+  Ausgangs- und Restore-Zustände, sichern vorhandene Dateien und erfassen fehlende Dateien
+  sowie Teilzustände. Die öffentlichen `new`-/`plan`-Befehle bleiben bei Format 3;
+  vorhandene Manifestformat-2-Backups bleiben lesbar. Keine Technologiemodule enthalten.
 - Installierbare Generator-CLI mit lokalem, lesendem Safety-Core-Plan. Planformat 3 erlaubt
   bestätigtes Apply der Metadatenoperation mit geschütztem Snapshot und konfliktbewusstem
   Restore. `new` erstellt denselben Plan für ein bereits vorhandenes t0003-Projekt; es erstellt

@@ -53,6 +53,11 @@ Version bereits aktuell, gibt es keine Operation und kein Backup. Profile, SDD-I
 Generator-Upgrades, eine schreibende Migration und das vollständige technologieabhängige `verify`
 sind nicht verfügbar.
 
+Die Transaktions-Engine unterstützt intern auch Mehrdatei-Pläne im Format 4. In dieser Etappe
+erzeugt kein öffentlicher Befehl solche Pläne; `plan` und `new` bleiben bei Format 3. Format 4
+wird ausschließlich mit künstlichen, vertrauenswürdig erzeugten Operationen getestet. Ein
+Python-Modul oder andere Technologieprofile sind noch nicht verfügbar.
+
 `migrate` untersucht auch Projekte ohne t0003-Konfiguration und vergleicht selektive Übernahme
 mit schrittweiser Anpassung. Der Bericht ist **kein Apply-Plan** und verändert keine Projektdateien.
 Er enthält nur feste Kategorien und Zählwerte, keine individuellen Dateinamen, Inhalte oder
