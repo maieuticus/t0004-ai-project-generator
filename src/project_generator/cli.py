@@ -16,8 +16,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="t0004-generator", description="t0004 generator safety core")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("version", help="installierte Generator-Version ausgeben")
-    for name in ("check", "plan"):
-        command = commands.add_parser(name, help="Projekt prüfen" if name == "check" else "lesenden Plan erstellen")
+    for name in ("check", "plan", "new"):
+        help_text = "Projekt prüfen" if name == "check" else "lesenden Plan erstellen"
+        command = commands.add_parser(name, help=help_text)
         command.add_argument("target", nargs="?", default=".", help="Zielprojekt (Standard: aktuelles Verzeichnis)")
         command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbare Ausgabe")
     command = commands.add_parser("apply", help="bestätigten Plan ausführen")
@@ -79,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             _, result = plan_target(args.target, version)
         _emit(result, args.as_json)
+        if args.command == "new" and not args.as_json and not result["conflicts"] and not result["operations"]:
+            print("Die Generator-Version ist bereits aktuell.")
         return 1 if result["conflicts"] else 0
     except (ConfigurationError, PathSafetyError) as error:
         print(f"Fehler: {error}", file=sys.stderr)
