@@ -90,7 +90,7 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 
 - `dry-run` ist der Standard und zeigt nur den Plan:
   - betroffene Dateien,
-  - Diffs/Änderungen,
+  - semantische Diffs für Format 3 beziehungsweise Aktionen und Fingerabdrücke für Format 4,
   - Konflikte und Abhängigkeiten.
 - Schreibender Modus (`apply`) ist explizit und setzt vorherige Freigabe voraus.
 - Planformat 3 beschreibt ausschließlich die tatsächliche Änderung von `generator.version`

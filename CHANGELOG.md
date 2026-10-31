@@ -11,6 +11,8 @@ Projektstruktur, Adapter, CI, Sicherheit, Breaking Changes, Migrationshinweise.
   `unittest`, Projektcheck und Ergänzung der bestehenden CI. Bestätigtes Apply und Restore
   verwenden die vorhandene Mehrdatei-Engine. Der geprüfte t0003-Check-/CI-Dateistand ist
   zusätzlich zum unveränderten Template-Release erforderlich.
+- Neue Projektchecks folgen bestehenden Checks; portable Namenskonflikte mit vorhandenen
+  Dateien und Verzeichnissen verhindern die Modultransaktion.
 
 ### Sicherheit
 - Restore verweigert für beide Manifestformate auch dann eine zwischenzeitliche Änderung,

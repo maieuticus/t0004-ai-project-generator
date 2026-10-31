@@ -90,7 +90,7 @@ t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <P
 t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 ```
 
-In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --json |
+In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --module python --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`
 verwenden. `apply` gibt die Backup-ID aus; `restore` behält das Backup zur manuellen Prüfung.
 Backups liegen standardmäßig in einem geschützten lokalen Speicher außerhalb von
