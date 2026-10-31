@@ -6,29 +6,30 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 ## Aktueller Stand
 
-- Stand: 2026-10-30
-- Branch/Commit: `docs/gate-a-adoption-plan` / `571aeb4` (PR #3)
-- Aktive Aufgabe: Gate-A-Dokumentation in PR #3 prüfen lassen.
+- Stand: 2026-10-31
+- Branch: `feat/safety-core-cli`, ausgehend von `main` / `c3f3e07` (gemergter PR #3);
+  tatsächlichen Commit- und Synchronisierungsstand mit Git prüfen.
+- Aktive Aufgabe: Safety-Core in PR #4 zu Issue #2 menschlich prüfen lassen.
 - Erledigt:
   - Repository aus `t0003`-Basisdateien initialisiert.
   - Generator-Zweck in README, DV-Konzept und Metadaten verankert.
-  - Gate-A-Übernahmematrix, Generator-Modi und PR-Reihenfolge verbindlich ergänzt.
+  - Gate-A-Übernahmematrix, Generator-Modi und PR-Reihenfolge verbindlich ergänzt und mit PR #3 gemergt.
   - Keycloak, Colyseus und API-Service-Rezept für Release 1 zurückgestellt.
+  - Installierbare CLI mit `version`, `check` und rein lesendem `plan` sowie fokussierte Tests
+    und CI-Ergänzung implementiert; t0003-Metadatenformat `v0.1.0` abgeglichen.
 - Offen:
-  - Dokumentations-PR #3 prüfen und mergen.
-  - Danach PR 2 vorbereiten: installierbare Python-CLI, Konfigurationsvertrag und nicht
-    mutierenden Plan-/Safety-Core festhalten. Die Modi `new` und `migrate` folgen gemäß der
-    genehmigten PR-Reihenfolge in [DV_KONZEPT.md](DV_KONZEPT.md).
+  - Review-Gate für PR #4; CI-Ergebnisse des aktuellen PR-Commitstands prüfen.
+  - Die Modi `new` und `migrate`, `apply`, Snapshot, Restore und Rollback folgen in separaten
+    freigegebenen Etappen.
 - Blocker: keine
-- Letzte Prüfergebnisse: 16 Baseline-Tests sowie die GitHub-Actions-Prüfungen unter Ubuntu und
-  Windows erfolgreich; generator-spezifische Funktionstests stehen noch aus.
-- Nicht synchronisierte Änderungen: keine; Dokumentationsbranch ist in PR #3 zur Prüfung geöffnet
+- Letzte Prüfergebnisse: 17 Safety-Core-Tests und 16 Baseline-Tests lokal sowie GitHub Actions
+  unter Ubuntu und Windows für Commit `b5fde81` erfolgreich (inklusive Windows-Symlinktest).
+  Nachfolgende Korrekturen müssen für den aktuellen PR-Commitstand erneut geprüft werden.
+- Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
 
-Nach dem Merge der Dokumentations-PR PR 2 vorbereiten: installierbare Python-CLI,
-Konfigurationsvertrag und nicht mutierenden Plan-/Safety-Core festhalten. Die Modi `new` und
-`migrate` folgen gemäß der genehmigten PR-Reihenfolge.
+CI des aktuellen PR-Commitstands prüfen und das Review-Gate für PR #4 durch den Menschen durchführen.
 
 ## Entscheidungen und Quellen
 
