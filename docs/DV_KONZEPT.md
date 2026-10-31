@@ -6,8 +6,8 @@ Verhaltensentscheidungen gelten erst nach Freigabe.
 ## Status dieses Dokuments
 
 Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge sind
-verbindlich. Der vorgezogene Safety-Core und sein bestätigtes Apply/Restore für eine
-Metadatenoperation decken nur Teil-Etappen ab; die vollständigen Generator-Modi sind offen.
+verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation; weitergehende
+Einrichtung und die übrigen Generator-Modi sind offen.
 
 ## Projektziel
 
@@ -33,7 +33,7 @@ Modularer Python-Kern mit optionalen Profilen/Modulen. Vertrag und Sicherheitsre
 | Bereich | Übernahmeentscheidung | Verbindliche Ausprägung für t0004 |
 |---|---|---|
 | Template-Basis | übernehmen | t0003 bleibt die neutrale, versionierte Projektbasis. |
-| Neuprojekt-Generator | separat umsetzen | Der Modus `new` erzeugt aus einer t0003-Basis ein neues Zielprojekt; `dry-run` bleibt Standard. |
+| Neuprojekt-Generator | separat umsetzen | Der Benutzer erstellt das Repository über GitHubs Template-Funktion aus t0003; `new` richtet das vorhandene Projekt optional ein. `dry-run` bleibt Standard. |
 | Bestandsmigration | separat umsetzen | Der Modus `migrate` beginnt mit einer ausschließlich lesenden Bestandsanalyse von Dokumenten, Code, Assets, Konfiguration und Tests; Secrets werden weder übernommen noch ausgegeben. |
 | Migrationsentscheidung | vergleichen, nicht vorwegnehmen | `migrate` vergleicht nachvollziehbar (A) neues t0003-Projekt mit selektivem Import und (B) In-place-Update. Er weist Risiken sowie Arbeits- und Tokenaufwand aus; die Umsetzung erfolgt erst nach Freigabe. |
 | CI | t0003-Basis erhalten | GitHub Actions aus t0003 bleibt die neutrale CI-Basis. t0004 ergänzt bei Bedarf technologieabhängige Jobs innerhalb dieser Struktur, nicht als konkurrierende CI. |
@@ -60,9 +60,10 @@ Die vier verpflichtenden Praxistests der abschließenden Etappe sind:
 Codespaces bleibt ein Plattformziel des Generatorvertrags und wird zusätzlich zur Vierer-Matrix
 geprüft, sobald die technische Ausführung dafür bereitsteht.
 
-Der Safety-Core und das bestätigte Apply/Restore für `generator.version` sind vorgezogene
-Teil-Etappen zu `new`. Sie implementieren weder den Modus `new` noch dessen vollständigen
-Freigabe-, Backup- und Rollback-Vertrag. Die oben genannten Abnahmekriterien bleiben offen.
+Der minimale `new`-Einstieg plant ausschließlich `generator.version` und verwendet den
+bestehenden Freigabe-, Backup- und Restore-Pfad. Er erstellt kein Repository und richtet
+keine Profile oder SDD-Werkzeuge ein. Weitergehende Einrichtung und die abschließenden
+Praxistests bleiben offen.
 
 ## Entwicklung und Betrieb
 
@@ -76,3 +77,4 @@ Template nur nach expliziter Auswahl eingerichtet.
 | 2026-10-30 | `t0004` als separates Generator-Repository auf Basis von `t0003 v0.1.0` starten | Nutzer |
 | 2026-10-30 | Gate-A-Übernahmematrix und PR-Reihenfolge einschließlich `new`, `migrate`, CI-Ergänzungen, `verify` und getrennter Releases freigegeben | Nutzer |
 | 2026-10-30 | Keycloak, Colyseus und API-Service-Rezept aus erstem Release zurückgestellt | Nutzer |
+| 2026-10-31 | GitHub erstellt das t0003-basierte Repository; `new` richtet das vorhandene Projekt optional ein | Nutzer |

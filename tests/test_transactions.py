@@ -52,9 +52,9 @@ class Transactions(unittest.TestCase):
             cwd=self.project, env=env, capture_output=True, text=True, encoding="utf-8",
         )
 
-    def plan(self):
+    def plan(self, command="plan"):
         before = self.config.read_bytes()
-        result = self.cli("plan", str(self.project), "--json")
+        result = self.cli(command, str(self.project), "--json")
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("secret-example", result.stdout)
         self.assertEqual(self.config.read_bytes(), before)
@@ -169,6 +169,44 @@ class Transactions(unittest.TestCase):
         repeated = self.cli("restore", str(self.project), "--backup", backup_id)
         self.assertEqual(repeated.returncode, 0, repeated.stderr)
         self.assertIn("keine Änderung", repeated.stdout)
+
+    def test_new_plan_apply_snapshot_and_restore(self):
+        before = {path.relative_to(self.project): path.read_bytes()
+                  for path in self.project.rglob("*") if path.is_file()}
+        plan = self.plan("new")
+        after = {path.relative_to(self.project): path.read_bytes()
+                 for path in self.project.rglob("*") if path.is_file()}
+        self.assertEqual(before, after)
+        self.assertFalse(self.backups.exists())
+        self.assertEqual(plan["format"], 3)
+        result = self.apply(plan)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        backup_id = self.backup_id(result.stdout)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
+        self.assertEqual((backup / "original").read_bytes(), self.original)
+        self.assertEqual(hashlib.sha256(self.config.read_bytes()).hexdigest(),
+                         plan["operations"][0]["after_sha256"])
+        restored = self.cli("restore", str(self.project), "--backup", backup_id)
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+        self.assertEqual(self.config.read_bytes(), self.original)
+
+    def test_tampered_new_plan_is_refused(self):
+        plan = self.plan("new")
+        plan["operations"][0]["path"] = "../outside"
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        result = self.apply(plan)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        self.assertFalse(self.backups.exists())
+
+    def test_stale_new_plan_preserves_foreign_changes(self):
+        plan = self.plan("new")
+        changed = self.original + b"# user edit\r\n"
+        self.config.write_bytes(changed)
+        result = self.apply(plan)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(self.config.read_bytes(), changed)
+        self.assertFalse(self.backups.exists())
 
     def test_snapshot_stays_outside_git_worktree_and_is_not_staged(self):
         subprocess.run(["git", "init", "-q", str(self.project)], check=True)

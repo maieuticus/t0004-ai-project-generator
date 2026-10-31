@@ -29,3 +29,4 @@ jobs:
       - run: t0004-generator version
       - run: t0004-generator check
       - run: t0004-generator plan
+      - run: t0004-generator new

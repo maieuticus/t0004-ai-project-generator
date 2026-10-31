@@ -9,19 +9,25 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - Jeder Fehler liefert einen klaren Exitcode und eine verwertbare Meldung.
 - Der installierbare Einstiegspunkt lautet `t0004-generator`. Der Safety-Core verwendet:
   `t0004-generator version`, `t0004-generator check [ZIELPROJEKT]` und
-  `t0004-generator plan [ZIELPROJEKT]`, `t0004-generator apply [ZIELPROJEKT] --plan DATEI
-  --confirm PLAN-ID` und `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
-  `--json` liefert bei `check` und `plan` eine maschinenlesbare Darstellung.
+  `t0004-generator plan [ZIELPROJEKT]`, `t0004-generator new [ZIELPROJEKT]`,
+  `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID` und
+  `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
+  `--json` liefert bei `check`, `plan` und `new` eine maschinenlesbare Darstellung.
 - Exitcodes: `0` erfolgreich, `1` bei Kompatibilitäts- oder Voraussetzungskonflikten,
   verweigerten Transaktionen oder Transaktionsfehlern, `2` bei ungültigen Argumenten,
   Pfaden oder Konfigurationen.
 
 ## Generator-Modi
 
-- `new` erstellt ein neues Zielprojekt aus einer kompatiblen t0003-Basis.
-- `migrate` prüft ein bestehendes Projekt zunächst ausschließlich lesend. Die Bestandsanalyse
-  umfasst Dokumente, Code, Assets, Konfiguration und Tests; Secrets werden weder übernommen noch
-  ausgegeben.
+- Der Benutzer erstellt ein Repository über GitHubs Template-Funktion aus t0003. `new`
+  richtet das vorhandene kompatible Projekt optional ein; es erstellt kein Repository.
+  Der derzeitige Einstieg ist lesend und erzeugt denselben Plan wie `plan`: ausschließlich
+  `generator.version` kann anschließend mit bestätigtem `apply` gesetzt werden. Bei bereits
+  aktueller Version ist der Plan ohne Operation und Backup. Profile, SDD-Initialisierung und
+  Generator-Upgrades sind nicht implementiert.
+- Das noch nicht implementierte `migrate` prüft ein bestehendes Projekt zunächst ausschließlich
+  lesend. Die Bestandsanalyse umfasst Dokumente, Code, Assets, Konfiguration und Tests; Secrets
+  werden weder übernommen noch ausgegeben.
 - Für `migrate` sind zwei Strategien verbindlich vergleichbar auszuweisen:
   - neues t0003-Projekt mit selektivem Import, bevorzugt für kleine Altprojekte;
   - In-place-Update, oft geeignet für etablierte Projekte.
@@ -60,7 +66,7 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   t0003 `0.1.0`; andere Versionen sind nicht als kompatibel nachgewiesen. Eine abweichende
   gespeicherte Generator-Version und nicht leere Modullisten sind Konflikte, keine Upgrades.
   Eine SDD-Auswahl wird auf Konsistenz und Versionsformat geprüft; ihre Laufzeit- und
-  Integrationskompatibilität bleibt ausdrücklich ungeprüft. `plan` benötigt Git nicht.
+  Integrationskompatibilität bleibt ausdrücklich ungeprüft. `plan` und `new` benötigen Git nicht.
 
 ## Sicherheit und Änderungsstrategie
 

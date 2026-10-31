@@ -37,23 +37,29 @@ python -m pip install .
 t0004-generator version
 t0004-generator check /pfad/zum/projekt
 t0004-generator plan /pfad/zum/projekt
+t0004-generator new /pfad/zum/projekt
 ```
 
+Für ein neues Projekt zuerst auf GitHub **Use this template** bei `t0003-ai-project-template`
+wählen und das erstellte Repository lokal öffnen. `new` richtet dieses vorhandene Projekt
+optional ein; es erstellt kein GitHub-Repository und greift nicht auf das Netzwerk zu.
+
 Unter Windows statt `/pfad/zum/projekt` einen Windows-Pfad angeben. Ohne Pfad wird das aktuelle
-Verzeichnis verwendet; `check` und `plan` unterstützen `--json`. Beide führen keine Befehle aus
-der Projektkonfiguration aus und greifen nicht auf das Netzwerk zu. `plan` schreibt nichts ins
-Zielprojekt. Der ausführbare Plan betrifft derzeit ausschließlich `generator.version`; `new`,
-Migration und das vollständige technologieabhängige `verify` sind noch nicht verfügbar.
+Verzeichnis verwendet; `check`, `plan` und `new` unterstützen `--json`. Sie führen keine Befehle
+aus der Projektkonfiguration aus. `new` und `plan` schreiben nichts ins Zielprojekt und liefern
+denselben Plan. Der ausführbare Plan betrifft ausschließlich `generator.version`: Ist die
+Version bereits aktuell, gibt es keine Operation und kein Backup. Profile, SDD-Initialisierung,
+Generator-Upgrades, Migration und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
 Beispiel unter Linux; Plan und bestätigte ID vor `apply` selbst prüfen:
 
 ```text
-t0004-generator plan /pfad/zum/projekt --json > /tmp/t0004-plan.json
+t0004-generator new /pfad/zum/projekt --json > /tmp/t0004-plan.json
 t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <Plan-ID>
 t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 ```
 
-In Windows PowerShell den Plan z. B. mit `t0004-generator plan C:\projekt --json |
+In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`
 verwenden. `apply` gibt die Backup-ID aus; `restore` behält das Backup zur manuellen Prüfung.
 Backups liegen standardmäßig in einem geschützten lokalen Speicher außerhalb von

@@ -57,8 +57,9 @@ class SafetyCoreCli(unittest.TestCase):
 
     def test_neutral_template_without_project_name_is_valid(self):
         self.change('name: "t0004-ai-project-generator"', 'name: ""')
-        result = self.run_cli("plan", "--json")
-        self.assertEqual(result.returncode, 0, result.stderr)
+        for command in ("plan", "new"):
+            result = self.run_cli(command, "--json")
+            self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_quoted_project_name_with_colon_is_valid(self):
         self.change('name: "t0004-ai-project-generator"', 'name: "Example: project"')
@@ -80,7 +81,7 @@ class SafetyCoreCli(unittest.TestCase):
         for before, after in cases:
             with self.subTest(before=before):
                 self.config.write_text(SOURCE_CONFIG.replace(before, after), encoding="utf-8")
-                for command in ("check", "plan"):
+                for command in ("check", "plan", "new"):
                     result = self.run_cli(command, "--json")
                     self.assertEqual(result.returncode, 2, result.stderr)
                     self.assertNotIn("SECRET-INVALID-VALUE", result.stdout + result.stderr)
@@ -92,8 +93,11 @@ class SafetyCoreCli(unittest.TestCase):
         before = {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob("*") if p.is_file()}
         first = self.run_cli("plan", "--json")
         second = self.run_cli("plan", str(self.project), "--json")
+        new = self.run_cli("new", str(self.project), "--json")
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertEqual(first.stdout, second.stdout)
+        self.assertEqual(new.returncode, 0, new.stderr)
+        self.assertEqual(first.stdout, new.stdout)
         plan = json.loads(first.stdout)
         self.assertTrue(plan["read_only"])
         self.assertEqual(plan["source_fingerprint"], hashlib.sha256(self.config.read_bytes()).hexdigest())
@@ -113,7 +117,7 @@ class SafetyCoreCli(unittest.TestCase):
 
     def test_secret_values_never_appear_in_plan_or_errors(self):
         self.change("version: null\n  modules", "version: null  # secret-example-value\n  modules")
-        for command in ("check", "plan"):
+        for command in ("check", "plan", "new"):
             result = self.run_cli(command, "--json")
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn("secret-example-value", result.stdout + result.stderr)
@@ -146,19 +150,19 @@ class SafetyCoreCli(unittest.TestCase):
                          "0ab4cb2a3100a73d1eb2a3833fb8df4897d51888a157733afbcf099e1955701f")
 
     def test_conflicts_exit_nonzero_and_never_propose_upgrade(self):
-        for before, after in [
-            ("release: 0.1.0", "release: 9.0.0"),
-            ("version: null\n  modules", 'version: "9.0.0"\n  modules'),
-            ("modules: []", 'modules: ["module@1.2.3"]'),
+        for before, after, conflict in [
+            ("release: 0.1.0", "release: 9.0.0", "template.release"),
+            ("version: null\n  modules", 'version: "9.0.0"\n  modules', "generator.version"),
+            ("modules: []", 'modules: ["module@1.2.3"]', "generator.modules"),
         ]:
             with self.subTest(after=after):
                 self.config.write_text(SOURCE_CONFIG.replace(before, after), encoding="utf-8")
-                for command in ("check", "plan"):
+                for command in ("check", "plan", "new"):
                     result = self.run_cli(command, "--json")
                     self.assertEqual(result.returncode, 1, result.stderr)
                     report = json.loads(result.stdout)
-                    self.assertTrue(report["conflicts"])
-                    if command == "plan":
+                    self.assertTrue(any(conflict in message for message in report["conflicts"]))
+                    if command in ("plan", "new"):
                         self.assertEqual(report["operations"], [])
 
     def test_recorded_current_version_needs_no_operation(self):
@@ -167,10 +171,17 @@ class SafetyCoreCli(unittest.TestCase):
         plan = json.loads(self.run_cli("plan", "--json").stdout)
         self.assertEqual(plan["operations"], [])
         self.assertEqual(plan["conflicts"], [])
+        new = self.run_cli("new", "--json")
+        self.assertEqual(new.returncode, 0, new.stderr)
+        self.assertEqual(json.loads(new.stdout), plan)
+        self.assertIsNone(json.loads(new.stdout)["backup"])
+        text = self.run_cli("new")
+        self.assertEqual(text.returncode, 0, text.stderr)
+        self.assertIn("bereits aktuell", text.stdout)
 
     def test_missing_prerequisite_is_a_conflict(self):
         (self.project / "README.md").unlink()
-        for command in ("check", "plan"):
+        for command in ("check", "plan", "new"):
             result = self.run_cli(command, "--json")
             self.assertEqual(result.returncode, 1, result.stderr)
             self.assertIn("README.md", json.loads(result.stdout)["conflicts"][0])
@@ -188,9 +199,10 @@ class SafetyCoreCli(unittest.TestCase):
 
     def test_unsafe_and_missing_paths(self):
         for target in (str(Path(self.project.anchor)), "../other", "missing"):
-            result = self.run_cli("plan", target)
-            self.assertEqual(result.returncode, 2, result.stderr)
-            self.assertNotIn("Traceback", result.stderr)
+            for command in ("plan", "new"):
+                result = self.run_cli(command, target)
+                self.assertEqual(result.returncode, 2, result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
 
     def test_config_symlink_and_linked_config_directory_rejected(self):
         target = Path(self.temp.name) / "outside.yaml"
@@ -200,15 +212,17 @@ class SafetyCoreCli(unittest.TestCase):
             self.config.symlink_to(target)
         except (OSError, NotImplementedError):
             self.skipTest("Symlinks not available on this platform")
-        result = self.run_cli("plan")
-        self.assertEqual(result.returncode, 2, result.stderr)
+        for command in ("plan", "new"):
+            result = self.run_cli(command)
+            self.assertEqual(result.returncode, 2, result.stderr)
         self.config.unlink()
         (self.project / "config").rmdir()
         outside = Path(self.temp.name) / "outside"
         outside.mkdir()
         (outside / "project.yaml").write_text(SOURCE_CONFIG, encoding="utf-8")
         (self.project / "config").symlink_to(outside, target_is_directory=True)
-        self.assertEqual(self.run_cli("plan").returncode, 2)
+        for command in ("plan", "new"):
+            self.assertEqual(self.run_cli(command).returncode, 2)
 
     def test_bad_arguments_and_non_utf8_config(self):
         self.assertEqual(self.run_cli("apply").returncode, 2)
