@@ -20,14 +20,16 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
     unterstützt. Mehrdatei-Änderungen sind nicht atomar; Einzelheiten und Grenzen stehen
     im Generator-Vertrag.
 - Offen:
-  - Linux-/Windows-CI und menschliches Review des PR-Kopfstands; nicht automatisch mergen.
+  - CI des endgültigen PR-Kopfstands und menschliches Review prüfen; nicht automatisch mergen.
   - Python-Modul, technologieabhängiges `verify`, Integration und Releases bleiben separate
     Etappen; t0003 bleibt unverändert.
 - Blocker: keine bekannten; tatsächlichen CI-, Git- und PR-Stand prüfen.
 - Prüfergebnisse: Lokal unter Linux 107 Generator-Tests erfolgreich, davon 6 Windows-Tests
   übersprungen. 16 Basistests erfolgreich, davon 3 netzwerkabhängige Tests im Offline-Modus
-  übersprungen. `python scripts/check.py` erfolgreich. Die Linux-/Windows-CI ist separat
-  auf dem tatsächlichen PR-Kopfstand zu prüfen.
+  übersprungen. `python scripts/check.py` erfolgreich. Die Linux-/Windows-CI für den
+  Implementierungscommit `19ebd81` war erfolgreich: jeweils 107 Generator-Tests (Linux:
+  6, Windows: 10 plattformbedingt übersprungen) und 16 Basistests ohne Überspringen. Bei
+  späteren Commits die CI des tatsächlichen PR-Kopfstands erneut prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
