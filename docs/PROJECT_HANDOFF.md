@@ -7,29 +7,27 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 ## Aktueller Stand
 
 - Stand: 2026-10-31
-- Branch: `feat/read-only-migrate`, ausgehend von `main` / `f4b4654` (PR #6 gemergt).
-- Aktive Aufgabe: Lesende Bestandsanalyse und Strategievergleich für `migrate`.
+- Branch: `feat/multi-file-operations`, ausgehend von `main` / `f7d32f9` (PR #7 gemergt).
+- Aktive Aufgabe: PR A für interne sichere Mehrdatei-Operationen.
 - Erledigt:
   - Safety-Core, bestätigtes Apply/Restore und minimaler `new`-Einstieg sind gemergt.
   - `migrate` liefert einen versionierten Analysebericht statt eines Apply-Plans und unterstützt
     Projekte ohne t0003-Metadaten. Eine schreibende Migration ist nicht implementiert.
-  - Die Analyse begrenzt Rekursion, Dateimengen und Git-Ressourcen, gibt nur feste Kategorien
-    und Zählwerte aus und nennt nicht geprüfte Bereiche und offene Entscheidungen.
-  - Der bestehende GitHub-Actions-Workflow führt den neuen Einstieg auf Linux und Windows aus.
+  - Die bestehende Engine unterstützt intern Format-4-Pläne und Manifestformat 3 für
+    mehrere Create-/Modify-Operationen, geschützte Snapshots und konfliktbewusstes Restore.
+    Öffentliche `new`-/`plan`-Befehle bleiben bei Format 3; ein Technologiemodul fehlt.
+  - Format-3-Pläne und Manifestformat-2-Backups bleiben unter den bisherigen Bedingungen
+    unterstützt. Mehrdatei-Änderungen sind nicht atomar; Einzelheiten und Grenzen stehen
+    im Generator-Vertrag.
 - Offen:
-  - CI des PR-Kopfstands und menschliches PR-Review; den PR nicht automatisch mergen.
-  - Weitergehende Einrichtung, technologieabhängiges `verify`, Integration und Releases bleiben
-    separate Etappen; t0003 bleibt unverändert.
-- Blocker: keine bekannten; CI- und PR-Stand über Git prüfen.
-- Prüfergebnisse: Lokal unter Linux 80 Generator-Tests (5 Windows-Tests übersprungen), 16
-  Basistests und `python scripts/check.py` erfolgreich; nach der Windows-Korrektur wurden die
-  gezielten Migrationstests erneut erfolgreich ausgeführt. Linux-/Windows-CI des aktuellen
-  PR-Kopfstands gesondert prüfen.
-  Der Codespaces-Praxistest für `migrate` auf Commit `31023f8` mit künstlichem Git-Projekt
-  bestätigte Text und JSON, Technologie- und Änderungsstatus, Strategien und Grenzen sowie
-  unveränderte Projektdateien und Git-Daten; die Testdaten wurden entfernt. Die damals
-  installierte CLI kannte `migrate` nicht; getestet wurde ihr Einstiegspunkt mit dem
-  PR-Quellcode über `PYTHONPATH`, ohne die Installation zu verändern.
+  - Linux-/Windows-CI und menschliches Review des PR-Kopfstands; nicht automatisch mergen.
+  - Python-Modul, technologieabhängiges `verify`, Integration und Releases bleiben separate
+    Etappen; t0003 bleibt unverändert.
+- Blocker: keine bekannten; tatsächlichen CI-, Git- und PR-Stand prüfen.
+- Prüfergebnisse: Lokal unter Linux 107 Generator-Tests erfolgreich, davon 6 Windows-Tests
+  übersprungen. 16 Basistests erfolgreich, davon 3 netzwerkabhängige Tests im Offline-Modus
+  übersprungen. `python scripts/check.py` erfolgreich. Die Linux-/Windows-CI ist separat
+  auf dem tatsächlichen PR-Kopfstand zu prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
@@ -44,5 +42,7 @@ Die verbindliche Gate-A-Matrix und PR-Reihenfolge stehen in
 
 ## Probleme
 
-Die Analyse setzt ein während des Aufrufs unverändertes Quellprojekt voraus. Lesebedingte
-Zugriffszeiten und Python-Bytecode sind im Generator-Vertrag beschrieben.
+Apply und Restore setzen exklusiven Projektzugriff während des jeweiligen Aufrufs voraus.
+Nach abruptem Abbruch oder fehlgeschlagener Protokollierung kann ein Teilzustand manuelle
+Wiederherstellung erfordern. Die lesende Migrationsanalyse setzt ein während ihres Aufrufs
+unverändertes Quellprojekt voraus.

@@ -8,7 +8,7 @@ import re
 import shutil
 import stat
 
-from .config import ConfigurationError, load_metadata
+from .config import ConfigurationError, VERSION, load_metadata
 
 SUPPORTED_TEMPLATE_RELEASES = {"0.1.0"}
 MAX_CONFIG_BYTES = 1024 * 1024
@@ -213,20 +213,21 @@ def _windows_check_streams(path: Path) -> None:
         kernel.FindClose(handle)
 
 
-def file_attributes(target: str) -> str:
+def path_attributes(path: Path, *, directory: bool = False) -> str:
     """Fingerprint access metadata without exporting its potentially sensitive contents."""
-    path = Path(target).expanduser().resolve(strict=True) / "config" / "project.yaml"
     info = path.lstat()
-    if not stat.S_ISREG(info.st_mode):
-        raise PathSafetyError("config/project.yaml muss eine reguläre Datei sein.")
+    if (not (stat.S_ISDIR(info.st_mode) if directory else stat.S_ISREG(info.st_mode))
+            or getattr(info, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)):
+        raise PathSafetyError("Pfad ist keine sichere reguläre Datei oder kein sicheres Verzeichnis.")
     attributes = {"mode": stat.S_IMODE(info.st_mode)}
     if os.name == "nt":
-        if info.st_nlink != 1:
+        if not directory and info.st_nlink != 1:
             raise PathSafetyError("Windows-Dateien mit mehreren oder unbekannten Hardlinks werden nicht unterstützt.")
         supported_flags = 0x2 | 0x4 | 0x20 | 0x80 | 0x100 | 0x2000
-        if info.st_file_attributes & ~supported_flags:
+        if not directory and info.st_file_attributes & ~supported_flags:
             raise PathSafetyError("Windows-Dateiattribute werden für sichere Ersetzung nicht unterstützt.")
-        _windows_check_streams(path)
+        if not directory:
+            _windows_check_streams(path)
         attributes["file_flags"] = info.st_file_attributes
         descriptor = _windows_security_component(path, 7)
         attributes["security"] = hashlib.sha256(descriptor.encode("utf-8")).hexdigest()
@@ -240,6 +241,11 @@ def file_attributes(target: str) -> str:
             }
     encoded = json.dumps(attributes, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("ascii")).hexdigest()
+
+
+def file_attributes(target: str) -> str:
+    path = Path(target).expanduser().resolve(strict=True) / "config" / "project.yaml"
+    return path_attributes(path)
 
 
 def choose_backup_id(content: bytes, version: str, attributes: str | None,
@@ -320,6 +326,159 @@ def plan_target(target: str, generator_version: str, backup_id: str | None = Non
         backup_id = choose_backup_id(content, generator_version, attributes, target)
     return content, create_plan(content, generator_version, missing, attributes, backup_id,
                                 _location_fingerprint(root), _location_fingerprint(store), legacy_backups)
+
+
+def _relative_operation_path(value: str) -> str:
+    if not isinstance(value, str) or not value or len(value) > 240:
+        raise PathSafetyError("Ungültiger relativer Operationspfad.")
+    parts = value.split("/")
+    if len(parts) > 16:
+        raise PathSafetyError("Operationspfad ist zu tief verschachtelt.")
+    reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
+                *(f"LPT{i}" for i in range(1, 10))}
+    for part in parts:
+        if (not part or part in {".", ".."} or part.endswith((" ", "."))
+                or len(part) > 255 or not re.fullmatch(r"[A-Za-z0-9_. -]+", part)
+                or part.casefold() == ".git" or part.split(".", 1)[0].upper() in reserved):
+            raise PathSafetyError("Unsicherer relativer Operationspfad.")
+    return value
+
+
+def _operation_paths(changes: list[tuple[str, str, bytes]]) -> list[tuple[str, str, bytes]]:
+    if not isinstance(changes, list) or not 1 <= len(changes) <= 32:
+        raise PathSafetyError("Eine Transaktion benötigt zwischen 1 und 32 Operationen.")
+    ordered = []
+    for change in changes:
+        if not isinstance(change, tuple) or len(change) != 3:
+            raise PathSafetyError("Ungültige Operation.")
+        name, action, content = change
+        name = _relative_operation_path(name)
+        if (not isinstance(action, str) or action not in {"create", "modify"}
+                or not isinstance(content, bytes) or len(content) > MAX_CONFIG_BYTES):
+            raise PathSafetyError("Ungültige Operation oder zu großer Dateiinhalt.")
+        ordered.append((name, action, content))
+    ordered.sort(key=lambda item: item[0].lower())
+    keys = [name.lower() for name, _, _ in ordered]
+    key_set = set(keys)
+    if (len(key_set) != len(keys)
+            or any("/".join(key.split("/")[:index]) in key_set
+                   for key in keys for index in range(1, len(key.split("/"))))):
+        raise PathSafetyError("Operationspfade sind doppelt oder überschneiden sich.")
+    spellings = {}
+    for name, _, _ in ordered:
+        parts = name.split("/")
+        for index in range(1, len(parts) + 1):
+            part = "/".join(parts[:index])
+            previous = spellings.setdefault(part.lower(), part)
+            if previous != part:
+                raise PathSafetyError("Operationspfade kollidieren auf anderen Plattformen.")
+    if sum(len(content) for _, _, content in ordered) > 8 * MAX_CONFIG_BYTES:
+        raise PathSafetyError("Die geplanten Dateiinhalte überschreiten die zulässige Gesamtgröße.")
+    return ordered
+
+
+def _directory_states(root: Path, names: list[str]) -> list[dict[str, str | None]]:
+    directories = {"."}
+    for name in names:
+        parts = name.split("/")[:-1]
+        directories.update("/".join(parts[:index]) for index in range(1, len(parts) + 1))
+    states = []
+    root_device = root.lstat().st_dev
+    for name in sorted(directories, key=lambda value: (value.count("/"), value.lower())):
+        path = root if name == "." else root.joinpath(*name.split("/"))
+        try:
+            attributes = path_attributes(path, directory=True)
+            if path.lstat().st_dev != root_device:
+                raise PathSafetyError("Dateisystemgrenzen innerhalb des Projekts werden nicht unterstützt.")
+        except FileNotFoundError:
+            attributes = None
+        states.append({"path": name, "before_attributes": attributes})
+    return states
+
+
+def _operation_state(root: Path, name: str) -> tuple[bytes | None, str | None]:
+    path = root.joinpath(*name.split("/"))
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None, None
+    if info.st_dev != root.lstat().st_dev:
+        raise PathSafetyError("Dateisystemgrenzen innerhalb des Projekts werden nicht unterstützt.")
+    if info.st_nlink != 1:
+        raise PathSafetyError("Dateien mit mehreren oder unbekannten Hardlinks werden nicht unterstützt.")
+    attributes = path_attributes(path)
+    flags = (os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+             | getattr(os, "O_NONBLOCK", 0))
+    with os.fdopen(os.open(path, flags), "rb") as file:
+        if not stat.S_ISREG(os.fstat(file.fileno()).st_mode):
+            raise PathSafetyError("Operationsziel ist keine reguläre Datei.")
+        content = file.read(MAX_CONFIG_BYTES + 1)
+    if len(content) > MAX_CONFIG_BYTES:
+        raise PathSafetyError("Operationsziel überschreitet die zulässige Größe.")
+    return content, attributes
+
+
+def _canonical_id(identity: dict[str, object]) -> str:
+    encoded = json.dumps(identity, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def multi_plan_target(target: str, generator_version: str, changes: list[tuple[str, str, bytes]],
+                      backup_id: str | None = None) -> dict[str, object]:
+    """Build an internal format-4 plan from trusted, already-rendered operations."""
+    if not isinstance(generator_version, str) or not VERSION.fullmatch(generator_version):
+        raise PathSafetyError("Ungültige Generatorversion.")
+    content, missing = read_target(target)
+    _, conflicts, warnings = assess(content, generator_version, missing)
+    if conflicts:
+        raise PathSafetyError("Projektkonflikte verhindern die Planung.")
+    ordered = _operation_paths(changes)
+    root = Path(target).expanduser().resolve(strict=True)
+    store = backup_store(target)
+    if any(re.fullmatch(r"\.t0004-backup-[0-9a-f]{32}", entry.name, re.IGNORECASE)
+           for entry in root.iterdir()):
+        raise PathSafetyError("Altes Backup im Zielprojekt muss zunächst geschützt gesichert werden.")
+    directories = _directory_states(root, [name for name, _, _ in ordered])
+    if len(directories) > 64:
+        raise PathSafetyError("Die Transaktion betrifft zu viele Verzeichnisse.")
+    operations = []
+    total_original = 0
+    for name, action, result in ordered:
+        original, attributes = _operation_state(root, name)
+        if (action == "create") != (original is None):
+            raise PathSafetyError("Operationsziel entspricht nicht dem erwarteten Ausgangszustand.")
+        total_original += len(original) if original is not None else 0
+        operations.append({
+            "path": name, "action": action,
+            "before_sha256": hashlib.sha256(original).hexdigest() if original is not None else None,
+            "before_attributes": attributes,
+            "after_sha256": hashlib.sha256(result).hexdigest(),
+        })
+    if total_original > 8 * MAX_CONFIG_BYTES:
+        raise PathSafetyError("Die Originaldateien überschreiten die zulässige Gesamtgröße.")
+    identity = {
+        "format": 4,
+        "generator_version": generator_version,
+        "source_sha256": hashlib.sha256(content).hexdigest(),
+        "source_attributes": file_attributes(target),
+        "project_fingerprint": _location_fingerprint(root),
+        "storage_fingerprint": _location_fingerprint(store),
+        "operations": operations,
+        "directories": directories,
+        "warnings": warnings,
+    }
+    if backup_id is None:
+        for counter in range(1024):
+            candidate = _canonical_id({"identity": identity, "counter": counter})[:32]
+            if not os.path.lexists(store / (BACKUP_PREFIX + candidate)):
+                backup_id = candidate
+                break
+        else:
+            raise PathSafetyError("Kein freier Backup-Pfad verfügbar.")
+    if not re.fullmatch(r"[0-9a-f]{32}", backup_id):
+        raise PathSafetyError("Ungültige Backup-ID.")
+    identity["backup"] = {"id": backup_id, "before": "not_exists"}
+    return {**identity, "plan_id": _canonical_id(identity), "read_only": True}
 
 
 def check_prerequisites() -> list[str]:

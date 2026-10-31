@@ -9,6 +9,8 @@ Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge s
 verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation; `migrate`
 liefert eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration. Weitergehende
 Einrichtung und die übrigen Generator-Modi sind offen.
+Für die nächste Etappe ist die interne Erweiterung der bestehenden Transaktions-Engine um
+Mehrdatei-Operationen freigegeben. Sie führt noch kein Technologiemodul oder neuen CLI-Modus ein.
 
 ## Projektziel
 
@@ -79,3 +81,4 @@ Template nur nach expliziter Auswahl eingerichtet.
 | 2026-10-30 | Gate-A-Übernahmematrix und PR-Reihenfolge einschließlich `new`, `migrate`, CI-Ergänzungen, `verify` und getrennter Releases freigegeben | Nutzer |
 | 2026-10-30 | Keycloak, Colyseus und API-Service-Rezept aus erstem Release zurückgestellt | Nutzer |
 | 2026-10-31 | GitHub erstellt das t0003-basierte Repository; `new` richtet das vorhandene Projekt optional ein | Nutzer |
+| 2026-10-31 | PR A erweitert die bestehende Engine um sichere interne Mehrdatei-Operationen; Technologieauswahl bleibt eine separate Etappe | Nutzer |

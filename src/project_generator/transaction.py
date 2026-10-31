@@ -13,7 +13,8 @@ import stat
 from .config import ConfigurationError, VERSION
 from .plan import (
     BACKUP_PREFIX, MAX_CONFIG_BYTES, PathSafetyError, _location_fingerprint, backup_store,
-    create_plan, file_attributes, metadata_result, plan_target, read_target,
+    _canonical_id, _directory_states, _operation_paths, _operation_state, create_plan,
+    file_attributes, metadata_result, multi_plan_target, path_attributes, plan_target, read_target,
 )
 
 ID_PATTERN = re.compile(r"[0-9a-f]{32}")
@@ -260,16 +261,19 @@ def _write_new(path: Path, content: bytes) -> None:
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
     flags |= getattr(os, "O_NOFOLLOW", 0)
     fd = os.open(path, flags, 0o600)
-    if os.name == "nt":
-        try:
+    try:
+        if os.name == "nt":
             _windows_check_private_acl(path, directory=False)
-        except (OSError, TransactionError):
+        with os.fdopen(fd, "wb") as file:
+            fd = None
+            file.write(content)
+            file.flush()
+            os.fsync(file.fileno())
+    except BaseException:
+        if fd is not None:
             os.close(fd)
-            raise
-    with os.fdopen(fd, "wb") as file:
-        file.write(content)
-        file.flush()
-        os.fsync(file.fileno())
+        path.unlink(missing_ok=True)
+        raise
 
 
 def _sync_directory(path: Path) -> None:
@@ -430,6 +434,307 @@ def apply(target: str, plan_file: str, confirmation: str, version: str) -> str:
     return backup_id
 
 
+def _multi_progress(backup: Path, progress: dict) -> None:
+    temporary = backup / "progress.tmp"
+    _write_new(temporary, json.dumps(progress, sort_keys=True).encode("utf-8"))
+    try:
+        os.replace(temporary, backup / "progress.json")
+    finally:
+        temporary.unlink(missing_ok=True)
+    _sync_directory(backup)
+
+
+def _multi_record_file(root: Path, backup: Path, progress: dict, operation: dict) -> None:
+    content, attributes = _operation_state(root, operation["path"])
+    if content is None:
+        if operation["action"] == "modify":
+            raise TransactionError("Geänderte Datei fehlt; Teilzustand kann nicht erfasst werden.")
+        return
+    if operation["action"] == "modify" and attributes != operation["before_attributes"]:
+        raise TransactionError("Geänderte Zugriffsmetadaten verhindern die Erfassung des Teilzustands.")
+    progress["files"][operation["path"]] = {"sha256": _digest(content), "attributes": attributes}
+    _multi_progress(backup, progress)
+
+
+def _multi_record_directory(root: Path, backup: Path, progress: dict, name: str) -> None:
+    attributes = path_attributes(root.joinpath(*name.split("/")), directory=True)
+    progress["directories"][name] = attributes
+    _multi_progress(backup, progress)
+
+
+def _multi_create(path: Path, content: bytes, opened: list[bool]) -> None:
+    flags = (os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+             | getattr(os, "O_NOFOLLOW", 0))
+    fd = os.open(path, flags, 0o666)
+    opened[0] = True
+    with os.fdopen(fd, "wb") as file:
+        file.write(content)
+        file.flush()
+        os.fsync(file.fileno())
+    _sync_directory(path.parent)
+
+
+def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
+                changes: list[tuple[str, str, bytes]]) -> str:
+    """Apply a format-4 plan against operations supplied by trusted generator code."""
+    if not isinstance(confirmation, str) or not PLAN_PATTERN.fullmatch(confirmation):
+        raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
+    try:
+        ordered = _operation_paths(changes)
+        expected = multi_plan_target(target, version, changes)
+        canonical = lambda plan: json.dumps(plan, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+        if (not hmac.compare_digest(confirmation, expected["plan_id"])
+                or canonical(supplied) != canonical(expected)):
+            raise TransactionError("Plan ist verändert, veraltet oder nicht mit der bestätigten ID identisch.")
+    except (PathSafetyError, ConfigurationError, OSError, TypeError, ValueError) as error:
+        if isinstance(error, TransactionError):
+            raise
+        raise TransactionError(f"Mehrdatei-Plan kann nicht geprüft werden: {_error_detail(error)}") from error
+
+    root = Path(target).expanduser().resolve(strict=True)
+    store = backup_store(target)
+    backup_id = expected["backup"]["id"]
+    backup = store / (BACKUP_PREFIX + backup_id)
+    progress = {"format": 1, "plan_id": expected["plan_id"], "files": {}, "directories": {}}
+    manifest = {"format": 3, "plan": expected}
+    active_operation = None
+    active_directory = None
+    opened = [False]
+    project_write_started = False
+    try:
+        _prepare_store(target)
+        _private_mkdir(backup)
+        for index, operation in enumerate(expected["operations"]):
+            original, attributes = _operation_state(root, operation["path"])
+            if operation["action"] == "modify":
+                if (original is None or _digest(original) != operation["before_sha256"]
+                        or attributes != operation["before_attributes"]):
+                    raise TransactionError("Dateizustand hat sich vor dem Snapshot geändert.")
+                _write_new(backup / f"original-{index:02d}", original)
+            elif original is not None:
+                raise TransactionError("Neue Datei ist vor dem Snapshot bereits vorhanden.")
+        _write_new(backup / "manifest.json", json.dumps(manifest, sort_keys=True).encode("utf-8"))
+        _multi_progress(backup, progress)
+        _sync_directory(backup)
+        _sync_directory(store)
+        if multi_plan_target(target, version, changes, backup_id) != expected:
+            raise TransactionError("Projektzustand hat sich vor apply geändert.")
+        for directory in expected["directories"]:
+            if directory["before_attributes"] is not None:
+                continue
+            name = directory["path"]
+            path = root.joinpath(*name.split("/"))
+            path.mkdir()
+            active_directory = name
+            project_write_started = True
+            _sync_directory(path.parent)
+            _multi_record_directory(root, backup, progress, name)
+            active_directory = None
+        for operation, (_, _, result) in zip(expected["operations"], ordered):
+            active_operation = operation
+            opened[0] = False
+            path = root.joinpath(*operation["path"].split("/"))
+            project_write_started = True
+            if operation["action"] == "create":
+                _multi_create(path, result, opened)
+            else:
+                _stage_and_replace(backup, path, result)
+            actual, attributes = _operation_state(root, operation["path"])
+            if (actual is None or _digest(actual) != operation["after_sha256"]
+                    or (operation["action"] == "modify" and attributes != operation["before_attributes"])):
+                raise TransactionError("Zielzustand nach apply stimmt nicht mit dem Plan überein.")
+            _multi_record_file(root, backup, progress, operation)
+            active_operation = None
+    except (OSError, TransactionError, PathSafetyError, ConfigurationError) as error:
+        note = ""
+        try:
+            if active_directory is not None:
+                _multi_record_directory(root, backup, progress, active_directory)
+            if active_operation is not None and (active_operation["action"] == "modify" or opened[0]):
+                _multi_record_file(root, backup, progress, active_operation)
+            if project_write_started:
+                note = " Erfasste Teilzustände stehen im Protokoll; restore prüft alle Zustände vor der Rücknahme."
+            else:
+                note = " Das Ziel wurde nicht geschrieben; das Backup kann unvollständig sein."
+        except (OSError, TransactionError, PathSafetyError, ConfigurationError):
+            note = " Teilzustand nicht sicher erfasst; manuelle Wiederherstellung kann nötig sein."
+        raise TransactionError(
+            f"Apply nicht abgeschlossen: {_error_detail(error)}. Backup-ID: {backup_id}."
+            f" Projekt und Backup prüfen.{note}"
+        ) from error
+    return backup_id
+
+
+def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str,
+                           manifest: dict) -> tuple[dict, dict, list[bytes | None]]:
+    if set(manifest) != {"format", "plan"} or type(manifest["format"]) is not int or manifest["format"] != 3:
+        raise TransactionError("Mehrdatei-Manifest ist ungültig.")
+    plan = manifest["plan"]
+    fields = {"format", "generator_version", "source_sha256", "source_attributes",
+              "project_fingerprint", "storage_fingerprint", "operations", "directories",
+              "warnings", "backup", "plan_id", "read_only"}
+    if not isinstance(plan, dict) or set(plan) != fields:
+        raise TransactionError("Mehrdatei-Plan im Backup ist ungültig.")
+    identity = {key: value for key, value in plan.items() if key not in {"plan_id", "read_only"}}
+    if (type(plan["format"]) is not int or plan["format"] != 4 or plan["read_only"] is not True
+            or not isinstance(plan["generator_version"], str)
+            or not VERSION.fullmatch(plan["generator_version"])
+            or plan["project_fingerprint"] != _location_fingerprint(root)
+            or plan["storage_fingerprint"] != _location_fingerprint(store)
+            or plan["backup"] != {"id": backup_id, "before": "not_exists"}
+            or not isinstance(plan["plan_id"], str) or plan["plan_id"] != _canonical_id(identity)
+            or not isinstance(plan["warnings"], list)
+            or not all(isinstance(item, str) for item in plan["warnings"])
+            or not all(isinstance(plan[key], str) and PLAN_PATTERN.fullmatch(plan[key])
+                       for key in ("source_sha256", "source_attributes"))):
+        raise TransactionError("Mehrdatei-Plan oder Backup-Bindung ist ungültig.")
+    operations = plan["operations"]
+    if not isinstance(operations, list):
+        raise TransactionError("Mehrdatei-Operationen sind ungültig.")
+    changes = []
+    for operation in operations:
+        if not isinstance(operation, dict) or set(operation) != {
+            "path", "action", "before_sha256", "before_attributes", "after_sha256"
+        }:
+            raise TransactionError("Mehrdatei-Operation ist ungültig.")
+        changes.append((operation["path"], operation["action"], b""))
+        if not isinstance(operation["after_sha256"], str) or not PLAN_PATTERN.fullmatch(operation["after_sha256"]):
+            raise TransactionError("Ziel-Fingerabdruck ist ungültig.")
+        if operation["action"] == "create":
+            if operation["before_sha256"] is not None or operation["before_attributes"] is not None:
+                raise TransactionError("Ausgangszustand einer neuen Datei ist ungültig.")
+        elif not all(isinstance(operation[key], str) and PLAN_PATTERN.fullmatch(operation[key])
+                     for key in ("before_sha256", "before_attributes")):
+            raise TransactionError("Ausgangszustand einer vorhandenen Datei ist ungültig.")
+    if _operation_paths(changes) != changes:
+        raise TransactionError("Mehrdatei-Operationen sind nicht eindeutig sortiert.")
+    directory_names = {"."}
+    for operation in operations:
+        parts = operation["path"].split("/")[:-1]
+        directory_names.update("/".join(parts[:index]) for index in range(1, len(parts) + 1))
+    directories = plan["directories"]
+    if (not isinstance(directories, list)
+            or len(directories) > 64
+            or any(not isinstance(item, dict) or set(item) != {"path", "before_attributes"}
+                   for item in directories)
+            or [item["path"] for item in directories]
+            != sorted(directory_names, key=lambda value: (value.count("/"), value.lower()))
+            or any(item["before_attributes"] is not None
+                   and (not isinstance(item["before_attributes"], str)
+                        or not PLAN_PATTERN.fullmatch(item["before_attributes"])) for item in directories)
+            or directories[0]["before_attributes"] is None):
+        raise TransactionError("Verzeichniszustände im Mehrdatei-Plan sind ungültig.")
+    progress = _json_object(_read_file(backup / "progress.json", MAX_PLAN_BYTES, private=True))
+    if (set(progress) != {"format", "plan_id", "files", "directories"}
+            or type(progress["format"]) is not int or progress["format"] != 1
+            or progress["plan_id"] != plan["plan_id"]
+            or not isinstance(progress["files"], dict) or not isinstance(progress["directories"], dict)
+            or not set(progress["files"]).issubset({item["path"] for item in operations})
+            or not set(progress["directories"]).issubset(
+                {item["path"] for item in directories if item["before_attributes"] is None})):
+        raise TransactionError("Mehrdatei-Protokoll ist ungültig.")
+    for state in progress["files"].values():
+        if (not isinstance(state, dict) or set(state) != {"sha256", "attributes"}
+                or not all(isinstance(state[key], str) and PLAN_PATTERN.fullmatch(state[key])
+                           for key in ("sha256", "attributes"))):
+            raise TransactionError("Dateizustand im Mehrdatei-Protokoll ist ungültig.")
+    for operation in operations:
+        state = progress["files"].get(operation["path"])
+        if state and operation["action"] == "modify" and state["attributes"] != operation["before_attributes"]:
+            raise TransactionError("Zugriffsmetadaten im Mehrdatei-Protokoll sind ungültig.")
+    if any(not isinstance(value, str) or not PLAN_PATTERN.fullmatch(value)
+           for value in progress["directories"].values()):
+        raise TransactionError("Verzeichniszustand im Mehrdatei-Protokoll ist ungültig.")
+    originals = []
+    for index, operation in enumerate(operations):
+        if operation["action"] == "create":
+            originals.append(None)
+        else:
+            original = _read_file(backup / f"original-{index:02d}", MAX_CONFIG_BYTES, private=True)
+            if _digest(original) != operation["before_sha256"]:
+                raise TransactionError("Originaldatei im Mehrdatei-Backup ist verändert.")
+            originals.append(original)
+    return plan, progress, originals
+
+
+def _restore_multi(root: Path, store: Path, backup: Path, backup_id: str, manifest: dict) -> str:
+    plan, progress, originals = _validate_multi_backup(root, store, backup, backup_id, manifest)
+    directories = _directory_states(root, [operation["path"] for operation in plan["operations"]])
+    for expected, current in zip(plan["directories"], directories):
+        before = expected["before_attributes"]
+        actual = current["before_attributes"]
+        if before is not None:
+            if actual != before:
+                raise TransactionError("Verzeichnis oder Zugriffsmetadaten wurden zwischenzeitlich geändert.")
+        elif actual is not None and actual != progress["directories"].get(expected["path"]):
+            raise TransactionError("Neues Verzeichnis ist nicht als Generatorzustand nachgewiesen.")
+    states = []
+    for operation, original in zip(plan["operations"], originals):
+        content, attributes = _operation_state(root, operation["path"])
+        if content is None:
+            if original is not None:
+                raise TransactionError("Vorhandene Datei fehlt; keine automatische Wiederherstellung.")
+            states.append("original")
+            continue
+        digest = _digest(content)
+        if original is not None and digest == operation["before_sha256"] and attributes == operation["before_attributes"]:
+            states.append("original")
+            continue
+        recorded = progress["files"].get(operation["path"])
+        expected_result = (original is not None and digest == operation["after_sha256"]
+                           and attributes == operation["before_attributes"])
+        if not expected_result and recorded != {"sha256": digest, "attributes": attributes}:
+            raise TransactionError("Fremde Zwischenänderung; keine automatische Wiederherstellung.")
+        states.append("changed")
+
+    active = None
+    try:
+        for operation, original, state in zip(plan["operations"], originals, states):
+            if state == "original":
+                continue
+            active = operation
+            path = root.joinpath(*operation["path"].split("/"))
+            if original is None:
+                path.unlink()
+                _sync_directory(path.parent)
+                if os.path.lexists(path):
+                    raise TransactionError("Neue Datei konnte nicht sicher entfernt werden.")
+            else:
+                _stage_and_replace(backup, path, original)
+                restored, attributes = _operation_state(root, operation["path"])
+                if restored != original or attributes != operation["before_attributes"]:
+                    raise TransactionError("Wiederhergestellter Dateizustand stimmt nicht mit dem Backup überein.")
+            active = None
+        remaining = []
+        for directory in reversed(plan["directories"]):
+            if directory["before_attributes"] is not None:
+                continue
+            path = root.joinpath(*directory["path"].split("/"))
+            if not os.path.lexists(path):
+                continue
+            try:
+                path.rmdir()
+                _sync_directory(path.parent)
+            except OSError as error:
+                if error.errno not in (errno.ENOTEMPTY, errno.EEXIST):
+                    raise
+                remaining.append(directory["path"])
+        if remaining:
+            return "Dateien wiederhergestellt; nicht leere Verzeichnisse bleiben erhalten."
+        if all(state == "original" for state in states):
+            return "Bereits im ursprünglichen Zustand; keine Änderung."
+        return "Ursprüngliche Dateizustände wiederhergestellt."
+    except (OSError, TransactionError, PathSafetyError) as error:
+        note = ""
+        if active is not None and active["action"] == "modify":
+            try:
+                _multi_record_file(root, backup, progress, active)
+                note = " Teilzustand erfasst; restore kann erneut geprüft werden."
+            except (OSError, TransactionError, PathSafetyError):
+                note = " Teilzustand nicht sicher erfasst; manuelle Wiederherstellung kann nötig sein."
+        raise TransactionError(f"Mehrdatei-Restore fehlgeschlagen: {_error_detail(error)}.{note}") from error
+
+
 def restore(target: str, backup_id: str) -> str:
     if not ID_PATTERN.fullmatch(backup_id):
         raise TransactionError("Ungültige Backup-ID.")
@@ -444,6 +749,8 @@ def restore(target: str, backup_id: str) -> str:
         config = root / "config" / "project.yaml"
         _private_directory(backup)
         manifest = _json_object(_read_file(backup / "manifest.json", MAX_PLAN_BYTES, private=True))
+        if manifest.get("format") == 3:
+            return _restore_multi(root, store, backup, backup_id, manifest)
         original = _read_file(backup / "original", MAX_CONFIG_BYTES, private=True)
         if set(manifest) != {"format", "backup_id", "path", "plan_id", "generator_version",
                              "before_sha256", "after_sha256", "attributes", "original_mode",
