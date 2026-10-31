@@ -12,6 +12,7 @@ VERIFIED_FILES = {
     "scripts/projectcfg.py": "f446580597e0c3e7c46ab20cd31e8bbc609316a5a8ae65696da8814244832d20",
     ".github/workflows/ci.yml": "f54914e7f43f14acde14b33693abdbc303784c90c84c87e6bdd7f385e22731cd",
 }
+PYTHON_CI_SHA256 = "098dfdcb0c8981568a415e4a67c92b35f58b10b445589ec8bb856440fa412d79"
 
 
 def python_capabilities(target: str) -> dict[str, object]:
@@ -24,7 +25,7 @@ def python_capabilities(target: str) -> dict[str, object]:
         content, attributes = _operation_state(root, name)
         digest = hashlib.sha256(content).hexdigest() if content is not None else None
         states.append({"path": name, "sha256": digest, "attributes": attributes})
-        if digest != known_digest:
+        if digest != known_digest and not (name == ".github/workflows/ci.yml" and digest == PYTHON_CI_SHA256):
             conflicts.append(
                 f"{name}: benötigte t0003-Check-/CI-Fähigkeiten für python@0.1.0 "
                 "sind für diesen Dateistand nicht nachgewiesen."

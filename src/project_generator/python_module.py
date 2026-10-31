@@ -1,17 +1,22 @@
 """Trusted Python module content and read-only format-4 planning."""
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
+from . import projectcfg
 from .config import ConfigurationError
 from .plan import (
     _canonical_id, _directory_states, _location_fingerprint, _operation_state,
     assess, backup_store, file_attributes, metadata_result, multi_plan_target, read_target,
 )
-from .python_compat import python_capabilities
+from .python_compat import PYTHON_CI_SHA256, VERIFIED_FILES, python_capabilities
 
 MODULE = "python@0.1.0"
+CHECK = ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]
+CI_PATH = ".github/workflows/ci.yml"
+CI_EXTENSION = b"      - run: python -m pip install --no-deps .\n      - run: python -m project_app\n"
 FILES = {
     "pyproject.toml": b'''[build-system]
 requires = ["setuptools>=68"]
@@ -75,8 +80,30 @@ python -m unittest discover -s tests -v
 ```
 
 The application uses a `src/` layout and only the Python standard library.
+`python scripts/check.py` also runs the configured project tests.
 ''',
 }
+
+
+def _add_check(content: bytes) -> bytes:
+    text = content.decode("utf-8")
+    if CHECK in projectcfg.checks(text):
+        return content
+    lines = text.splitlines(keepends=True)
+    newline = "\r\n" if "\r\n" in text else "\n"
+    command = "  - " + json.dumps(CHECK) + newline
+    for index, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        empty = re.fullmatch(r"(checks:)[ \t]*\[[ \t]*\]([ \t]*(?:#.*)?)", body)
+        if empty:
+            lines[index] = empty.group(1) + empty.group(2) + newline + command
+            return "".join(lines).encode("utf-8")
+        if re.fullmatch(r"checks:[ \t]*(?:#.*)?", body):
+            if not line.endswith(("\n", "\r")):
+                lines[index] += newline
+            lines.insert(index + 1, command)
+            return "".join(lines).encode("utf-8")
+    raise ConfigurationError("config/project.yaml: checks kann nicht sicher geändert werden.")
 
 
 def _metadata_with_module(content: bytes, version: str, current_version: str | None) -> bytes:
@@ -95,7 +122,7 @@ def _metadata_with_module(content: bytes, version: str, current_version: str | N
             match = re.fullmatch(r"(  modules:)[ \t]*\[[ \t]*\]([ \t]*(?:#.*)?)", body)
             if match:
                 lines[index] = f'{match.group(1)} ["{MODULE}"]{match.group(2)}{line[len(body):]}'
-                return "".join(lines).encode("utf-8")
+                return _add_check("".join(lines).encode("utf-8"))
     raise ConfigurationError("config/project.yaml: generator.modules kann nicht sicher geändert werden.")
 
 
@@ -107,6 +134,15 @@ def python_plan_target(target: str, version: str) -> tuple[dict[str, object], li
     root = Path(target).expanduser().resolve(strict=True)
     _directory_states(root, list(FILES))
     installed = metadata["modules"] == [MODULE]
+    checks = projectcfg.checks(content.decode("utf-8"))
+    ci, _ = _operation_state(root, CI_PATH)
+    ci_hash = hashlib.sha256(ci).hexdigest() if ci is not None else None
+    if installed and CHECK not in checks:
+        conflicts.append("config/project.yaml: Python-Projektprüfung fehlt oder wurde verändert.")
+    if installed and ci_hash != PYTHON_CI_SHA256:
+        conflicts.append(f"{CI_PATH}: Python-CI-Erweiterung fehlt oder wurde verändert.")
+    if not installed and ci_hash != VERIFIED_FILES[CI_PATH]:
+        conflicts.append(f"{CI_PATH}: erwartete t0003-CI-Basis ist nicht vorhanden.")
     changes = []
     for name, result in FILES.items():
         original, _ = _operation_state(root, name)
@@ -122,9 +158,10 @@ def python_plan_target(target: str, version: str) -> tuple[dict[str, object], li
     if any(re.fullmatch(r"\.t0004-backup-[0-9a-f]{32}", entry.name, re.IGNORECASE)
            for entry in root.iterdir()):
         conflicts.append("Altes Backup im Zielprojekt: vor Git-Operationen geschützt außerhalb sichern.")
-    if not installed and not conflicts:
+    if not installed and not conflicts and ci is not None:
         config_result = _metadata_with_module(content, version, metadata["generator_version"])
         changes.append(("config/project.yaml", "modify", config_result))
+        changes.append((CI_PATH, "modify", ci + CI_EXTENSION))
         return multi_plan_target(target, version, changes, module="python"), changes
 
     identity = {

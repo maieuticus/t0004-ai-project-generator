@@ -56,6 +56,7 @@ class PythonModule(unittest.TestCase):
         for name in ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md",
                      "docs/QUICKSTART.md", "docs/SDD_QUICKSTART.md"):
             (self.project / name).write_bytes(b"fixture\n")
+        (self.project / "docs/PROJECT_HANDOFF.md").write_bytes(b"## Aktueller Stand\n\n## N\xc3\xa4chster Schritt\n")
         check = (ROOT / "scripts/check.py").read_bytes().replace(
             b'"docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md", "docs/GENERATOR_CONTRACT.md",\n'
             b'    "docs/SDD_QUICKSTART.md", "docs/QUICKSTART.md",',
@@ -168,6 +169,82 @@ class PythonModule(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertEqual(path.read_bytes(), b"foreign")
         self.assertTrue((self.project / "pyproject.toml").exists())
+
+    def test_project_checks_and_ci_are_extended_and_restored(self):
+        config = self.project / "config/project.yaml"
+        original_config = config.read_bytes().replace(
+            b"checks: []", b'checks:\n  - ["python", "-c", "print(123)"]'
+        )
+        config.write_bytes(original_config)
+        plan = self.save_plan()
+        self.assertEqual(self.apply(plan).returncode, 0)
+        configured = config.read_text(encoding="utf-8")
+        self.assertIn('["python", "-c", "print(123)"]', configured)
+        self.assertIn('["python", "-m", "unittest", "discover", "-s", "tests", "-v"]', configured)
+        self.assertEqual((self.project / python_module.CI_PATH).read_bytes(), CI + python_module.CI_EXTENSION)
+        checked = subprocess.run([sys.executable, "scripts/check.py"], cwd=self.project, env=self.env,
+                                 capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+        self.assertIn("test_main", checked.stderr)
+        restored = self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+        self.assertEqual(config.read_bytes(), original_config)
+        self.assertEqual((self.project / python_module.CI_PATH).read_bytes(), CI)
+
+    def test_failed_generated_test_fails_project_check(self):
+        plan = self.save_plan()
+        self.assertEqual(self.apply(plan).returncode, 0)
+        app = self.project / "src/project_app/app.py"
+        app.write_bytes(app.read_bytes().replace(b"Hello from project_app!", b"changed"))
+        checked = subprocess.run([sys.executable, "scripts/check.py"], cwd=self.project, env=self.env,
+                                 capture_output=True, text=True, encoding="utf-8")
+        self.assertNotEqual(checked.returncode, 0)
+        self.assertIn("FAILED", checked.stderr)
+
+    def test_generated_package_installs_and_runs(self):
+        plan = self.save_plan()
+        self.assertEqual(self.apply(plan).returncode, 0)
+        installed = self.base / "installed"
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--no-deps", "--target", str(installed), "."],
+            cwd=self.project, env=self.env, capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        env = dict(self.env, PYTHONPATH=str(installed))
+        example = subprocess.run([sys.executable, "-m", "project_app"], cwd=self.base, env=env,
+                                 capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(example.returncode, 0, example.stderr)
+        self.assertEqual(example.stdout, "Hello from project_app!\n")
+
+    def test_removed_python_check_or_changed_ci_causes_conflict(self):
+        plan = self.save_plan()
+        self.assertEqual(self.apply(plan).returncode, 0)
+        config = self.project / "config/project.yaml"
+        configured = config.read_bytes()
+        config.write_bytes(configured.replace(
+            b'  - ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]\n', b""
+        ))
+        result, plan = self.plan()
+        self.assertEqual(result.returncode, 1)
+        self.assertTrue(any("Python-Projektprüfung" in item for item in plan["conflicts"]))
+        config.write_bytes(configured)
+        ci = self.project / python_module.CI_PATH
+        ci.write_bytes(CI)
+        result, plan = self.plan()
+        self.assertEqual(result.returncode, 1)
+        self.assertTrue(any("Python-CI-Erweiterung" in item for item in plan["conflicts"]))
+
+    def test_original_release_ci_is_rejected_by_public_planner(self):
+        old_ci = CI.replace(
+            b"      - if: github.repository == 'maieuticus/t0003-ai-project-template'\n"
+            b"        run: python -m unittest discover -s .github/template-tests -v\n",
+            b"      - run: python -m unittest discover -s .github/template-tests -v\n",
+        )
+        (self.project / python_module.CI_PATH).write_bytes(old_ci)
+        result, plan = self.plan()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(plan["operations"], [])
+        self.assertTrue(any("t0003-Check-/CI-Fähigkeiten" in item for item in plan["conflicts"]))
 
 
 if __name__ == "__main__":
