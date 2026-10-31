@@ -109,6 +109,8 @@ def metadata_result(content: bytes, generator_version: str) -> bytes:
                 lines[index] = (f'{match.group(1)}{spacing}"{generator_version}"'
                                 f'{suffix}{match.group(5) or ""}{ending}')
                 result = "".join(lines).encode("utf-8")
+                if len(result) > MAX_CONFIG_BYTES:
+                    raise ConfigurationError("config/project.yaml überschreitet nach der Änderung die zulässige Größe.")
                 load_metadata(result)
                 return result
     raise ConfigurationError("config/project.yaml: generator.version kann nicht sicher geändert werden.")

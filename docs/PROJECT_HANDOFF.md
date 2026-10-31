@@ -24,9 +24,9 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - `new`, read-only-`migrate`, technologieabhängiges `verify`, Integration und Releases
     bleiben separate Etappen; t0003 bleibt unverändert.
 - Blocker: keine bekannten; CI des aktuellen PR-Commitstands prüfen.
-- Letzte Prüfergebnisse: 16 Baseline-Tests und 37 Generator-Tests lokal erfolgreich,
-  vier Windows-spezifische Tests lokal übersprungen. Für Commit `ca43db3` waren Linux
-  und ein Windows-CI-Job erfolgreich; einen weiteren Windows-Job und spätere Commits prüfen.
+- Letzte Prüfergebnisse: 16 Baseline-Tests und 38 Generator-Tests lokal erfolgreich,
+  vier Windows-spezifische Tests lokal übersprungen. Für Commit `5c48d94` waren Linux-
+  und Windows-CI erfolgreich; Ergebnisse späterer Commits prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt

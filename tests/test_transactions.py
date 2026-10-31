@@ -114,6 +114,16 @@ class Transactions(unittest.TestCase):
                                           b'version: "' + version + b'"  # secret-example')
                 self.assertEqual(result, expected)
 
+    def test_oversized_result_is_rejected_before_writing(self):
+        size = transaction.MAX_CONFIG_BYTES
+        original = self.original + b"#" + b"x" * (size - len(self.original) - 2) + b"\n"
+        self.config.write_bytes(original)
+        result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("überschreitet", result.stderr)
+        self.assertEqual(self.config.read_bytes(), original)
+        self.assertFalse(list(self.project.glob(".t0004-backup-*")))
+
     def test_stale_plan_and_missing_required_file_are_refused(self):
         plan = self.plan()
         changed = self.original + b"# user edit\r\n"
