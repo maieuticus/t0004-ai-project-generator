@@ -28,6 +28,27 @@ python -m unittest discover -s .github/template-tests -v
 python -m unittest discover -s tests -v
 ```
 
+## Integration mit t0003
+
+Nach `python -m pip install --no-deps .` führt
+`python -m unittest discover -s integration -v` die installierte CLI in temporären
+Projekten gegen die echten t0003-Commits `6e8363a7ac7d99220d743eea077dcd5cefda9042`
+und `964de8538d19cefcb483faff38f10124615a9783` (ursprüngliches Release) aus. Git und
+Netzzugriff auf das öffentliche t0003-Repository sind erforderlich; pip benötigt bei Bedarf
+Zugriff auf seine Build-Abhängigkeiten. Die CI führt dies unter Linux und Windows aus.
+Backups liegen ausschließlich in einem temporären, von der CLI geschützten Speicher
+außerhalb des Projekt-Repositories und werden nach den Tests entfernt.
+
+Offline kann `T0004_T0003_MIRROR` auf den absoluten Pfad eines zuvor beschafften lokalen
+Git-Repositories gesetzt werden, das **beide** vollständigen Commit-Objekte samt zugehöriger
+Bäume und Dateien enthält. Die fest gepinnten Commit-IDs bleiben unverändert; fehlen
+Objekte, schlägt der Test fehl. Für eine vollständig netzlose Ausführung müssen auch
+Pythons Build-Abhängigkeiten lokal verfügbar sein.
+
+Die Testprojekte werden aus Git-Quellständen ausgecheckt. Sie belegen **nicht** das
+tatsächliche Anlegen eines GitHub-Repositories über „Use this template“; dieser Schritt
+und die anschließende CLI-Nutzung bleiben eine separate manuelle Abnahme.
+
 ## Generator Safety-Core und bestätigtes Apply
 
 Python 3.11+ und Git werden vorausgesetzt. Den Generator bei Bedarf ausdrücklich installieren:

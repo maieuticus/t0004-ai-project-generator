@@ -31,3 +31,4 @@ jobs:
       - run: t0004-generator plan
       - run: t0004-generator new
       - run: t0004-generator migrate --json
+      - run: python -m unittest discover -s integration -v
