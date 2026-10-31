@@ -7,41 +7,38 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 ## Aktueller Stand
 
 - Stand: 2026-10-31
-- Branch: `feat/multi-file-operations`, ausgehend von `main` / `f7d32f9` (PR #7 gemergt).
-- Aktive Aufgabe: Abschlussprüfung von PR #8 für interne sichere Mehrdatei-Operationen.
+- Branch: `feat/python-technology-module`, ausgehend von `main` / `5799be1` (PR #8 gemergt).
+- Aktive Aufgabe: PR #9 unabhängig prüfen, bestätigte Fehler beheben und CI des Kopfstands prüfen.
 - Erledigt:
-  - Safety-Core, bestätigtes Apply/Restore und minimaler `new`-Einstieg sind gemergt.
-  - `migrate` liefert einen versionierten Analysebericht statt eines Apply-Plans und unterstützt
-    Projekte ohne t0003-Metadaten. Eine schreibende Migration ist nicht implementiert.
-  - Die bestehende Engine unterstützt intern Format-4-Pläne und Manifestformat 3 für
-    mehrere Create-/Modify-Operationen, geschützte Snapshots und konfliktbewusstes Restore.
-    Öffentliche `new`-/`plan`-Befehle bleiben bei Format 3; ein Technologiemodul fehlt.
-  - Format-3-Pläne und Manifestformat-2-Backups bleiben unter den bisherigen Bedingungen
-    unterstützt. Mehrdatei-Änderungen sind nicht atomar; Einzelheiten und Grenzen stehen
-    im Generator-Vertrag.
-  - Das Review fand einen Restore-Konflikt nach protokolliertem Teilzustand in beiden
-    Manifestformaten. Der protokollierte Zustand hat nun Vorrang; Regressionstests decken
-    Fehler bei Apply und Restore ab.
+  - `python@0.1.0` erstellt ein Python-Starterpaket, Beispiel, Tests und Dokumentation;
+    es erweitert Projektchecks und die vorhandene GitHub Action.
+  - `new` und `plan --module python` erstellen Format-4-Pläne; bestätigtes Apply und
+    Restore verwenden die vorhandene Mehrdatei-Engine. Moduldateien und t0003-Voraussetzungen
+    werden auf Konflikte geprüft; ein vollständig unveränderter Modulzustand ist ein No-op.
+  - `template.release: 0.1.0` bleibt erforderlich; zusätzlich werden die geprüften Check- und
+    CI-Dateistände von t0003-Commit `6e8363a` vorausgesetzt und an den Plan gebunden.
+    Der ursprüngliche Release-Stand wird nachvollziehbar abgelehnt. Kein t0003-Release.
+  - Die Teilstände `b9efea3`, `d6cd91d` und `5b7a536` sind auf dem Feature-Branch gesichert.
+  - PR #9 ist offen. Die unabhängige Prüfung korrigiert die Reihenfolge bestehender Checks
+    und lehnt plattformabhängige Kollisionen mit vorhandenen Pfaden ab.
+  - `migrate` bleibt eine lesende Bestandsanalyse; Format-3-Pläne und ältere Backups bleiben
+    unter ihren bisherigen Bedingungen unterstützt.
 - Offen:
   - CI des endgültigen PR-Kopfstands und menschliches Review prüfen; nicht automatisch mergen.
-  - Python-Modul, technologieabhängiges `verify`, Integration und Releases bleiben separate
-    Etappen; t0003 bleibt unverändert.
-- Blocker: keine bekannten; tatsächlichen CI-, Git- und PR-Stand prüfen.
-- Prüfergebnisse: Lokal unter Linux 111 Generator-Tests erfolgreich, davon 6 Windows-Tests
-  übersprungen. 16 Basistests erfolgreich, davon 3 netzwerkabhängige Tests im Offline-Modus
-  übersprungen. `python scripts/check.py` erfolgreich. Ein isolierter Codespaces-Praxistest
-  bestätigte zwei Create-Operationen, Modify, Snapshot, bytegenaues Restore und die
-  Restore-Verweigerung bei Fremdänderungen auch nach protokolliertem Teilzustand; die
-  temporären Daten wurden entfernt. Die Linux-/Windows-CI für den
-  Implementierungscommit `19ebd81` war erfolgreich: jeweils 107 Generator-Tests (Linux:
-  6, Windows: 10 plattformbedingt übersprungen) und 16 Basistests ohne Überspringen. Bei
-  späteren Commits, insbesondere nach der Restore-Korrektur, die CI des tatsächlichen
-  PR-Kopfstands erneut prüfen.
-- Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
+  - Abschließendes `verify`, separate Releases und die vollständige Gate-A-Praxismatrix
+    bleiben spätere Etappen; t0003 bleibt unverändert.
+- Blocker: keine bekannten; den tatsächlichen CI- und Git-Stand prüfen.
+- Prüfergebnisse: Unter Linux 130 Generator-Tests (6 plattformbedingt übersprungen),
+  16 Basistests, Projektcheck sowie Paketinstallation erfolgreich. Eine temporäre Fixture
+  aus dem echten t0003-Commit `6e8363a`
+  bestätigte Plan, Apply, Projektcheck, No-op und bytegenaues Restore aller 32 Originaldateien.
+  Windows ist lokal nicht geprüft; den CI-Stand des tatsächlichen PR-Kopfstands abfragen.
+- Synchronisierung: die Sicherung erfolgt abschnittsweise auf dem Feature-Branch; tatsächlichen
+  Git- und PR-Stand prüfen.
 
 ## Nächster Schritt
 
-CI des PR-Kopfstands prüfen und das Review-Gate durch den Menschen durchführen.
+CI des endgültigen PR-Kopfstands prüfen und das Review-Gate durch den Menschen durchführen.
 
 ## Entscheidungen und Quellen
 

@@ -370,6 +370,17 @@ def apply(target: str, plan_file: str, confirmation: str, version: str) -> str:
     if not PLAN_PATTERN.fullmatch(confirmation):
         raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
     supplied = _json_object(_read_file(Path(plan_file), MAX_PLAN_BYTES))
+    if supplied.get("format") == 4:
+        if supplied.get("module") != "python":
+            raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
+        from .python_module import python_plan_target
+        try:
+            expected, changes = python_plan_target(target, version)
+        except (PathSafetyError, ConfigurationError, OSError) as error:
+            raise TransactionError(f"Modulplan kann nicht geprüft werden: {_error_detail(error)}") from error
+        if expected.get("conflicts") or not changes:
+            raise TransactionError("Modulplan enthält Konflikte oder keine ausführbare Operation.")
+        return apply_multi(target, supplied, confirmation, version, changes, module="python")
     content, expected = _current_plan(target, version)
     if expected["conflicts"]:
         raise TransactionError("Projektkonflikte verhindern apply.")
@@ -475,13 +486,13 @@ def _multi_create(path: Path, content: bytes, opened: list[bool]) -> None:
 
 
 def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
-                changes: list[tuple[str, str, bytes]]) -> str:
+                changes: list[tuple[str, str, bytes]], *, module: str | None = None) -> str:
     """Apply a format-4 plan against operations supplied by trusted generator code."""
     if not isinstance(confirmation, str) or not PLAN_PATTERN.fullmatch(confirmation):
         raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
     try:
         ordered = _operation_paths(changes)
-        expected = multi_plan_target(target, version, changes)
+        expected = multi_plan_target(target, version, changes, module=module)
         canonical = lambda plan: json.dumps(plan, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
         if (not hmac.compare_digest(confirmation, expected["plan_id"])
                 or canonical(supplied) != canonical(expected)):
@@ -517,7 +528,7 @@ def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
         _multi_progress(backup, progress)
         _sync_directory(backup)
         _sync_directory(store)
-        if multi_plan_target(target, version, changes, backup_id) != expected:
+        if multi_plan_target(target, version, changes, backup_id, module=module) != expected:
             raise TransactionError("Projektzustand hat sich vor apply geändert.")
         for directory in expected["directories"]:
             if directory["before_attributes"] is not None:
@@ -573,8 +584,26 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
     fields = {"format", "generator_version", "source_sha256", "source_attributes",
               "project_fingerprint", "storage_fingerprint", "operations", "directories",
               "warnings", "backup", "plan_id", "read_only"}
+    if isinstance(plan, dict) and "module" in plan:
+        fields |= {"module", "preconditions", "conflicts"}
     if not isinstance(plan, dict) or set(plan) != fields:
         raise TransactionError("Mehrdatei-Plan im Backup ist ungültig.")
+    if "module" in plan:
+        conditions = plan["preconditions"]
+        if (plan["module"] != "python" or plan["conflicts"] != [] or not isinstance(conditions, dict)
+                or set(conditions) != {"files", "directories"}
+                or not isinstance(conditions["files"], list)
+                or not isinstance(conditions["directories"], list)
+                or any(not isinstance(state, dict) or set(state) != {"path", "sha256", "attributes"}
+                       or not isinstance(state["path"], str)
+                       or not all(isinstance(state[key], str) and PLAN_PATTERN.fullmatch(state[key])
+                                  for key in ("sha256", "attributes")) for state in conditions["files"])
+                or any(not isinstance(state, dict) or set(state) != {"path", "before_attributes"}
+                       or not isinstance(state["path"], str)
+                       or not isinstance(state["before_attributes"], str)
+                       or not PLAN_PATTERN.fullmatch(state["before_attributes"])
+                       for state in conditions["directories"])):
+            raise TransactionError("Modulvoraussetzungen im Backup sind ungültig.")
     identity = {key: value for key, value in plan.items() if key not in {"plan_id", "read_only"}}
     if (type(plan["format"]) is not int or plan["format"] != 4 or plan["read_only"] is not True
             or not isinstance(plan["generator_version"], str)

@@ -48,15 +48,25 @@ optional ein; es erstellt kein GitHub-Repository und greift nicht auf das Netzwe
 Unter Windows statt `/pfad/zum/projekt` einen Windows-Pfad angeben. Ohne Pfad wird das aktuelle
 Verzeichnis verwendet; `check`, `plan`, `new` und `migrate` unterstützen `--json`. Sie führen keine Befehle
 aus der Projektkonfiguration aus. `new` und `plan` schreiben nichts ins Zielprojekt und liefern
-denselben Plan. Der ausführbare Plan betrifft ausschließlich `generator.version`: Ist die
-Version bereits aktuell, gibt es keine Operation und kein Backup. Profile, SDD-Initialisierung,
-Generator-Upgrades, eine schreibende Migration und das vollständige technologieabhängige `verify`
-sind nicht verfügbar.
+denselben Plan. Ohne Modulauswahl betrifft der ausführbare Plan ausschließlich
+`generator.version`: Ist die Version bereits aktuell, gibt es keine Operation und kein Backup.
 
-Die Transaktions-Engine unterstützt intern auch Mehrdatei-Pläne im Format 4. In dieser Etappe
-erzeugt kein öffentlicher Befehl solche Pläne; `plan` und `new` bleiben bei Format 3. Format 4
-wird ausschließlich mit künstlichen, vertrauenswürdig erzeugten Operationen getestet. Ein
-Python-Modul oder andere Technologieprofile sind noch nicht verfügbar.
+Mit `new /pfad/zum/projekt --module python --json` oder dem entsprechenden `plan` wird
+`python@0.1.0` über einen Mehrdatei-Plan im Format 4 vorbereitet. Das Modul erstellt ein
+installierbares `project_app` im `src/`-Layout, ein ausführbares Beispiel, `unittest`-Tests
+und `docs/PYTHON.md`. Es ergänzt den Projektcheck und die bestehende GitHub Action und trägt
+das Modul in `config/project.yaml` ein. Vorhandene oder nachträglich veränderte Moduldateien
+werden nicht überschrieben; ein vollständig unverändertes Modul ergibt einen No-op.
+
+Voraussetzung ist `template.release: 0.1.0` **und** der bytegenau geprüfte t0003-Dateistand
+der Check- und CI-Dateien aus Commit `6e8363a`. Der ursprüngliche Release-Stand erfüllt die
+CI-Voraussetzung nicht. Auch andere möglicherweise kompatible Änderungen werden vorsorglich
+abgelehnt; `6e8363a` ist kein behauptetes neues offizielles Release. Dateiinhalte und
+Zugriffsmetadaten der Voraussetzungen sind an den Plan gebunden und werden vor dem ersten
+Projekt-Schreibzugriff erneut geprüft.
+
+Andere Technologiemodule, SDD-Initialisierung, Generator-Upgrades, eine schreibende Migration
+und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
 `migrate` untersucht auch Projekte ohne t0003-Konfiguration und vergleicht selektive Übernahme
 mit schrittweiser Anpassung. Der Bericht ist **kein Apply-Plan** und verändert keine Projektdateien.
@@ -75,12 +85,12 @@ erzeugen. Liegt die Generatorinstallation im Quellprojekt, zum Schutz davor
 Beispiel unter Linux; Plan und bestätigte ID vor `apply` selbst prüfen:
 
 ```text
-t0004-generator new /pfad/zum/projekt --json > /tmp/t0004-plan.json
+t0004-generator new /pfad/zum/projekt --module python --json > /tmp/t0004-plan.json
 t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <Plan-ID>
 t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 ```
 
-In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --json |
+In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --module python --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`
 verwenden. `apply` gibt die Backup-ID aus; `restore` behält das Backup zur manuellen Prüfung.
 Backups liegen standardmäßig in einem geschützten lokalen Speicher außerhalb von

@@ -113,7 +113,7 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
         conflicts.append("template.release: Kompatibilität ist für diese Version nicht nachgewiesen.")
     if metadata["generator_version"] not in (None, generator_version):
         conflicts.append("generator.version: abweichende Version; kein automatisches Upgrade.")
-    if metadata["has_modules"]:
+    if metadata["modules"] not in ([], ["python@0.1.0"]):
         conflicts.append("generator.modules: Modulversionen werden in dieser Etappe nicht unterstützt.")
     warnings = []
     if metadata["sdd_tool"] is not None:
@@ -418,13 +418,34 @@ def _operation_state(root: Path, name: str) -> tuple[bytes | None, str | None]:
     return content, attributes
 
 
+def _portable_path_collisions(root: Path, names: list[str]) -> list[str]:
+    collisions = []
+    for name in names:
+        parent = root
+        for component in name.split("/"):
+            try:
+                with os.scandir(parent) as entries:
+                    collision = any(
+                        entry.name != component
+                        and entry.name.rstrip(" .").casefold() == component.casefold()
+                        for entry in entries
+                    )
+            except FileNotFoundError:
+                break
+            if collision:
+                collisions.append(name)
+                break
+            parent = parent / component
+    return collisions
+
+
 def _canonical_id(identity: dict[str, object]) -> str:
     encoded = json.dumps(identity, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def multi_plan_target(target: str, generator_version: str, changes: list[tuple[str, str, bytes]],
-                      backup_id: str | None = None) -> dict[str, object]:
+                      backup_id: str | None = None, *, module: str | None = None) -> dict[str, object]:
     """Build an internal format-4 plan from trusted, already-rendered operations."""
     if not isinstance(generator_version, str) or not VERSION.fullmatch(generator_version):
         raise PathSafetyError("Ungültige Generatorversion.")
@@ -467,6 +488,20 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         "directories": directories,
         "warnings": warnings,
     }
+    if module is not None:
+        if module != "python":
+            raise PathSafetyError("Unbekanntes Technologiemodul.")
+        if _portable_path_collisions(root, [name for name, _, _ in ordered]):
+            raise PathSafetyError("Ein Modulpfad kollidiert auf anderen Plattformen.")
+        from .python_compat import python_capabilities
+        capabilities = python_capabilities(target)
+        if capabilities["conflicts"]:
+            raise PathSafetyError("t0003-Check-/CI-Fähigkeiten sind nicht nachgewiesen.")
+        identity["module"] = module
+        identity["conflicts"] = []
+        identity["preconditions"] = {
+            "files": capabilities["files"], "directories": capabilities["directories"],
+        }
     if backup_id is None:
         for counter in range(1024):
             candidate = _canonical_id({"identity": identity, "counter": counter})[:32]
