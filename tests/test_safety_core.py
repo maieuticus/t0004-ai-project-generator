@@ -118,7 +118,7 @@ class SafetyCoreCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn("secret-example-value", result.stdout + result.stderr)
 
-    def test_identical_bytes_across_project_paths_produce_same_plan(self):
+    def test_identical_bytes_across_project_paths_produce_bound_plans(self):
         other = Path(self.temp.name) / "another"
         (other / "config").mkdir(parents=True)
         (other / "docs").mkdir()
@@ -129,7 +129,10 @@ class SafetyCoreCli(unittest.TestCase):
         second = self.run_cli("plan", str(other), "--json")
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertEqual(second.returncode, 0, second.stderr)
-        self.assertEqual(json.loads(first.stdout), json.loads(second.stdout))
+        first_plan, second_plan = json.loads(first.stdout), json.loads(second.stdout)
+        self.assertEqual(first_plan["source_fingerprint"], second_plan["source_fingerprint"])
+        self.assertNotEqual(first_plan["project_fingerprint"], second_plan["project_fingerprint"])
+        self.assertNotEqual(first_plan["plan_id"], second_plan["plan_id"])
 
     def test_fixed_plan_id_is_platform_independent(self):
         fixture = (
@@ -140,7 +143,7 @@ class SafetyCoreCli(unittest.TestCase):
             '  modules: []\nchecks: []\n'
         ).encode("utf-8")
         self.assertEqual(create_plan(fixture, "0.1.0", [])["plan_id"],
-                         "eaf547a9ba767ff787d1ae1b2d2b7d764ce548033ec578c86a5d6d670b6feb73")
+                         "0ab4cb2a3100a73d1eb2a3833fb8df4897d51888a157733afbcf099e1955701f")
 
     def test_conflicts_exit_nonzero_and_never_propose_upgrade(self):
         for before, after in [

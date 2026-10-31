@@ -1,6 +1,7 @@
 """Safe apply and restore tests confined to temporary projects."""
 
 import hashlib
+import errno
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import installed_version
+from project_generator import plan as planning
 from project_generator import transaction
 from project_generator.plan import _windows_security_component
 
@@ -26,6 +28,11 @@ class Transactions(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
+        self.data_home = self.base / "local data"
+        self.backups = self.data_home / "t0004-generator" / "backups"
+        environment = mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.data_home)})
+        environment.start()
+        self.addCleanup(environment.stop)
         self.project = self.base / "Projekt mit Leerzeichen"
         (self.project / "config").mkdir(parents=True)
         (self.project / "docs").mkdir()
@@ -68,7 +75,7 @@ class Transactions(unittest.TestCase):
         result = self.cli("apply", str(self.project), "--plan", str(self.plan_file))
         self.assertEqual(result.returncode, 2)
         self.assertEqual(self.config.read_bytes(), self.original)
-        self.assertFalse(list(self.project.glob(".t0004-backup-*")))
+        self.assertFalse(self.backups.exists())
 
     def test_tampered_plan_and_confirmation_are_refused(self):
         plan = self.plan()
@@ -82,7 +89,7 @@ class Transactions(unittest.TestCase):
         result = self.cli("apply", str(self.project), "--plan", str(self.plan_file),
                           "--confirm", "0" * 64)
         self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertFalse(list(self.project.glob(".t0004-backup-*")))
+        self.assertFalse(self.backups.exists())
         plan = self.plan()
         plan["read_only"] = 1
         self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
@@ -122,7 +129,7 @@ class Transactions(unittest.TestCase):
         self.assertEqual(result.returncode, 2, result.stderr)
         self.assertIn("überschreitet", result.stderr)
         self.assertEqual(self.config.read_bytes(), original)
-        self.assertFalse(list(self.project.glob(".t0004-backup-*")))
+        self.assertFalse(self.backups.exists())
 
     def test_stale_plan_and_missing_required_file_are_refused(self):
         plan = self.plan()
@@ -141,12 +148,12 @@ class Transactions(unittest.TestCase):
         plan = self.plan()
         self.assertEqual(plan["operations"][0]["before_sha256"], hashlib.sha256(self.original).hexdigest())
         self.assertEqual(plan["backup"]["before"], "not_exists")
-        self.assertFalse((self.project / plan["backup"]["directory"]).exists())
+        self.assertFalse((self.backups / plan["backup"]["directory"]).exists())
         result = self.apply(plan)
         self.assertEqual(result.returncode, 0, result.stderr)
         backup_id = self.backup_id(result.stdout)
         self.assertEqual(backup_id, plan["backup"]["id"])
-        backup = self.project / (transaction.BACKUP_PREFIX + backup_id)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
         manifest = json.loads((backup / "manifest.json").read_text(encoding="utf-8"))
         self.assertEqual((backup / "original").read_bytes(), self.original)
         self.assertEqual(manifest["plan_id"], plan["plan_id"])
@@ -163,6 +170,111 @@ class Transactions(unittest.TestCase):
         self.assertEqual(repeated.returncode, 0, repeated.stderr)
         self.assertIn("keine Änderung", repeated.stdout)
 
+    def test_snapshot_stays_outside_git_worktree_and_is_not_staged(self):
+        subprocess.run(["git", "init", "-q", str(self.project)], check=True)
+        plan = self.plan()
+        self.assertFalse(self.data_home.exists())
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        backup_id = self.backup_id(applied.stdout)
+        subprocess.run(["git", "-C", str(self.project), "add", "-A"], check=True)
+        tracked = subprocess.run(["git", "-C", str(self.project), "ls-files", "-z"],
+                                 check=True, capture_output=True).stdout.split(b"\0")
+        self.assertFalse(any(b".t0004-backup-" in name for name in tracked))
+        self.assertTrue((self.backups / (transaction.BACKUP_PREFIX + backup_id) / "original").is_file())
+        self.assertFalse(list(self.project.rglob(".t0004-backup-*")))
+        restored = self.cli("restore", str(self.project), "--backup", backup_id)
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+        self.assertEqual(self.config.read_bytes(), self.original)
+
+    def test_existing_legacy_backup_in_project_is_reported_without_changes(self):
+        legacy = self.project / (transaction.BACKUP_PREFIX + "a" * 32)
+        legacy.mkdir()
+        (legacy / "original").write_bytes(b"legacy-secret")
+        result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["operations"], [])
+        self.assertIn("Altes Backup", plan["conflicts"][0])
+        self.assertNotIn("legacy-secret", result.stdout + result.stderr)
+        self.assertEqual((legacy / "original").read_bytes(), b"legacy-secret")
+        self.assertFalse(self.backups.exists())
+
+    def test_storage_inside_another_git_worktree_is_rejected(self):
+        other = self.base / "other-repo"
+        other.mkdir()
+        subprocess.run(["git", "init", "-q", str(other)], check=True)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(other / "data")}):
+            result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Git-Arbeitsverzeichnis", result.stderr)
+        self.assertFalse((other / "data").exists())
+        self.assertEqual(self.config.read_bytes(), self.original)
+
+    def test_git_worktree_marker_file_is_rejected(self):
+        other = self.base / "linked-worktree"
+        other.mkdir()
+        (other / ".git").write_text("gitdir: ../external-git\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(other / "data")}):
+            result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Git-Arbeitsverzeichnis", result.stderr)
+        self.assertFalse((other / "data").exists())
+
+    def test_plan_cannot_be_applied_to_another_project_or_store(self):
+        plan = self.plan()
+        other = self.base / "second project"
+        (other / "config").mkdir(parents=True)
+        (other / "docs").mkdir()
+        (other / "config" / "project.yaml").write_bytes(self.original)
+        for name in ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md"):
+            (other / name).write_text("fixture\n", encoding="utf-8")
+        result = self.cli("apply", str(other), "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual((other / "config/project.yaml").read_bytes(), self.original)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "other-data")}):
+            result = self.apply(plan)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        self.assertFalse(self.backups.exists())
+
+    def test_backup_cannot_restore_another_project(self):
+        plan = self.plan()
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        backup_id = self.backup_id(applied.stdout)
+        other = self.base / "other-project"
+        (other / "config").mkdir(parents=True)
+        (other / "docs").mkdir()
+        other_config = other / "config" / "project.yaml"
+        other_config.write_bytes(self.config.read_bytes())
+        for name in ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md"):
+            (other / name).write_text("fixture\n", encoding="utf-8")
+        restored = self.cli("restore", str(other), "--backup", backup_id)
+        self.assertEqual(restored.returncode, 1, restored.stderr)
+        self.assertEqual(other_config.read_bytes(), self.config.read_bytes())
+
+    def test_symlinked_storage_is_rejected(self):
+        actual = self.base / "actual-data"
+        actual.mkdir()
+        try:
+            self.data_home.symlink_to(actual, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("directory symlinks unavailable")
+        result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Symlinks", result.stderr)
+        self.assertFalse(list(actual.iterdir()))
+
+    @unittest.skipIf(os.name == "nt", "Codespaces runs on Linux")
+    def test_codespaces_default_uses_persistent_workspace_storage(self):
+        persistent = self.base / "persistent-workspace"
+        with mock.patch.dict(os.environ, {"CODESPACES": "true"}, clear=True), \
+                mock.patch.object(planning, "CODESPACES_DATA_HOME", persistent):
+            store = planning.backup_store(str(self.project))
+        self.assertEqual(store, persistent / "t0004-generator" / "backups")
+        self.assertFalse(persistent.exists())
+
     def test_foreign_edit_prevents_restore(self):
         plan = self.plan()
         applied = self.apply(plan)
@@ -177,8 +289,8 @@ class Transactions(unittest.TestCase):
 
     def test_existing_backup_path_invalidates_plan(self):
         plan = self.plan()
-        collision = self.project / plan["backup"]["directory"]
-        collision.mkdir()
+        collision = self.backups / plan["backup"]["directory"]
+        collision.mkdir(parents=True)
         (collision / "foreign").write_text("keep", encoding="utf-8")
         result = self.apply(plan)
         self.assertEqual(result.returncode, 1, result.stderr)
@@ -190,7 +302,7 @@ class Transactions(unittest.TestCase):
         applied = self.apply(plan)
         self.assertEqual(applied.returncode, 0, applied.stderr)
         backup_id = self.backup_id(applied.stdout)
-        stage = self.project / plan["backup"]["temporary"]
+        stage = self.backups / plan["backup"]["temporary"]
         stage.write_bytes(b"foreign data")
         current = self.config.read_bytes()
         restored = self.cli("restore", str(self.project), "--backup", backup_id)
@@ -251,13 +363,39 @@ class Transactions(unittest.TestCase):
         applied = self.apply(plan)
         self.assertEqual(applied.returncode, 0, applied.stderr)
         backup_id = self.backup_id(applied.stdout)
-        backup = self.project / (transaction.BACKUP_PREFIX + backup_id)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
         os.chmod(backup, 0o755)
         current = self.config.read_bytes()
         restored = self.cli("restore", str(self.project), "--backup", backup_id)
         self.assertEqual(restored.returncode, 1, restored.stderr)
         self.assertIn("nicht ausreichend geschützt", restored.stderr)
         self.assertEqual(self.config.read_bytes(), current)
+
+    @unittest.skipIf(os.name == "nt", "POSIX mode semantics")
+    def test_insecure_backup_file_prevents_restore(self):
+        plan = self.plan()
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        backup_id = self.backup_id(applied.stdout)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
+        os.chmod(backup / "original", 0o644)
+        current = self.config.read_bytes()
+        restored = self.cli("restore", str(self.project), "--backup", backup_id)
+        self.assertEqual(restored.returncode, 1, restored.stderr)
+        self.assertIn("nicht ausreichend geschützt", restored.stderr)
+        self.assertEqual(self.config.read_bytes(), current)
+
+    @unittest.skipIf(os.name == "nt", "POSIX mode semantics")
+    def test_insecure_store_prevents_snapshot_and_write(self):
+        plan = self.plan()
+        self.backups.parent.mkdir(parents=True)
+        os.chmod(self.backups.parent, 0o755)
+        result = self.apply(plan)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("nicht ausreichend geschützt", result.stderr)
+        self.assertIn("Ziel wurde nicht geschrieben", result.stderr)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        self.assertFalse((self.backups / plan["backup"]["directory"]).exists())
 
     @unittest.skipUnless(os.name == "nt", "Windows DACL semantics")
     def test_windows_replace_preserves_access_metadata(self):
@@ -267,7 +405,7 @@ class Transactions(unittest.TestCase):
             "group": _windows_security_component(self.config, 2),
             "dacl": _windows_security_component(self.config, 4),
         }
-        backup = self.project / ".private-fixture"
+        backup = self.base / ".private-fixture"
         transaction._private_mkdir(backup)
         stage = backup / "stage"
         transaction._write_new(stage, self.original + b"# fixture\r\n")
@@ -287,9 +425,27 @@ class Transactions(unittest.TestCase):
         applied = self.apply(plan)
         self.assertEqual(applied.returncode, 0, applied.stderr)
         backup_id = self.backup_id(applied.stdout)
-        backup = self.project / (transaction.BACKUP_PREFIX + backup_id)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
         changed_acl = subprocess.run(
             ["icacls", str(backup), "/grant", "*S-1-1-0:(OI)(CI)F"],
+            capture_output=True, text=True,
+        )
+        self.assertEqual(changed_acl.returncode, 0, changed_acl.stderr)
+        current = self.config.read_bytes()
+        restored = self.cli("restore", str(self.project), "--backup", backup_id)
+        self.assertEqual(restored.returncode, 1, restored.stderr)
+        self.assertIn("Zugriffsrechte", restored.stderr)
+        self.assertEqual(self.config.read_bytes(), current)
+
+    @unittest.skipUnless(os.name == "nt", "Windows DACL semantics")
+    def test_windows_insecure_backup_file_dacl_prevents_restore(self):
+        plan = self.plan()
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        backup_id = self.backup_id(applied.stdout)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
+        changed_acl = subprocess.run(
+            ["icacls", str(backup / "original"), "/grant", "*S-1-1-0:R"],
             capture_output=True, text=True,
         )
         self.assertEqual(changed_acl.returncode, 0, changed_acl.stderr)
@@ -304,7 +460,7 @@ class Transactions(unittest.TestCase):
         applied = self.apply(plan)
         self.assertEqual(applied.returncode, 0, applied.stderr)
         backup_id = self.backup_id(applied.stdout)
-        backup = self.project / (transaction.BACKUP_PREFIX + backup_id)
+        backup = self.backups / (transaction.BACKUP_PREFIX + backup_id)
         (backup / "original").write_bytes(self.original + b"# modified\n")
         current = self.config.read_bytes()
         restored = self.cli("restore", str(self.project), "--backup", backup_id)
@@ -317,7 +473,7 @@ class Transactions(unittest.TestCase):
         other = self.project / "other.txt"
         other.write_bytes(b"untouched")
         def fail_before_replace(source, target):
-            backup = self.project / plan["backup"]["directory"]
+            backup = self.backups / plan["backup"]["directory"]
             self.assertEqual((backup / "original").read_bytes(), self.original)
             self.assertTrue((backup / "manifest.json").is_file())
             self.assertEqual(target.read_bytes(), self.original)
@@ -329,7 +485,7 @@ class Transactions(unittest.TestCase):
         backup_id = self.backup_id(str(raised.exception))
         self.assertEqual(self.config.read_bytes(), self.original)
         self.assertEqual(other.read_bytes(), b"untouched")
-        self.assertTrue((self.project / (transaction.BACKUP_PREFIX + backup_id) / "manifest.json").is_file())
+        self.assertTrue((self.backups / (transaction.BACKUP_PREFIX + backup_id) / "manifest.json").is_file())
         self.assertIn("keine Änderung", transaction.restore(str(self.project), backup_id))
 
     def test_failure_after_replace_can_be_restored(self):
@@ -347,7 +503,7 @@ class Transactions(unittest.TestCase):
         transaction.restore(str(self.project), backup_id)
         self.assertEqual(self.config.read_bytes(), self.original)
 
-    def test_partial_write_requires_manual_recovery(self):
+    def test_partial_write_is_recoverable_if_unchanged(self):
         plan = self.plan()
         other = self.project / "other.txt"
         other.write_bytes(b"untouched")
@@ -360,13 +516,175 @@ class Transactions(unittest.TestCase):
             with self.assertRaises(transaction.TransactionError) as raised:
                 transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
         backup_id = self.backup_id(str(raised.exception))
+        self.assertNotEqual(self.config.read_bytes(), self.original)
+        self.assertTrue((self.backups / (transaction.BACKUP_PREFIX + backup_id) / "recovery.json").is_file())
+        transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        self.assertEqual(other.read_bytes(), b"untouched")
+        self.assertEqual((self.backups / (transaction.BACKUP_PREFIX + backup_id) / "original").read_bytes(),
+                         self.original)
+
+    def test_foreign_edit_after_partial_write_prevents_restore(self):
+        plan = self.plan()
+
+        def partial_write(source, target):
+            target.write_bytes(source.read_bytes()[:32])
+            raise OSError("injected partial write")
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_write):
+            with self.assertRaises(transaction.TransactionError) as raised:
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        backup_id = self.backup_id(str(raised.exception))
+        changed = self.config.read_bytes() + b"foreign work"
+        self.config.write_bytes(changed)
+        with self.assertRaisesRegex(transaction.TransactionError, "Fremde Zwischenänderung"):
+            transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), changed)
+
+    def test_low_level_write_failure_can_be_restored(self):
+        plan = self.plan()
+        original_open = Path.open
+
+        class FailedWrite:
+            def __init__(self, file):
+                self.file = file
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.file.close()
+
+            def write(self, content):
+                self.file.write(content[:-10])
+                self.file.flush()
+                raise OSError("injected write failure")
+
+        def faulty_open(path, *args, **kwargs):
+            file = original_open(path, *args, **kwargs)
+            if path == self.config and args and args[0] == "r+b":
+                return FailedWrite(file)
+            return file
+
+        with mock.patch.object(Path, "open", new=faulty_open), \
+                mock.patch.object(transaction, "_replace", side_effect=transaction._write_in_place):
+            with self.assertRaises(transaction.TransactionError) as raised:
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        self.assertIn("Teilzustand erfasst", str(raised.exception))
+        backup_id = self.backup_id(str(raised.exception))
+        transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), self.original)
+
+    def test_process_interruption_requires_manual_recovery(self):
+        plan = self.plan()
+
+        def interrupted(source, target):
+            target.write_bytes(source.read_bytes()[:32])
+            raise KeyboardInterrupt
+
+        with mock.patch.object(transaction, "_replace", side_effect=interrupted):
+            with self.assertRaises(KeyboardInterrupt):
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        backup_id = plan["backup"]["id"]
         partial = self.config.read_bytes()
         with self.assertRaisesRegex(transaction.TransactionError, "manuelle Wiederherstellung"):
             transaction.restore(str(self.project), backup_id)
         self.assertEqual(self.config.read_bytes(), partial)
-        self.assertEqual(other.read_bytes(), b"untouched")
-        self.assertEqual((self.project / (transaction.BACKUP_PREFIX + backup_id) / "original").read_bytes(),
+        self.assertEqual((self.backups / (transaction.BACKUP_PREFIX + backup_id) / "original").read_bytes(),
                          self.original)
+
+    def test_abrupt_process_exit_preserves_snapshot_and_requires_manual_recovery(self):
+        plan = self.plan()
+        script = (
+            "import os, sys\n"
+            "from project_generator import installed_version, transaction\n"
+            "def crash(source, target):\n"
+            "    target.write_bytes(source.read_bytes()[:32])\n"
+            "    os._exit(73)\n"
+            "transaction._replace = crash\n"
+            "transaction.apply(sys.argv[1], sys.argv[2], sys.argv[3], installed_version())\n"
+        )
+        env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1")
+        result = subprocess.run(
+            [sys.executable, "-B", "-c", script, str(self.project), str(self.plan_file), plan["plan_id"]],
+            cwd=self.project, env=env, capture_output=True,
+        )
+        self.assertEqual(result.returncode, 73)
+        backup = self.backups / plan["backup"]["directory"]
+        self.assertEqual((backup / "original").read_bytes(), self.original)
+        self.assertTrue((backup / "stage").is_file())
+        self.assertFalse((backup / "recovery.json").exists())
+        partial = self.config.read_bytes()
+        restored = self.cli("restore", str(self.project), "--backup", plan["backup"]["id"])
+        self.assertEqual(restored.returncode, 1, restored.stderr)
+        self.assertIn("manuelle Wiederherstellung", restored.stderr)
+        self.assertEqual(self.config.read_bytes(), partial)
+        self.assertTrue((backup / "stage").is_file())
+
+    def test_failure_to_record_partial_state_requires_manual_recovery(self):
+        plan = self.plan()
+        write_new = transaction._write_new
+
+        def partial_write(source, target):
+            target.write_bytes(source.read_bytes()[:32])
+            raise OSError("injected partial write")
+
+        def fail_record(path, content):
+            if path.name == "recovery.tmp":
+                raise OSError("injected journal failure")
+            return write_new(path, content)
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_write), \
+                mock.patch.object(transaction, "_write_new", side_effect=fail_record):
+            with self.assertRaises(transaction.TransactionError) as raised:
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        self.assertIn("Teilzustand konnte nicht sicher erfasst", str(raised.exception))
+        backup_id = self.backup_id(str(raised.exception))
+        partial = self.config.read_bytes()
+        with self.assertRaisesRegex(transaction.TransactionError, "manuelle Wiederherstellung"):
+            transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), partial)
+        self.assertEqual((self.backups / (transaction.BACKUP_PREFIX + backup_id) / "original").read_bytes(),
+                         self.original)
+
+    def test_partial_apply_and_restore_failures_can_be_retried(self):
+        plan = self.plan()
+
+        def partial_apply(source, target):
+            target.write_bytes(source.read_bytes()[:32])
+            raise OSError("injected partial apply")
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_apply):
+            with self.assertRaises(transaction.TransactionError) as raised:
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        backup_id = self.backup_id(str(raised.exception))
+
+        def partial_restore(source, target):
+            target.write_bytes(source.read_bytes()[:41])
+            raise OSError("injected partial restore")
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_restore):
+            with self.assertRaisesRegex(transaction.TransactionError, "Teilzustand erfasst"):
+                transaction.restore(str(self.project), backup_id)
+        transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), self.original)
+
+    @unittest.skipIf(os.name == "nt", "POSIX cross-device rename")
+    def test_cross_device_fallback_and_hardlink_protection(self):
+        plan = self.plan()
+        with mock.patch.object(transaction.os, "replace", side_effect=OSError(errno.EXDEV, "cross-device")):
+            backup_id = transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"],
+                                          installed_version())
+            transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        outside = self.base / "hardlink.yaml"
+        os.link(self.config, outside)
+        plan = self.plan()
+        with mock.patch.object(transaction.os, "replace", side_effect=OSError(errno.EXDEV, "cross-device")):
+            with self.assertRaisesRegex(transaction.TransactionError, "Hardlinks"):
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        self.assertEqual(outside.read_bytes(), self.original)
+        self.assertEqual(self.config.read_bytes(), self.original)
 
     @unittest.skipUnless(os.name == "nt", "Windows alternate streams")
     def test_windows_alternate_streams_are_rejected(self):
@@ -411,7 +729,7 @@ class Transactions(unittest.TestCase):
         applied = self.apply(plan)
         self.assertEqual(applied.returncode, 0, applied.stderr)
         backup_id = self.backup_id(applied.stdout)
-        original_backup = self.project / (transaction.BACKUP_PREFIX + backup_id) / "original"
+        original_backup = self.backups / (transaction.BACKUP_PREFIX + backup_id) / "original"
         original_backup.unlink()
         original_backup.symlink_to(outside)
         current = self.config.read_bytes()

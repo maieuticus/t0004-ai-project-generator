@@ -11,22 +11,23 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 - Aktive Aufgabe: Bestätigtes Apply und Restore der Metadatenoperation zu Issue #2.
 - Erledigt:
   - Safety-Core und Gate-A-Plan sind gemergt; die Linux- und Windows-CI von PR #4 war erfolgreich.
-  - Planformat 2 beschreibt die Metadatenänderung und die vorab nicht vorhandenen Backup-Pfade.
+  - Planformat 3 bindet die Metadatenänderung und Backup-Pfade an Projekt und lokalen Speicher.
   - Apply verlangt einen unveränderten JSON-Plan und dessen bestätigte ID; Snapshot und
     Restore prüfen Inhalt und Zugriffsmetadaten und verweigern fremde Änderungen.
-  - Für die Dauer jedes `apply`-/`restore`-Aufrufs ist exklusiver Projektzugriff mit dem
-    Nutzer vereinbart. Backups können Secrets enthalten und werden nicht automatisch ignoriert.
-  - Unter Windows bleiben die Sicherheitsmetadaten durch direktes Schreiben erhalten;
-    zusätzliche Streams, Hardlinks und nicht unterstützte Attribute werden abgelehnt.
-    Ein unterbrochener Schreibvorgang kann manuelle Wiederherstellung erfordern.
+  - Für die Dauer jedes `apply`-/`restore`-Aufrufs ist exklusiver Projektzugriff vereinbart.
+    Geschützte lokale Backups liegen außerhalb erkannter Git-Arbeitsverzeichnisse und
+    können Secrets enthalten; die Codespaces-Standardbasis übersteht Container-Rebuilds.
+  - Erfasste Teilzustände nach Schreibfehlern sind konfliktbewusst wiederherstellbar.
+    Bei abruptem Abbruch vor ihrer Erfassung kann manuelle Wiederherstellung nötig sein.
 - Offen:
   - CI des Feature-Branches unter Linux und Windows und menschliches PR-Review.
   - `new`, read-only-`migrate`, technologieabhängiges `verify`, Integration und Releases
     bleiben separate Etappen; t0003 bleibt unverändert.
 - Blocker: keine bekannten; CI des aktuellen PR-Commitstands prüfen.
-- Letzte Prüfergebnisse: 16 Baseline-Tests und 38 Generator-Tests lokal erfolgreich,
-  vier Windows-spezifische Tests lokal übersprungen. Für Commit `5c48d94` waren Linux-
-  und Windows-CI erfolgreich; Ergebnisse späterer Commits prüfen.
+- Letzte Prüfergebnisse: Lokal 60 Generator-Tests (5 Windows-Tests unter Linux übersprungen),
+  16 Baseline-Tests und `python scripts/check.py` erfolgreich. Für den ursprünglichen
+  PR-Stand `ea066ff` waren Linux- und Windows-CI erfolgreich; CI für die Nachbesserung
+  steht noch aus.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt

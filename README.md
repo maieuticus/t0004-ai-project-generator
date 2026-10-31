@@ -56,9 +56,26 @@ t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 In Windows PowerShell den Plan z. B. mit `t0004-generator plan C:\projekt --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`
 verwenden. `apply` gibt die Backup-ID aus; `restore` behält das Backup zur manuellen Prüfung.
-Backups enthalten die vollständige ursprüngliche Konfiguration, möglicherweise mit Secrets.
-Sie werden **nicht automatisch von Git ausgeschlossen** und dürfen nicht committed oder
-unbedacht geteilt werden.
+Backups liegen standardmäßig in einem geschützten lokalen Speicher außerhalb von
+Git-Arbeitsverzeichnissen:
+
+| Umgebung | Speicherbasis |
+|---|---|
+| Linux | `$XDG_DATA_HOME` oder `~/.local/share` |
+| Windows | `%LOCALAPPDATA%` oder `%USERPROFILE%\AppData\Local` |
+| Codespaces | `/workspaces/.t0004-data` (über Container-Rebuilds hinweg persistent) |
+
+Der tatsächliche Snapshot liegt unter `t0004-generator/backups/.t0004-backup-<Backup-ID>`
+innerhalb dieser Basis. `T0004_BACKUP_HOME` kann eine andere absolute lokale Basis wählen;
+sie darf weder im Zielprojekt noch in einem Git-Arbeitsverzeichnis liegen. Für Plan, Apply
+und Restore muss dieselbe Speicherbasis und derselbe Projektpfad verwendet werden.
+
+Snapshots enthalten die vollständige ursprüngliche Konfiguration und möglicherweise Secrets.
+Git erfasst sie bei normalen Operationen im Projekt nicht; sie dürfen nicht manuell in ein
+Repository kopiert oder unbedacht geteilt werden. Beim Löschen eines Codespace gehen auch
+dessen Backups verloren; bei anderer Speicherbasis kann dies bereits beim Rebuild geschehen.
+Alte Backups aus vorherigen PR-Versionen bleiben unverändert im Projekt; `plan` meldet
+sie als Konflikt. Vor Git-Operationen müssen sie geschützt außerhalb gesichert werden.
 
 Details zu Versionsgrenzen, Konflikten, Fingerabdruck und Exitcodes stehen im
 [Generator-Vertrag](docs/GENERATOR_CONTRACT.md).

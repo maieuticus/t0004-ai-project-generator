@@ -14,10 +14,43 @@ SUPPORTED_TEMPLATE_RELEASES = {"0.1.0"}
 MAX_CONFIG_BYTES = 1024 * 1024
 REQUIRED_FILES = ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md")
 BACKUP_PREFIX = ".t0004-backup-"
+CODESPACES_DATA_HOME = Path("/workspaces/.t0004-data")
 
 
 class PathSafetyError(ValueError):
     """The target project cannot be inspected safely."""
+
+
+def backup_store(target: str) -> Path:
+    override = os.environ.get("T0004_BACKUP_HOME")
+    if override:
+        base = Path(override)
+    elif os.name == "nt":
+        configured = os.environ.get("LOCALAPPDATA")
+        base = Path(configured) if configured else Path.home() / "AppData" / "Local"
+    elif os.environ.get("CODESPACES", "").lower() == "true":
+        base = CODESPACES_DATA_HOME
+    else:
+        configured = os.environ.get("XDG_DATA_HOME")
+        base = Path(configured) if configured else Path.home() / ".local" / "share"
+    if not base.is_absolute() or ".." in base.parts or str(base).startswith(("//", "\\\\")):
+        raise PathSafetyError("Der lokale Backup-Speicher muss ein absoluter lokaler Pfad ohne '..' sein.")
+    candidate = base / "t0004-generator" / "backups"
+    for path in (candidate, *candidate.parents):
+        if _is_link(path):
+            raise PathSafetyError("Der Backup-Speicher darf keine Symlinks oder Junctions verwenden.")
+    store = candidate.resolve(strict=False)
+    root = Path(target).expanduser().resolve(strict=True)
+    if store == root or store.is_relative_to(root) or root.is_relative_to(store):
+        raise PathSafetyError("Der Backup-Speicher muss außerhalb des Zielprojekts liegen.")
+    for parent in (store, *store.parents):
+        if os.path.lexists(parent / ".git"):
+            raise PathSafetyError("Der Backup-Speicher darf nicht in einem Git-Arbeitsverzeichnis liegen.")
+    return store
+
+
+def _location_fingerprint(path: Path) -> str:
+    return hashlib.sha256(os.fsencode(os.path.normcase(str(path)))).hexdigest()
 
 
 def _is_link(path: Path) -> bool:
@@ -211,19 +244,24 @@ def file_attributes(target: str) -> str:
 
 def choose_backup_id(content: bytes, version: str, attributes: str | None,
                      target: str | None = None) -> str:
-    root = Path(target).expanduser().resolve(strict=True) if target is not None else None
+    store = backup_store(target) if target is not None else None
+    project = _location_fingerprint(Path(target).expanduser().resolve(strict=True)) if target is not None else None
     for counter in range(1024):
-        seed = json.dumps([hashlib.sha256(content).hexdigest(), version, attributes, counter],
+        seed = json.dumps([hashlib.sha256(content).hexdigest(), version, attributes, project, counter],
                           ensure_ascii=True, separators=(",", ":"))
         candidate = hashlib.sha256(seed.encode("ascii")).hexdigest()[:32]
-        if root is None or not os.path.lexists(root / (BACKUP_PREFIX + candidate)):
+        if store is None or not os.path.lexists(store / (BACKUP_PREFIX + candidate)):
             return candidate
     raise PathSafetyError("Kein freier Backup-Pfad verfügbar.")
 
 
 def create_plan(content: bytes, generator_version: str, missing: list[str],
-                attributes: str | None = None, backup_id: str | None = None) -> dict[str, object]:
+                attributes: str | None = None, backup_id: str | None = None,
+                project_fingerprint: str | None = None, storage_fingerprint: str | None = None,
+                legacy_backups: bool = False) -> dict[str, object]:
     metadata, conflicts, warnings = assess(content, generator_version, missing)
+    if legacy_backups:
+        conflicts.append("Altes Backup im Zielprojekt: vor Git-Operationen geschützt außerhalb sichern.")
     fingerprint = hashlib.sha256(content).hexdigest()
     operations = []
     backup = None
@@ -245,13 +283,17 @@ def create_plan(content: bytes, generator_version: str, missing: list[str],
             "original": f"{directory}/original",
             "manifest": f"{directory}/manifest.json",
             "temporary": f"{directory}/stage",
+            "recovery": f"{directory}/recovery.json",
+            "recovery_temporary": f"{directory}/recovery.tmp",
             "before": "not_exists",
             "original_sha256": fingerprint,
         }
     identity = {
-        "format": 2,
+        "format": 3,
         "generator_version": generator_version,
         "source_fingerprint": fingerprint,
+        "project_fingerprint": project_fingerprint,
+        "storage_fingerprint": storage_fingerprint,
         "operations": operations,
         "backup": backup,
         "conflicts": conflicts,
@@ -265,6 +307,19 @@ def create_plan(content: bytes, generator_version: str, missing: list[str],
         "diff_format": "semantic",
         "read_only": True,
     }
+
+
+def plan_target(target: str, generator_version: str, backup_id: str | None = None) -> tuple[bytes, dict[str, object]]:
+    content, missing = read_target(target)
+    attributes = file_attributes(target)
+    store = backup_store(target)
+    root = Path(target).expanduser().resolve(strict=True)
+    legacy_backups = any(re.fullmatch(r"\.t0004-backup-[0-9a-f]{32}", entry.name, re.IGNORECASE)
+                         for entry in root.iterdir())
+    if backup_id is None:
+        backup_id = choose_backup_id(content, generator_version, attributes, target)
+    return content, create_plan(content, generator_version, missing, attributes, backup_id,
+                                _location_fingerprint(root), _location_fingerprint(store), legacy_backups)
 
 
 def check_prerequisites() -> list[str]:

@@ -7,7 +7,7 @@ import sys
 from . import installed_version
 from .config import ConfigurationError
 from .plan import (
-    PathSafetyError, assess, check_prerequisites, choose_backup_id, create_plan, file_attributes, read_target,
+    PathSafetyError, assess, check_prerequisites, plan_target, read_target,
 )
 from .transaction import TransactionError, apply, restore
 
@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "apply":
             backup_id = apply(args.target, args.plan, args.confirm, installed_version())
             print(f"Apply geprüft und abgeschlossen. Backup-ID: {backup_id}")
-            print("Backup enthält vollständige Konfigurationsdaten und darf nicht in Git gelangen.")
+            print("Der geschützte lokale Snapshot kann Secrets enthalten und darf nicht geteilt werden.")
             return 0
         if args.command == "restore":
             print(restore(args.target, args.backup))
@@ -77,9 +77,7 @@ def main(argv: list[str] | None = None) -> int:
             conflicts.extend(check_prerequisites())
             result = {"valid": not conflicts, "conflicts": conflicts, "warnings": warnings}
         else:
-            attributes = file_attributes(args.target)
-            backup_id = choose_backup_id(content, version, attributes, args.target)
-            result = create_plan(content, version, missing, attributes, backup_id)
+            _, result = plan_target(args.target, version)
         _emit(result, args.as_json)
         return 1 if result["conflicts"] else 0
     except (ConfigurationError, PathSafetyError) as error:
