@@ -10,9 +10,10 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - Der installierbare Einstiegspunkt lautet `t0004-generator`. Der Safety-Core verwendet:
   `t0004-generator version`, `t0004-generator check [ZIELPROJEKT]` und
   `t0004-generator plan [ZIELPROJEKT]`, `t0004-generator new [ZIELPROJEKT]`,
+  `t0004-generator migrate [QUELLPROJEKT]`,
   `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID` und
   `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
-  `--json` liefert bei `check`, `plan` und `new` eine maschinenlesbare Darstellung.
+  `--json` liefert bei `check`, `plan`, `new` und `migrate` eine maschinenlesbare Darstellung.
 - Exitcodes: `0` erfolgreich, `1` bei Kompatibilitäts- oder Voraussetzungskonflikten,
   verweigerten Transaktionen oder Transaktionsfehlern, `2` bei ungültigen Argumenten,
   Pfaden oder Konfigurationen.
@@ -25,14 +26,63 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   `generator.version` kann anschließend mit bestätigtem `apply` gesetzt werden. Bei bereits
   aktueller Version ist der Plan ohne Operation und Backup. Profile, SDD-Initialisierung und
   Generator-Upgrades sind nicht implementiert.
-- Das noch nicht implementierte `migrate` prüft ein bestehendes Projekt zunächst ausschließlich
-  lesend. Die Bestandsanalyse umfasst Dokumente, Code, Assets, Konfiguration und Tests; Secrets
-  werden weder übernommen noch ausgegeben.
+- `migrate` prüft ein bestehendes Projekt ausschließlich lesend, auch ohne
+  `config/project.yaml`. Es vergleicht Strategien, erzeugt aber keinen ausführbaren Plan,
+  Snapshot oder Projektdateien und führt keine Migration aus.
 - Für `migrate` sind zwei Strategien verbindlich vergleichbar auszuweisen:
   - neues t0003-Projekt mit selektivem Import, bevorzugt für kleine Altprojekte;
   - In-place-Update, oft geeignet für etablierte Projekte.
 - Der Vergleich benennt Risiken sowie Arbeits- und Tokenaufwand. Eine schreibende Migration setzt
   die ausdrückliche Freigabe der gewählten Strategie voraus.
+
+### Lesender Migrationsbericht
+
+- Die Bestandsanalyse erfasst ausschließlich Dateimetadaten und feste Namens-/Endungsindikatoren
+  für Struktur, Konfiguration, Sprachen, Technologien, Dokumentation, Tests, CI und Assets.
+  Sie liest bis zu 1 MiB von `config/project.yaml` und akzeptiert höchstens 256 Zeilen zu je
+  512 Bytes. Sie klassifiziert vorhandene t0003-Metadaten
+  mithilfe des bestehenden Validators; Werte, Modulnamen und Befehle werden nicht ausgegeben
+  oder ausgeführt. Andere Inhalte werden durch die Bestandsanalyse nicht ausgewertet.
+- Bei sicher prüfbarem `.git`-Verzeichnis ermittelt lokales Git versionierte Änderungen und
+  unversionierte Einträge, ohne optionale Sperren, FSMonitor, Hooks oder Submodule. Git kann
+  dabei Git-Konfiguration, Index, Ignore-Dateien und versionierte Dateiinhalte lesen.
+  Git-Ausgaben und Fehlermeldungen mit Pfaden bleiben intern. Globale/systemweite Konfiguration,
+  Attribute und übernommene Git-Umgebungsvariablen werden deaktiviert. Dadurch kann der Status
+  insbesondere bei globalen Zeilenendeneinstellungen vom üblichen Git-Status abweichen.
+  Repositories mit
+  konfigurierten Git-Filtern, Konfigurations-Includes, partiellen Klonen und Git-Indirektionen
+  werden nicht per Git untersucht; ihr Status ist nicht verfügbar.
+  Git-Worktrees mit `.git`-Datei, Repositories ohne lesbaren Index sowie große oder unsichere
+  Git-Metadaten werden nicht geprüft. Ignorierte Dateien und Submodule sind nicht erfasst;
+  unversionierte Verzeichnisse zählen als ein Eintrag. Ausgeschlossene Verzeichnisse und Links
+  werden auch beim Git-Status ausgelassen. Bei unvollständiger Strukturprüfung wird kein Git-Status
+  erhoben. Der Status kann damit unvollständig sein.
+- Es werden höchstens 4000 Projekteinträge bis Tiefe 6 untersucht. Separat werden höchstens
+  4000 Git-Metadateneinträge bis Tiefe 16 geprüft; der Git-Index ist auf 16 MiB, dessen Ausgabe
+  auf 1 MiB und die Laufzeit des Git-Prozesses auf 10 Sekunden begrenzt. Symlinks, Junctions,
+  erkennbare Dateisystemgrenzen und übliche Abhängigkeits-/Build-Verzeichnisse werden nicht
+  verfolgt. Bind-Mounts auf demselben Dateisystem sind nicht auf jeder Plattform erkennbar.
+  Nicht lesbare, ausgelassene und begrenzte Bereiche stehen im Bericht; Inhalte regulärer
+  Dateien werden außer wie oben beschrieben nicht auf Lesbarkeit geprüft. Die Zählungen und
+  Indikatoren betreffen nur beobachtete Einträge.
+- Für den Aufruf muss das Quellprojekt unverändert bleiben: parallele Änderungen, insbesondere
+  an Verzeichnissen und Git-Metadaten, können plattformübergreifend nicht sicher ausgeschlossen
+  werden. Wo unterstützt, werden Verzeichnisse descriptor-relativ und ohne Symlink-Verfolgung
+  geöffnet. Betriebssystem und Dateisystem können lesebedingt Zugriffszeiten aktualisieren.
+  Python kann beim Import Bytecode am Installationsort ablegen; liegt die Generatorinstallation
+  im Quellprojekt, verhindert `PYTHONDONTWRITEBYTECODE=1` diese Laufzeitschreibvorgänge.
+- Die Ausgabe enthält keine individuellen Dateinamen, Quelltexte, Geheimnisse, Umgebungsvariablen,
+  Git-Diagnosen oder Konfigurationswerte. Fehlende Hinweise sind kein Abwesenheitsbeweis. Die
+  Empfehlung ist vorläufig bzw. ausdrücklich offen; eine Umsetzung erfordert menschliche Freigabe.
+- JSON-Bericht Version 1: `report_version`, `kind`, `facts`, `indicators`, `analysis_limits`,
+  `conflicts`, `prerequisites`, `strategies` und `recommendation`. `facts.git.state` ist
+  `available`, `not_detected` oder `unavailable`; nicht verfügbare Zählwerte sind `null`.
+  `facts.t0003_metadata` ist `not_observed`, `recognized_supported`,
+  `recognized_unverified_version`, `not_recognized` oder `unreadable_or_unsupported`.
+  `facts.t0003_details` enthält nur Belegungsindikatoren oder `null`. Die
+  `recommendation.strategy` ist `A` oder `offen`. Der Bericht ist kein `plan`-Format und
+  darf nicht an `apply` übergeben werden. Ein erfolgreicher Bericht liefert Exitcode 0,
+  auch bei Konflikten und Analysegrenzen; ein ungültiger Quellpfad liefert 2.
 
 ## Ausführungsmodi
 

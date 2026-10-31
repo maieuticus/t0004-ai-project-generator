@@ -6,14 +6,22 @@ import sys
 
 from . import installed_version
 from .config import ConfigurationError
+from .migrate import analyze, emit_text
 from .plan import (
     PathSafetyError, assess, check_prerequisites, plan_target, read_target,
 )
 from .transaction import TransactionError, apply, restore
 
 
+class _ArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        if self.prog.endswith(" migrate") or getattr(self, "redact_migrate_errors", False):
+            message = "Ungültige Argumente für migrate."
+        super().error(message)
+
+
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="t0004-generator", description="t0004 generator safety core")
+    parser = _ArgumentParser(prog="t0004-generator", description="t0004 generator safety core")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("version", help="installierte Generator-Version ausgeben")
     for name in ("check", "plan", "new"):
@@ -21,6 +29,9 @@ def _parser() -> argparse.ArgumentParser:
         command = commands.add_parser(name, help=help_text)
         command.add_argument("target", nargs="?", default=".", help="Zielprojekt (Standard: aktuelles Verzeichnis)")
         command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbare Ausgabe")
+    command = commands.add_parser("migrate", help="bestehendes Projekt ausschließlich lesend analysieren")
+    command.add_argument("target", nargs="?", default=".", help="Quellprojekt (Standard: aktuelles Verzeichnis)")
+    command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbarer Analysebericht")
     command = commands.add_parser("apply", help="bestätigten Plan ausführen")
     command.add_argument("target", nargs="?", default=".", help="Zielprojekt")
     command.add_argument("--plan", required=True, help="gespeicherter JSON-Plan")
@@ -58,7 +69,10 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    arguments = argv if argv is not None else sys.argv[1:]
+    parser.redact_migrate_errors = bool(arguments and arguments[0] == "migrate")
+    args = parser.parse_args(argv)
     try:
         if args.command == "version":
             print(installed_version())
@@ -70,6 +84,13 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "restore":
             print(restore(args.target, args.backup))
+            return 0
+        if args.command == "migrate":
+            report = analyze(args.target)
+            if args.as_json:
+                print(json.dumps(report, ensure_ascii=True, sort_keys=True, indent=2))
+            else:
+                emit_text(report)
             return 0
         content, missing = read_target(args.target)
         version = installed_version()

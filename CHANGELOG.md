@@ -10,7 +10,9 @@ Projektstruktur, Adapter, CI, Sicherheit, Breaking Changes, Migrationshinweise.
 - Installierbare Generator-CLI mit lokalem, lesendem Safety-Core-Plan. Planformat 3 erlaubt
   bestätigtes Apply der Metadatenoperation mit geschütztem Snapshot und konfliktbewusstem
   Restore. `new` erstellt denselben Plan für ein bereits vorhandenes t0003-Projekt; es erstellt
-  kein Repository und unterstützt noch keine Profile, Migration oder vollständiges `verify`.
+  kein Repository und unterstützt noch keine Profile oder vollständiges `verify`.
+- `migrate` erstellt ohne Änderungen einen begrenzten Bestandsbericht mit Strategievergleich;
+  eine schreibende Migration ist nicht implementiert.
 - Backups liegen außerhalb von Git-Arbeitsverzeichnissen; erfasste Teilzustände nach
   Schreibfehlern können ohne Überschreiben späterer Fremdänderungen zurückgenommen werden.
 - Basis- und neue Generator-Tests laufen weiterhin in der vorhandenen Linux-/Windows-CI.

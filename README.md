@@ -38,6 +38,7 @@ t0004-generator version
 t0004-generator check /pfad/zum/projekt
 t0004-generator plan /pfad/zum/projekt
 t0004-generator new /pfad/zum/projekt
+t0004-generator migrate /pfad/zum/bestandsprojekt
 ```
 
 Für ein neues Projekt zuerst auf GitHub **Use this template** bei `t0003-ai-project-template`
@@ -45,11 +46,26 @@ wählen und das erstellte Repository lokal öffnen. `new` richtet dieses vorhand
 optional ein; es erstellt kein GitHub-Repository und greift nicht auf das Netzwerk zu.
 
 Unter Windows statt `/pfad/zum/projekt` einen Windows-Pfad angeben. Ohne Pfad wird das aktuelle
-Verzeichnis verwendet; `check`, `plan` und `new` unterstützen `--json`. Sie führen keine Befehle
+Verzeichnis verwendet; `check`, `plan`, `new` und `migrate` unterstützen `--json`. Sie führen keine Befehle
 aus der Projektkonfiguration aus. `new` und `plan` schreiben nichts ins Zielprojekt und liefern
 denselben Plan. Der ausführbare Plan betrifft ausschließlich `generator.version`: Ist die
 Version bereits aktuell, gibt es keine Operation und kein Backup. Profile, SDD-Initialisierung,
-Generator-Upgrades, Migration und das vollständige technologieabhängige `verify` sind nicht verfügbar.
+Generator-Upgrades, eine schreibende Migration und das vollständige technologieabhängige `verify`
+sind nicht verfügbar.
+
+`migrate` untersucht auch Projekte ohne t0003-Konfiguration und vergleicht selektive Übernahme
+mit schrittweiser Anpassung. Der Bericht ist **kein Apply-Plan** und verändert keine Projektdateien.
+Er enthält nur feste Kategorien und Zählwerte, keine individuellen Dateinamen, Inhalte oder
+Konfigurationswerte. Fehlende Hinweise sind kein Nachweis für deren Abwesenheit; Grenzen und
+offene Entscheidungen stehen im Bericht. Symlinks und Abhängigkeitsordner werden nicht verfolgt;
+Tiefe und Anzahl der Einträge sind begrenzt. Git-Status ist bei unsicheren Git-Metadaten,
+Worktrees, konfigurierten Git-Filtern und partiellen Klonen nicht verfügbar. Ignorierte Dateien,
+Submodule und ausgeschlossene Verzeichnisse bleiben beim Git-Status offen.
+Während der Analyse darf kein anderer Prozess das Projekt verändern. Dateisysteme können beim
+Lesen Zugriffszeiten aktualisieren; die Laufzeit selbst kann Bytecode-Caches am Installationsort
+erzeugen. Liegt die Generatorinstallation im Quellprojekt, zum Schutz davor
+`PYTHONDONTWRITEBYTECODE=1` setzen. Weitere Grenzen und das JSON-Format stehen im
+[Generator-Vertrag](docs/GENERATOR_CONTRACT.md).
 
 Beispiel unter Linux; Plan und bestätigte ID vor `apply` selbst prüfen:
 
