@@ -51,6 +51,8 @@ class MigrationAnalysis(unittest.TestCase):
         self.git("init", "-q")
         self.git("config", "user.name", "Fixture")
         self.git("config", "user.email", "fixture@example.invalid")
+        self.git("config", "maintenance.auto", "false")
+        self.git("config", "gc.auto", "0")
         self.write("tracked.txt")
         self.git("add", "tracked.txt")
         self.git("commit", "-qm", "fixture")
@@ -99,6 +101,14 @@ class MigrationAnalysis(unittest.TestCase):
                 path = self.write(f"{language}/{name}")
                 report = self.report(str(path.parent))
                 self.assertEqual(report["indicators"]["languages"], [language])
+
+    def test_windows_uses_stat_instead_of_direntry_device_number(self):
+        self.write("item.py")
+        with os.scandir(self.project) as entries:
+            entry = next(entries)
+            with mock.patch.object(migrate.os, "name", "nt"):
+                info = migrate._entry_stat(entry, self.project)
+        self.assertEqual(info.st_dev, self.project.stat().st_dev)
 
     def test_metadata_present_valid_invalid_and_unverified(self):
         config = (ROOT / "config/project.yaml").read_text(encoding="utf-8")

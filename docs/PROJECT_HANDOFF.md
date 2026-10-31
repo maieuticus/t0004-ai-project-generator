@@ -22,8 +22,9 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
     separate Etappen; t0003 bleibt unverändert.
 - Blocker: keine bekannten; CI- und PR-Stand über Git prüfen.
 - Prüfergebnisse: Lokal unter Linux 80 Generator-Tests (5 Windows-Tests übersprungen), 16
-  Basistests und `python scripts/check.py` erfolgreich. Linux-/Windows-CI des PR-Kopfstands
-  gesondert prüfen.
+  Basistests und `python scripts/check.py` erfolgreich; nach der Windows-Korrektur wurden die
+  gezielten Migrationstests erneut erfolgreich ausgeführt. Linux-/Windows-CI des aktuellen
+  PR-Kopfstands gesondert prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt

@@ -42,6 +42,13 @@ TECHNOLOGIES = {
 }
 
 
+def _entry_stat(entry: os.DirEntry, directory: Path) -> os.stat_result:
+    # Windows DirEntry.stat reports zero device/inode numbers; os.stat obtains the volume.
+    if os.name == "nt":
+        return os.stat(directory / entry.name, follow_symlinks=False)
+    return entry.stat(follow_symlinks=False)
+
+
 def _root(value: str) -> Path:
     try:
         requested = Path(value).expanduser()
@@ -122,7 +129,7 @@ def _safe_git_layout(git_dir: Path, device: int) -> bool:
                     seen += 1
                     if seen > MAX_ENTRIES:
                         return False
-                    info = entry.stat(follow_symlinks=False)
+                    info = _entry_stat(entry, directory)
                     reparse = bool(getattr(info, "st_file_attributes", 0)
                                    & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
                     if stat.S_ISLNK(info.st_mode) or reparse or info.st_dev != device:
@@ -259,7 +266,7 @@ def analyze(value: str) -> dict[str, object]:
                     seen += 1
                     relative = (*parts, entry.name)
                     try:
-                        info = entry.stat(follow_symlinks=False)
+                        info = _entry_stat(entry, directory)
                         reparse = bool(getattr(info, "st_file_attributes", 0)
                                        & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0))
                         if stat.S_ISLNK(info.st_mode) or reparse:
