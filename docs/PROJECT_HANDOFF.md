@@ -22,12 +22,15 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - `migrate` bleibt eine lesende Bestandsanalyse; Format-3-Pläne und ältere Backups bleiben
     unter ihren bisherigen Bedingungen unterstützt.
 - Offen:
-  - CI des tatsächlichen PR-Kopfstands und menschliches Review prüfen; nicht automatisch mergen.
+  - PR erstellen und dessen CI sowie menschliches Review prüfen; nicht automatisch mergen.
   - Abschließendes `verify`, separate Releases und die vollständige Gate-A-Praxismatrix
     bleiben spätere Etappen; t0003 bleibt unverändert.
-- Blocker: keine bekannten; tatsächlichen CI-, Git- und PR-Stand prüfen.
-- Prüfergebnisse: Linux-Generator- und Basistests, Projektcheck sowie Paketinstallation
-  wurden ausgeführt. Eine temporäre Fixture aus dem echten t0003-Commit `6e8363a`
+- Blocker: GitHub lehnt die PR-Erstellung mit dem bereitgestellten Token sowohl über GraphQL
+  als auch über REST mit „Resource not accessible by personal access token“ ab. Push ist
+  erfolgreich; für den PR ist ein entsprechend berechtigter Zugriff erforderlich.
+- Prüfergebnisse: Unter Linux 130 Generator-Tests (6 plattformbedingt übersprungen),
+  16 Basistests, Projektcheck sowie Paketinstallation erfolgreich. Eine temporäre Fixture
+  aus dem echten t0003-Commit `6e8363a`
   bestätigte Plan, Apply, Projektcheck, No-op und bytegenaues Restore aller 32 Originaldateien.
   Windows ist lokal nicht geprüft; den CI-Stand des tatsächlichen PR-Kopfstands abfragen.
 - Synchronisierung: die Sicherung erfolgt abschnittsweise auf dem Feature-Branch; tatsächlichen
@@ -35,7 +38,7 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 ## Nächster Schritt
 
-CI des PR-Kopfstands prüfen und das Review-Gate durch den Menschen durchführen.
+Mit berechtigtem Zugriff den PR erstellen und danach dessen CI und das menschliche Review prüfen.
 
 ## Entscheidungen und Quellen
 
