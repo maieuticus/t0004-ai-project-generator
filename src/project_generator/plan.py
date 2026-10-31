@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 
@@ -12,6 +13,7 @@ from .config import ConfigurationError, load_metadata
 SUPPORTED_TEMPLATE_RELEASES = {"0.1.0"}
 MAX_CONFIG_BYTES = 1024 * 1024
 REQUIRED_FILES = ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md")
+BACKUP_PREFIX = ".t0004-backup-"
 
 
 class PathSafetyError(ValueError):
@@ -86,21 +88,112 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
     return metadata, conflicts, warnings
 
 
-def create_plan(content: bytes, generator_version: str, missing: list[str]) -> dict[str, object]:
+def metadata_result(content: bytes, generator_version: str) -> bytes:
+    """Replace only the validated generator version, retaining all other bytes."""
+    lines = content.decode("utf-8").splitlines(keepends=True)
+    in_generator = False
+    for index, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        if re.fullmatch(r"generator:\s*(#.*)?", body):
+            in_generator = True
+            continue
+        if in_generator and body and not body.startswith((" ", "#")):
+            break
+        if in_generator:
+            match = re.fullmatch(r"(  version:)([ \t]*)(null|~)?([ \t]*)(#.*)?", body)
+            if match:
+                ending = line[len(body):]
+                spacing, suffix = match.group(2), match.group(4)
+                if match.group(5) and not suffix:
+                    spacing, suffix = spacing[:1], spacing[1:] or " "
+                lines[index] = (f'{match.group(1)}{spacing}"{generator_version}"'
+                                f'{suffix}{match.group(5) or ""}{ending}')
+                result = "".join(lines).encode("utf-8")
+                load_metadata(result)
+                return result
+    raise ConfigurationError("config/project.yaml: generator.version kann nicht sicher geändert werden.")
+
+
+def file_attributes(target: str) -> str:
+    """Fingerprint access metadata without exporting its potentially sensitive contents."""
+    path = Path(target).expanduser().resolve(strict=True) / "config" / "project.yaml"
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode):
+        raise PathSafetyError("config/project.yaml muss eine reguläre Datei sein.")
+    attributes = {"mode": stat.S_IMODE(info.st_mode)}
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+        advapi.GetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p,
+                                             wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+        advapi.GetFileSecurityW.restype = wintypes.BOOL
+        size = wintypes.DWORD()
+        advapi.GetFileSecurityW(str(path), 7, None, 0, ctypes.byref(size))
+        if not size.value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        data = ctypes.create_string_buffer(size.value)
+        if not advapi.GetFileSecurityW(str(path), 7, data, size, ctypes.byref(size)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        attributes["security"] = hashlib.sha256(data.raw[:size.value]).hexdigest()
+    else:
+        attributes["owner"] = info.st_uid
+        attributes["group"] = info.st_gid
+        if hasattr(os, "listxattr"):
+            attributes["xattrs"] = {
+                name: hashlib.sha256(os.getxattr(path, name, follow_symlinks=False)).hexdigest()
+                for name in sorted(os.listxattr(path, follow_symlinks=False))
+            }
+    encoded = json.dumps(attributes, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("ascii")).hexdigest()
+
+
+def choose_backup_id(content: bytes, version: str, attributes: str | None,
+                     target: str | None = None) -> str:
+    root = Path(target).expanduser().resolve(strict=True) if target is not None else None
+    for counter in range(1024):
+        seed = json.dumps([hashlib.sha256(content).hexdigest(), version, attributes, counter],
+                          ensure_ascii=True, separators=(",", ":"))
+        candidate = hashlib.sha256(seed.encode("ascii")).hexdigest()[:32]
+        if root is None or not os.path.lexists(root / (BACKUP_PREFIX + candidate)):
+            return candidate
+    raise PathSafetyError("Kein freier Backup-Pfad verfügbar.")
+
+
+def create_plan(content: bytes, generator_version: str, missing: list[str],
+                attributes: str | None = None, backup_id: str | None = None) -> dict[str, object]:
     metadata, conflicts, warnings = assess(content, generator_version, missing)
     fingerprint = hashlib.sha256(content).hexdigest()
     operations = []
+    backup = None
     if not conflicts and metadata["generator_version"] is None:
+        result = metadata_result(content, generator_version)
         operations.append({
             "path": "config/project.yaml",
             "action": "modify",
             "diff": f"- generator.version: null\n+ generator.version: {generator_version}\n",
+            "before_sha256": fingerprint,
+            "after_sha256": hashlib.sha256(result).hexdigest(),
+            "before_attributes": attributes,
         })
+        backup_id = backup_id or choose_backup_id(content, generator_version, attributes)
+        directory = BACKUP_PREFIX + backup_id
+        backup = {
+            "id": backup_id,
+            "directory": directory,
+            "original": f"{directory}/original",
+            "manifest": f"{directory}/manifest.json",
+            "temporary": f"{directory}/stage",
+            "before": "not_exists",
+            "original_sha256": fingerprint,
+        }
     identity = {
-        "format": 1,
+        "format": 2,
         "generator_version": generator_version,
         "source_fingerprint": fingerprint,
         "operations": operations,
+        "backup": backup,
         "conflicts": conflicts,
         "warnings": warnings,
     }

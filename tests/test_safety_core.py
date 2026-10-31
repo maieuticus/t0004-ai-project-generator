@@ -140,7 +140,7 @@ class SafetyCoreCli(unittest.TestCase):
             '  modules: []\nchecks: []\n'
         ).encode("utf-8")
         self.assertEqual(create_plan(fixture, "0.1.0", [])["plan_id"],
-                         "9d8559c49181667cd1c9777cec2f2f7cc32c7b3debacb356cba443586818a5b2")
+                         "eaf547a9ba767ff787d1ae1b2d2b7d764ce548033ec578c86a5d6d670b6feb73")
 
     def test_conflicts_exit_nonzero_and_never_propose_upgrade(self):
         for before, after in [

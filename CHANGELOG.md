@@ -7,8 +7,9 @@ Projektstruktur, Adapter, CI, Sicherheit, Breaking Changes, Migrationshinweise.
 ## [Unveröffentlicht]
 
 ### Sicherheit
-- Installierbare Generator-CLI mit lokaler Konfigurationsprüfung und ausschließlich lesendem,
-  deterministischem Safety-Core-Plan; keine Schreib-, Backup- oder Migrationsfunktion.
+- Installierbare Generator-CLI mit lokalem, lesendem Safety-Core-Plan. Planformat 2 erlaubt
+  bestätigtes Apply der Metadatenoperation mit geschütztem Snapshot und konfliktbewusstem
+  Restore; kein `new`, keine Migration und kein vollständiges `verify`.
 - Basis- und neue Generator-Tests laufen weiterhin in der vorhandenen Linux-/Windows-CI.
 
 ## [0.1.0] – 2026-10-30

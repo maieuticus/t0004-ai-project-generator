@@ -28,7 +28,7 @@ python -m unittest discover -s .github/template-tests -v
 python -m unittest discover -s tests -v
 ```
 
-## Generator Safety-Core
+## Generator Safety-Core und bestätigtes Apply
 
 Python 3.11+ und Git werden vorausgesetzt. Den Generator bei Bedarf ausdrücklich installieren:
 
@@ -41,9 +41,24 @@ t0004-generator plan /pfad/zum/projekt
 
 Unter Windows statt `/pfad/zum/projekt` einen Windows-Pfad angeben. Ohne Pfad wird das aktuelle
 Verzeichnis verwendet; `check` und `plan` unterstützen `--json`. Beide führen keine Befehle aus
-der Projektkonfiguration aus und greifen nicht auf das Netzwerk zu. `plan` zeigt ausschließlich
-einen semantischen Vorschlag für `generator.version`, keine ausführbare Patchdatei. Er schreibt
-nichts ins Zielprojekt. `new`, `apply`, Backup, Rollback und Migration sind noch nicht verfügbar.
+der Projektkonfiguration aus und greifen nicht auf das Netzwerk zu. `plan` schreibt nichts ins
+Zielprojekt. Der ausführbare Plan betrifft derzeit ausschließlich `generator.version`; `new`,
+Migration und das vollständige technologieabhängige `verify` sind noch nicht verfügbar.
+
+Beispiel unter Linux; Plan und bestätigte ID vor `apply` selbst prüfen:
+
+```text
+t0004-generator plan /pfad/zum/projekt --json > /tmp/t0004-plan.json
+t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <Plan-ID>
+t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
+```
+
+In Windows PowerShell den Plan z. B. mit `t0004-generator plan C:\projekt --json |
+Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`
+verwenden. `apply` gibt die Backup-ID aus; `restore` behält das Backup zur manuellen Prüfung.
+Backups enthalten die vollständige ursprüngliche Konfiguration, möglicherweise mit Secrets.
+Sie werden **nicht automatisch von Git ausgeschlossen** und dürfen nicht committed oder
+unbedacht geteilt werden.
 
 Details zu Versionsgrenzen, Konflikten, Fingerabdruck und Exitcodes stehen im
 [Generator-Vertrag](docs/GENERATOR_CONTRACT.md).
