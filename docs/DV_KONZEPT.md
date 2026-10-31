@@ -6,7 +6,8 @@ Verhaltensentscheidungen gelten erst nach Freigabe.
 ## Status dieses Dokuments
 
 Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge sind
-verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation; weitergehende
+verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation; `migrate`
+liefert eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration. Weitergehende
 Einrichtung und die übrigen Generator-Modi sind offen.
 
 ## Projektziel

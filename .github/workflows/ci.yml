@@ -30,3 +30,4 @@ jobs:
       - run: t0004-generator check
       - run: t0004-generator plan
       - run: t0004-generator new
+      - run: t0004-generator migrate --json
