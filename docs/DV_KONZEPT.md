@@ -6,8 +6,8 @@ Verhaltensentscheidungen gelten erst nach Freigabe.
 ## Status dieses Dokuments
 
 Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge sind
-verbindlich. Der vorgezogene Safety-Core deckt nur eine Teil-Etappe ab; die vollständigen
-Generator-Modi und die dazugehörigen Freigabe- und Sicherheitsfunktionen sind noch offen.
+verbindlich. Der vorgezogene Safety-Core und sein bestätigtes Apply/Restore für eine
+Metadatenoperation decken nur Teil-Etappen ab; die vollständigen Generator-Modi sind offen.
 
 ## Projektziel
 
@@ -60,9 +60,9 @@ Die vier verpflichtenden Praxistests der abschließenden Etappe sind:
 Codespaces bleibt ein Plattformziel des Generatorvertrags und wird zusätzlich zur Vierer-Matrix
 geprüft, sobald die technische Ausführung dafür bereitsteht.
 
-Der Safety-Core ist eine vorgezogene Teil-Etappe zu `new`. Er implementiert noch nicht den
-Modus `new` oder dessen Freigabe-, Backup- und Rollback-Vertrag. Die oben genannten
-Abnahmekriterien bleiben unverändert offen.
+Der Safety-Core und das bestätigte Apply/Restore für `generator.version` sind vorgezogene
+Teil-Etappen zu `new`. Sie implementieren weder den Modus `new` noch dessen vollständigen
+Freigabe-, Backup- und Rollback-Vertrag. Die oben genannten Abnahmekriterien bleiben offen.
 
 ## Entwicklung und Betrieb
 

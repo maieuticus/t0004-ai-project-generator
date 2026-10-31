@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import stat
 
@@ -12,10 +13,44 @@ from .config import ConfigurationError, load_metadata
 SUPPORTED_TEMPLATE_RELEASES = {"0.1.0"}
 MAX_CONFIG_BYTES = 1024 * 1024
 REQUIRED_FILES = ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md")
+BACKUP_PREFIX = ".t0004-backup-"
+CODESPACES_DATA_HOME = Path("/workspaces/.t0004-data")
 
 
 class PathSafetyError(ValueError):
     """The target project cannot be inspected safely."""
+
+
+def backup_store(target: str) -> Path:
+    override = os.environ.get("T0004_BACKUP_HOME")
+    if override:
+        base = Path(override)
+    elif os.name == "nt":
+        configured = os.environ.get("LOCALAPPDATA")
+        base = Path(configured) if configured else Path.home() / "AppData" / "Local"
+    elif os.environ.get("CODESPACES", "").lower() == "true":
+        base = CODESPACES_DATA_HOME
+    else:
+        configured = os.environ.get("XDG_DATA_HOME")
+        base = Path(configured) if configured else Path.home() / ".local" / "share"
+    if not base.is_absolute() or ".." in base.parts or str(base).startswith(("//", "\\\\")):
+        raise PathSafetyError("Der lokale Backup-Speicher muss ein absoluter lokaler Pfad ohne '..' sein.")
+    candidate = base / "t0004-generator" / "backups"
+    for path in (candidate, *candidate.parents):
+        if _is_link(path):
+            raise PathSafetyError("Der Backup-Speicher darf keine Symlinks oder Junctions verwenden.")
+    store = candidate.resolve(strict=False)
+    root = Path(target).expanduser().resolve(strict=True)
+    if store == root or store.is_relative_to(root) or root.is_relative_to(store):
+        raise PathSafetyError("Der Backup-Speicher muss außerhalb des Zielprojekts liegen.")
+    for parent in (store, *store.parents):
+        if os.path.lexists(parent / ".git"):
+            raise PathSafetyError("Der Backup-Speicher darf nicht in einem Git-Arbeitsverzeichnis liegen.")
+    return store
+
+
+def _location_fingerprint(path: Path) -> str:
+    return hashlib.sha256(os.fsencode(os.path.normcase(str(path)))).hexdigest()
 
 
 def _is_link(path: Path) -> bool:
@@ -86,21 +121,181 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
     return metadata, conflicts, warnings
 
 
-def create_plan(content: bytes, generator_version: str, missing: list[str]) -> dict[str, object]:
+def metadata_result(content: bytes, generator_version: str) -> bytes:
+    """Replace only the validated generator version, retaining all other bytes."""
+    lines = content.decode("utf-8").splitlines(keepends=True)
+    in_generator = False
+    for index, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        if re.fullmatch(r"generator:\s*(#.*)?", body):
+            in_generator = True
+            continue
+        if in_generator and body and not body.startswith((" ", "#")):
+            break
+        if in_generator:
+            match = re.fullmatch(r"(  version:)([ \t]*)(null|~)?([ \t]*)(#.*)?", body)
+            if match:
+                ending = line[len(body):]
+                spacing, suffix = match.group(2), match.group(4)
+                if match.group(5) and not suffix:
+                    spacing, suffix = spacing[:1], spacing[1:] or " "
+                lines[index] = (f'{match.group(1)}{spacing}"{generator_version}"'
+                                f'{suffix}{match.group(5) or ""}{ending}')
+                result = "".join(lines).encode("utf-8")
+                if len(result) > MAX_CONFIG_BYTES:
+                    raise ConfigurationError("config/project.yaml überschreitet nach der Änderung die zulässige Größe.")
+                load_metadata(result)
+                return result
+    raise ConfigurationError("config/project.yaml: generator.version kann nicht sicher geändert werden.")
+
+
+def _windows_security_component(path: Path, information: int) -> str:
+    import ctypes
+    from ctypes import wintypes
+
+    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    advapi.GetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p,
+                                         wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    advapi.GetFileSecurityW.restype = wintypes.BOOL
+    advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = [
+        ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(wintypes.LPWSTR),
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.restype = wintypes.BOOL
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+    size = wintypes.DWORD()
+    advapi.GetFileSecurityW(str(path), information, None, 0, ctypes.byref(size))
+    if not size.value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    data = ctypes.create_string_buffer(size.value)
+    if not advapi.GetFileSecurityW(str(path), information, data, size, ctypes.byref(size)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    output = wintypes.LPWSTR()
+    if not advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW(
+        data, 1, information, ctypes.byref(output), None
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return output.value
+    finally:
+        kernel.LocalFree(ctypes.cast(output, ctypes.c_void_p))
+
+
+def _windows_check_streams(path: Path) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    class StreamData(ctypes.Structure):
+        _fields_ = [("size", ctypes.c_longlong), ("name", wintypes.WCHAR * 296)]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.FindFirstStreamW.argtypes = [wintypes.LPCWSTR, ctypes.c_int, ctypes.POINTER(StreamData), wintypes.DWORD]
+    kernel.FindFirstStreamW.restype = wintypes.HANDLE
+    kernel.FindNextStreamW.argtypes = [wintypes.HANDLE, ctypes.POINTER(StreamData)]
+    kernel.FindNextStreamW.restype = wintypes.BOOL
+    kernel.FindClose.argtypes = [wintypes.HANDLE]
+    kernel.FindClose.restype = wintypes.BOOL
+    data = StreamData()
+    handle = kernel.FindFirstStreamW(str(path), 0, ctypes.byref(data), 0)
+    if handle == ctypes.c_void_p(-1).value:
+        raise PathSafetyError("Windows-Dateistreams können nicht sicher geprüft werden.")
+    try:
+        while True:
+            if data.name != "::$DATA":
+                raise PathSafetyError("Zusätzliche Windows-Dateistreams werden nicht unterstützt.")
+            if not kernel.FindNextStreamW(handle, ctypes.byref(data)):
+                if ctypes.get_last_error() != 38:
+                    raise PathSafetyError("Windows-Dateistreams können nicht sicher geprüft werden.")
+                break
+    finally:
+        kernel.FindClose(handle)
+
+
+def file_attributes(target: str) -> str:
+    """Fingerprint access metadata without exporting its potentially sensitive contents."""
+    path = Path(target).expanduser().resolve(strict=True) / "config" / "project.yaml"
+    info = path.lstat()
+    if not stat.S_ISREG(info.st_mode):
+        raise PathSafetyError("config/project.yaml muss eine reguläre Datei sein.")
+    attributes = {"mode": stat.S_IMODE(info.st_mode)}
+    if os.name == "nt":
+        if info.st_nlink != 1:
+            raise PathSafetyError("Windows-Dateien mit mehreren oder unbekannten Hardlinks werden nicht unterstützt.")
+        supported_flags = 0x2 | 0x4 | 0x20 | 0x80 | 0x100 | 0x2000
+        if info.st_file_attributes & ~supported_flags:
+            raise PathSafetyError("Windows-Dateiattribute werden für sichere Ersetzung nicht unterstützt.")
+        _windows_check_streams(path)
+        attributes["file_flags"] = info.st_file_attributes
+        descriptor = _windows_security_component(path, 7)
+        attributes["security"] = hashlib.sha256(descriptor.encode("utf-8")).hexdigest()
+    else:
+        attributes["owner"] = info.st_uid
+        attributes["group"] = info.st_gid
+        if hasattr(os, "listxattr"):
+            attributes["xattrs"] = {
+                name: hashlib.sha256(os.getxattr(path, name, follow_symlinks=False)).hexdigest()
+                for name in sorted(os.listxattr(path, follow_symlinks=False))
+            }
+    encoded = json.dumps(attributes, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(encoded.encode("ascii")).hexdigest()
+
+
+def choose_backup_id(content: bytes, version: str, attributes: str | None,
+                     target: str | None = None) -> str:
+    store = backup_store(target) if target is not None else None
+    project = _location_fingerprint(Path(target).expanduser().resolve(strict=True)) if target is not None else None
+    for counter in range(1024):
+        seed = json.dumps([hashlib.sha256(content).hexdigest(), version, attributes, project, counter],
+                          ensure_ascii=True, separators=(",", ":"))
+        candidate = hashlib.sha256(seed.encode("ascii")).hexdigest()[:32]
+        if store is None or not os.path.lexists(store / (BACKUP_PREFIX + candidate)):
+            return candidate
+    raise PathSafetyError("Kein freier Backup-Pfad verfügbar.")
+
+
+def create_plan(content: bytes, generator_version: str, missing: list[str],
+                attributes: str | None = None, backup_id: str | None = None,
+                project_fingerprint: str | None = None, storage_fingerprint: str | None = None,
+                legacy_backups: bool = False) -> dict[str, object]:
     metadata, conflicts, warnings = assess(content, generator_version, missing)
+    if legacy_backups:
+        conflicts.append("Altes Backup im Zielprojekt: vor Git-Operationen geschützt außerhalb sichern.")
     fingerprint = hashlib.sha256(content).hexdigest()
     operations = []
+    backup = None
     if not conflicts and metadata["generator_version"] is None:
+        result = metadata_result(content, generator_version)
         operations.append({
             "path": "config/project.yaml",
             "action": "modify",
             "diff": f"- generator.version: null\n+ generator.version: {generator_version}\n",
+            "before_sha256": fingerprint,
+            "after_sha256": hashlib.sha256(result).hexdigest(),
+            "before_attributes": attributes,
         })
+        backup_id = backup_id or choose_backup_id(content, generator_version, attributes)
+        directory = BACKUP_PREFIX + backup_id
+        backup = {
+            "id": backup_id,
+            "directory": directory,
+            "original": f"{directory}/original",
+            "manifest": f"{directory}/manifest.json",
+            "temporary": f"{directory}/stage",
+            "recovery": f"{directory}/recovery.json",
+            "recovery_temporary": f"{directory}/recovery.tmp",
+            "before": "not_exists",
+            "original_sha256": fingerprint,
+        }
     identity = {
-        "format": 1,
+        "format": 3,
         "generator_version": generator_version,
         "source_fingerprint": fingerprint,
+        "project_fingerprint": project_fingerprint,
+        "storage_fingerprint": storage_fingerprint,
         "operations": operations,
+        "backup": backup,
         "conflicts": conflicts,
         "warnings": warnings,
     }
@@ -112,6 +307,19 @@ def create_plan(content: bytes, generator_version: str, missing: list[str]) -> d
         "diff_format": "semantic",
         "read_only": True,
     }
+
+
+def plan_target(target: str, generator_version: str, backup_id: str | None = None) -> tuple[bytes, dict[str, object]]:
+    content, missing = read_target(target)
+    attributes = file_attributes(target)
+    store = backup_store(target)
+    root = Path(target).expanduser().resolve(strict=True)
+    legacy_backups = any(re.fullmatch(r"\.t0004-backup-[0-9a-f]{32}", entry.name, re.IGNORECASE)
+                         for entry in root.iterdir())
+    if backup_id is None:
+        backup_id = choose_backup_id(content, generator_version, attributes, target)
+    return content, create_plan(content, generator_version, missing, attributes, backup_id,
+                                _location_fingerprint(root), _location_fingerprint(store), legacy_backups)
 
 
 def check_prerequisites() -> list[str]:
