@@ -132,8 +132,9 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - `python@0.1.0` erstellt `pyproject.toml`, `src/project_app/`, ein ausführbares Beispiel,
   `tests/test_project_app.py` und `docs/PYTHON.md`. Es ergänzt den `unittest`-Aufruf in
   `config/project.yaml` und erweitert `.github/workflows/ci.yml` um Paketinstallation und
-  Beispielaufruf. Andere konfigurierte Checks bleiben erhalten. Die Namen `project-app` und
-  `project_app` sind feste Starter-Namen und müssen bei Bedarf vom Projekt angepasst werden.
+  Beispielaufruf. Ein neu einzutragender Testcheck folgt den vorhandenen Checks, deren
+  Reihenfolge erhalten bleibt. Die Namen `project-app` und `project_app` sind feste Starter-Namen
+  und müssen bei Bedarf vom Projekt angepasst werden.
 - Zusätzlich zum weiterhin erforderlichen `template.release: 0.1.0` müssen
   `scripts/check.py`, `scripts/projectcfg.py` und `.github/workflows/ci.yml` den bytegenau
   geprüften t0003-Dateiständen von Commit `6e8363a` entsprechen. Der Check muss konfigurierte
@@ -185,7 +186,9 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Ohne Dateiprotokoll kann der bekannte Ergebniszustand als Rückfall dienen; ursprünglich
   fehlende Dateien benötigen weiterhin einen dokumentierten Generatorzustand.
 - Format-3-Pläne bleiben unter den bisherigen Versions- und Zustandsbedingungen ausführbar;
-  Manifestformat-2-Backups bleiben wiederherstellbar. Plan- und Backup-IDs sind
+  Manifestformat-2-Backups und bestehende Manifestformat-3-Backups bleiben wiederherstellbar.
+  Bereits gespeicherte Python-Pläne, die den Testcheck vor vorhandenen Checks einfügen würden,
+  werden als veraltet abgelehnt und müssen neu erstellt werden. Plan- und Backup-IDs sind
   Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
   denselben Bytes und Zugriffsmetadaten nicht von Generatorzuständen unterscheidbar.
 

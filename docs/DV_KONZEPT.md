@@ -6,10 +6,9 @@ Verhaltensentscheidungen gelten erst nach Freigabe.
 ## Status dieses Dokuments
 
 Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge sind
-verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation; `migrate`
-liefert eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration. Weitergehende
-Einrichtung und die übrigen Generator-Modi sind offen.
-Die bestehende Mehrdatei-Engine dient jetzt auch dem freigegebenen Modul `python@0.1.0`.
+verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation oder das
+freigegebene Modul `python@0.1.0` mit der bestehenden Mehrdatei-Engine; `migrate` liefert
+eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration.
 Die abschließende `verify`-/Release-Etappe bleibt offen.
 
 ## Projektziel

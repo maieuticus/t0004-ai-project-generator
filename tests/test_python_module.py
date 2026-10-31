@@ -218,6 +218,55 @@ class PythonModule(unittest.TestCase):
         self.assertEqual(config.read_bytes(), original_config)
         self.assertEqual((self.project / python_module.CI_PATH).read_bytes(), CI)
 
+    def test_existing_setup_check_runs_before_added_unittests(self):
+        config = self.project / "config/project.yaml"
+        setup = '["python", "-c", "from pathlib import Path; Path(\'ready.txt\').write_text(\'ready\')"]'
+        config.write_bytes(config.read_bytes().replace(
+            b"checks: []", f"checks:\n  - {setup}".encode("utf-8")
+        ))
+        tests = self.project / "tests"
+        tests.mkdir()
+        (tests / "test_existing.py").write_text(
+            "from pathlib import Path\n"
+            "import unittest\n"
+            "class ExistingTest(unittest.TestCase):\n"
+            "    def test_setup_ran(self):\n"
+            "        self.assertTrue(Path('ready.txt').is_file())\n",
+            encoding="utf-8",
+        )
+        plan = self.save_plan()
+        self.assertEqual(self.apply(plan).returncode, 0)
+        checked = subprocess.run([sys.executable, "scripts/check.py"], cwd=self.project, env=self.env,
+                                 capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
+
+    def test_older_module_plan_is_rejected_but_its_backup_restores(self):
+        config = self.project / "config/project.yaml"
+        original = config.read_bytes().replace(
+            b"checks: []", b'checks:\n  - ["python", "-c", "print(123)"]'
+        )
+        config.write_bytes(original)
+
+        def prepend_old_check(content):
+            return content.replace(
+                b"checks:\n",
+                b"checks:\n  - " + json.dumps(python_module.CHECK).encode() + b"\n",
+                1,
+            )
+
+        with (mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}),
+              mock.patch.object(python_module, "_add_check", side_effect=prepend_old_check)):
+            old_plan, changes = python_module.python_plan_target(str(self.project), installed_version())
+        self.plan_file.write_text(json.dumps(old_plan), encoding="utf-8")
+        self.assertEqual(self.apply(old_plan).returncode, 1)
+        self.assertEqual(config.read_bytes(), original)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            backup = transaction.apply_multi(str(self.project), old_plan, old_plan["plan_id"],
+                                             installed_version(), changes, module="python")
+        restored = self.cli("restore", "--backup", backup)
+        self.assertEqual(restored.returncode, 0, restored.stderr)
+        self.assertEqual(config.read_bytes(), original)
+
     def test_failed_generated_test_fails_project_check(self):
         plan = self.save_plan()
         self.assertEqual(self.apply(plan).returncode, 0)

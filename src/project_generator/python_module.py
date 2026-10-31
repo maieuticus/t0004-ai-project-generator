@@ -99,9 +99,16 @@ def _add_check(content: bytes) -> bytes:
             lines[index] = empty.group(1) + empty.group(2) + newline + command
             return "".join(lines).encode("utf-8")
         if re.fullmatch(r"checks:[ \t]*(?:#.*)?", body):
-            if not line.endswith(("\n", "\r")):
-                lines[index] += newline
-            lines.insert(index + 1, command)
+            last = index
+            for entry_index in range(index + 1, len(lines)):
+                entry = lines[entry_index].rstrip("\r\n")
+                if entry and not entry.startswith((" ", "#")):
+                    break
+                if re.fullmatch(r"  - \[.*\][ \t]*", entry):
+                    last = entry_index
+            if not lines[last].endswith(("\n", "\r")):
+                lines[last] += newline
+            lines.insert(last + 1, command)
             return "".join(lines).encode("utf-8")
     raise ConfigurationError("config/project.yaml: checks kann nicht sicher geändert werden.")
 
