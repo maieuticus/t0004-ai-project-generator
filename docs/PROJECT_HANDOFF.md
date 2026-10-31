@@ -20,14 +20,14 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - Erfasste Teilzustände nach Schreibfehlern sind konfliktbewusst wiederherstellbar.
     Bei abruptem Abbruch vor ihrer Erfassung kann manuelle Wiederherstellung nötig sein.
 - Offen:
-  - CI des Feature-Branches unter Linux und Windows und menschliches PR-Review.
+  - Menschliches PR-Review; CI-Ergebnisse des aktuellen PR-Kopfstands prüfen.
   - `new`, read-only-`migrate`, technologieabhängiges `verify`, Integration und Releases
     bleiben separate Etappen; t0003 bleibt unverändert.
 - Blocker: keine bekannten; CI des aktuellen PR-Commitstands prüfen.
 - Letzte Prüfergebnisse: Lokal 60 Generator-Tests (5 Windows-Tests unter Linux übersprungen),
-  16 Baseline-Tests und `python scripts/check.py` erfolgreich. Für den ursprünglichen
-  PR-Stand `ea066ff` waren Linux- und Windows-CI erfolgreich; CI für die Nachbesserung
-  steht noch aus.
+  16 Baseline-Tests und `python scripts/check.py` erfolgreich. Die Linux- und Windows-CI
+  der Nachbesserung war für Commit `2ec2bac` erfolgreich; CI des jeweiligen aktuellen
+  PR-Kopfstands gesondert prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
