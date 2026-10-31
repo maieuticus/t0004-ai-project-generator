@@ -418,6 +418,27 @@ def _operation_state(root: Path, name: str) -> tuple[bytes | None, str | None]:
     return content, attributes
 
 
+def _portable_path_collisions(root: Path, names: list[str]) -> list[str]:
+    collisions = []
+    for name in names:
+        parent = root
+        for component in name.split("/"):
+            try:
+                with os.scandir(parent) as entries:
+                    collision = any(
+                        entry.name != component
+                        and entry.name.rstrip(" .").casefold() == component.casefold()
+                        for entry in entries
+                    )
+            except FileNotFoundError:
+                break
+            if collision:
+                collisions.append(name)
+                break
+            parent = parent / component
+    return collisions
+
+
 def _canonical_id(identity: dict[str, object]) -> str:
     encoded = json.dumps(identity, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")
     return hashlib.sha256(encoded).hexdigest()
@@ -470,6 +491,8 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
     if module is not None:
         if module != "python":
             raise PathSafetyError("Unbekanntes Technologiemodul.")
+        if _portable_path_collisions(root, [name for name, _, _ in ordered]):
+            raise PathSafetyError("Ein Modulpfad kollidiert auf anderen Plattformen.")
         from .python_compat import python_capabilities
         capabilities = python_capabilities(target)
         if capabilities["conflicts"]:

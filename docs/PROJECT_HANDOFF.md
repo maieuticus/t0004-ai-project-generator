@@ -8,7 +8,7 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 - Stand: 2026-10-31
 - Branch: `feat/python-technology-module`, ausgehend von `main` / `5799be1` (PR #8 gemergt).
-- Aktive Aufgabe: Python-Modul abschließen, PR-CI prüfen und menschliches Review vorbereiten.
+- Aktive Aufgabe: PR #9 unabhängig prüfen, bestätigte Fehler beheben und CI des Kopfstands prüfen.
 - Erledigt:
   - `python@0.1.0` erstellt ein Python-Starterpaket, Beispiel, Tests und Dokumentation;
     es erweitert Projektchecks und die vorhandene GitHub Action.
@@ -19,15 +19,15 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
     CI-Dateistände von t0003-Commit `6e8363a` vorausgesetzt und an den Plan gebunden.
     Der ursprüngliche Release-Stand wird nachvollziehbar abgelehnt. Kein t0003-Release.
   - Die Teilstände `b9efea3`, `d6cd91d` und `5b7a536` sind auf dem Feature-Branch gesichert.
+  - PR #9 ist offen. Die unabhängige Prüfung korrigiert die Reihenfolge bestehender Checks
+    und lehnt plattformabhängige Kollisionen mit vorhandenen Pfaden ab.
   - `migrate` bleibt eine lesende Bestandsanalyse; Format-3-Pläne und ältere Backups bleiben
     unter ihren bisherigen Bedingungen unterstützt.
 - Offen:
-  - PR erstellen und dessen CI sowie menschliches Review prüfen; nicht automatisch mergen.
+  - CI des endgültigen PR-Kopfstands und menschliches Review prüfen; nicht automatisch mergen.
   - Abschließendes `verify`, separate Releases und die vollständige Gate-A-Praxismatrix
     bleiben spätere Etappen; t0003 bleibt unverändert.
-- Blocker: GitHub lehnt die PR-Erstellung mit dem bereitgestellten Token sowohl über GraphQL
-  als auch über REST mit „Resource not accessible by personal access token“ ab. Push ist
-  erfolgreich; für den PR ist ein entsprechend berechtigter Zugriff erforderlich.
+- Blocker: keine bekannten; den tatsächlichen CI- und Git-Stand prüfen.
 - Prüfergebnisse: Unter Linux 130 Generator-Tests (6 plattformbedingt übersprungen),
   16 Basistests, Projektcheck sowie Paketinstallation erfolgreich. Eine temporäre Fixture
   aus dem echten t0003-Commit `6e8363a`
@@ -38,7 +38,7 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 ## Nächster Schritt
 
-Mit berechtigtem Zugriff den PR erstellen und danach dessen CI und das menschliche Review prüfen.
+CI des endgültigen PR-Kopfstands prüfen und das Review-Gate durch den Menschen durchführen.
 
 ## Entscheidungen und Quellen
 

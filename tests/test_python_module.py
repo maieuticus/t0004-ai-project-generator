@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 import tempfile
@@ -141,6 +142,44 @@ class PythonModule(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(plan["operations"], [])
 
+    def test_existing_portable_path_collision_is_a_conflict(self):
+        cases = [("PyProject.toml", False), ("SRC", True)]
+        if os.name != "nt":
+            cases.append(("pyproject.toml.", False))
+        for name, directory in cases:
+            with self.subTest(name=name):
+                path = self.project / name
+                if directory:
+                    path.mkdir()
+                else:
+                    path.write_bytes(b"foreign")
+                result, plan = self.plan()
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(plan["operations"], [])
+                if directory:
+                    path.rmdir()
+                else:
+                    self.assertEqual(path.read_bytes(), b"foreign")
+                    path.unlink()
+
+    def test_portable_collision_after_snapshot_prevents_all_project_writes(self):
+        foreign = self.project / "PyProject.toml"
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, changes = python_module.python_plan_target(str(self.project), installed_version())
+            real_progress = transaction._multi_progress
+
+            def create_collision_after_snapshot(backup, progress):
+                real_progress(backup, progress)
+                foreign.write_bytes(b"foreign")
+
+            with mock.patch.object(transaction, "_multi_progress", side_effect=create_collision_after_snapshot):
+                with self.assertRaisesRegex(transaction.TransactionError, "Ziel wurde nicht geschrieben"):
+                    transaction.apply_multi(str(self.project), plan, plan["plan_id"], installed_version(),
+                                            changes, module="python")
+        self.assertEqual(foreign.read_bytes(), b"foreign")
+        self.assertEqual((self.project / "config/project.yaml").read_bytes(),
+                         (ROOT / "config/project.yaml").read_bytes())
+
     def test_changed_capability_rejects_stale_plan_without_writes(self):
         plan = self.save_plan()
         path = self.project / "scripts/check.py"
@@ -185,6 +224,27 @@ class PythonModule(unittest.TestCase):
                 with self.assertRaisesRegex(transaction.TransactionError, "Ziel wurde nicht geschrieben"):
                     transaction.apply_multi(str(self.project), plan, plan["plan_id"], installed_version(),
                                             changes, module="python")
+        self.assertFalse((self.project / "pyproject.toml").exists())
+
+    @unittest.skipIf(os.name == "nt", "POSIX directory mode test")
+    def test_snapshot_rechecks_capability_directory_permissions(self):
+        directory = self.project / "scripts"
+        mode = stat.S_IMODE(directory.stat().st_mode)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, changes = python_module.python_plan_target(str(self.project), installed_version())
+            real_progress = transaction._multi_progress
+
+            def change_directory_after_snapshot(backup, progress):
+                real_progress(backup, progress)
+                directory.chmod(mode ^ 0o100)
+
+            try:
+                with mock.patch.object(transaction, "_multi_progress", side_effect=change_directory_after_snapshot):
+                    with self.assertRaisesRegex(transaction.TransactionError, "Ziel wurde nicht geschrieben"):
+                        transaction.apply_multi(str(self.project), plan, plan["plan_id"], installed_version(),
+                                                changes, module="python")
+            finally:
+                directory.chmod(mode)
         self.assertFalse((self.project / "pyproject.toml").exists())
 
     def test_restore_refuses_foreign_change_to_any_generated_file(self):

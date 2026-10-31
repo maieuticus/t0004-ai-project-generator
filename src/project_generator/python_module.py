@@ -8,7 +8,7 @@ from pathlib import Path
 from . import projectcfg
 from .config import ConfigurationError
 from .plan import (
-    _canonical_id, _directory_states, _location_fingerprint, _operation_state,
+    _canonical_id, _directory_states, _location_fingerprint, _operation_state, _portable_path_collisions,
     assess, backup_store, file_attributes, metadata_result, multi_plan_target, read_target,
 )
 from .python_compat import PYTHON_CI_SHA256, VERIFIED_FILES, python_capabilities
@@ -140,6 +140,8 @@ def python_plan_target(target: str, version: str) -> tuple[dict[str, object], li
     conflicts.extend(capabilities["conflicts"])
     root = Path(target).expanduser().resolve(strict=True)
     _directory_states(root, list(FILES))
+    for name in _portable_path_collisions(root, [*FILES, "config/project.yaml", CI_PATH]):
+        conflicts.append(f"{name}: Pfad kollidiert auf anderen Plattformen.")
     installed = metadata["modules"] == [MODULE]
     checks = projectcfg.checks(content.decode("utf-8"))
     ci, _ = _operation_state(root, CI_PATH)

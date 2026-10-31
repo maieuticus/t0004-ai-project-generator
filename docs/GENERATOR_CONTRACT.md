@@ -169,6 +169,10 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   höchstens 32 Dateien und 64 Verzeichnisse; pro Datei sind höchstens 1 MiB und für
   Original- beziehungsweise Zielinhalte jeweils insgesamt höchstens 8 MiB zulässig.
   Bind-Mounts auf demselben Dateisystem sind nicht zuverlässig erkennbar.
+- Bei Python-Modulpfaden werden auch bereits vorhandene abweichende Schreibweisen in
+  übergeordneten Verzeichnissen als Konflikte erkannt, einschließlich Groß-/Kleinschreibung
+  und unter Windows ignorierter abschließender Punkte oder Leerzeichen. Das wird vor dem
+  ersten Projekt-Schreibzugriff erneut geprüft.
 - Neue Dateien werden exklusiv erstellt. Fortschritt und lesbare Teilzustände werden im
   geschützten Backup protokolliert. Das öffentliche `restore` unterstützt Manifestformat 3:
   Es prüft zuerst sämtliche Dateien, Verzeichnisse, Zugriffsmetadaten und Originale.
