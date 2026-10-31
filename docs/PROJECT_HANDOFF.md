@@ -16,15 +16,19 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - Keycloak, Colyseus und API-Service-Rezept für Release 1 zurückgestellt.
 - Offen:
   - Dokumentations-PR #3 prüfen und mergen.
-  - Erst danach die PR-Etappen `new`, `migrate`, CI-Ergänzungen und `verify` gemäß
-    [DV_KONZEPT.md](DV_KONZEPT.md) planen; keine Generator-Funktionen vorab implementieren.
+  - Danach PR 2 vorbereiten: installierbare Python-CLI, Konfigurationsvertrag und nicht
+    mutierenden Plan-/Safety-Core festhalten. Die Modi `new` und `migrate` folgen gemäß der
+    genehmigten PR-Reihenfolge in [DV_KONZEPT.md](DV_KONZEPT.md).
 - Blocker: keine
-- Letzte Prüfergebnisse: `python scripts/check.py` erfolgreich; keine projektspezifischen Prüfungen konfiguriert
+- Letzte Prüfergebnisse: 16 Baseline-Tests sowie die GitHub-Actions-Prüfungen unter Ubuntu und
+  Windows erfolgreich; generator-spezifische Funktionstests stehen noch aus.
 - Nicht synchronisierte Änderungen: keine; Dokumentationsbranch ist in PR #3 zur Prüfung geöffnet
 
 ## Nächster Schritt
 
-Dokumentations-PR prüfen und mergen; danach mit der `new`-Etappe beginnen.
+Nach dem Merge der Dokumentations-PR PR 2 vorbereiten: installierbare Python-CLI,
+Konfigurationsvertrag und nicht mutierenden Plan-/Safety-Core festhalten. Die Modi `new` und
+`migrate` folgen gemäß der genehmigten PR-Reihenfolge.
 
 ## Entscheidungen und Quellen
 
