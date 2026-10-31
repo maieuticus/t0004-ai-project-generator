@@ -29,6 +29,8 @@ def _parser() -> argparse.ArgumentParser:
         command = commands.add_parser(name, help=help_text)
         command.add_argument("target", nargs="?", default=".", help="Zielprojekt (Standard: aktuelles Verzeichnis)")
         command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbare Ausgabe")
+        if name != "check":
+            command.add_argument("--module", choices=("python",), help="Technologiemodul planen")
     command = commands.add_parser("migrate", help="bestehendes Projekt ausschließlich lesend analysieren")
     command.add_argument("target", nargs="?", default=".", help="Quellprojekt (Standard: aktuelles Verzeichnis)")
     command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbarer Analysebericht")
@@ -48,20 +50,23 @@ def _emit(data: dict[str, object], as_json: bool) -> None:
         return
     if "plan_id" in data:
         print(f"Plan-ID (SHA-256): {data['plan_id']}")
-        print(f"Ausgangsfingerabdruck (SHA-256, config/project.yaml): {data['source_fingerprint']}")
+        source = data.get("source_fingerprint", data.get("source_sha256"))
+        print(f"Ausgangsfingerabdruck (SHA-256, config/project.yaml): {source}")
         print("Nur lesend; semantischer Diff (apply benötigt den bestätigten JSON-Plan):")
         if not data["operations"]:
             print("Keine Dateioperationen geplant.")
         for operation in data["operations"]:
-            print(f"{operation['action']}: {operation['path']}\n{operation['diff']}", end="")
+            print(f"{operation['action']}: {operation['path']}")
+            if "diff" in operation:
+                print(operation["diff"], end="")
         if data["backup"]:
-            print(f"Geplanter geschützter Snapshot: {data['backup']['directory']}")
+            print(f"Geplanter geschützter Snapshot: {data['backup'].get('directory', data['backup']['id'])}")
     else:
         print("Projektkonfiguration und grundlegende Kompatibilität: "
               + ("Konflikte" if data["conflicts"] else "OK"))
-    for warning in data["warnings"]:
+    for warning in data.get("warnings", []):
         print(f"Hinweis: {warning}")
-    for conflict in data["conflicts"]:
+    for conflict in data.get("conflicts", []):
         print(f"Konflikt: {conflict}")
 
 
@@ -98,12 +103,15 @@ def main(argv: list[str] | None = None) -> int:
             _, conflicts, warnings = assess(content, version, missing)
             conflicts.extend(check_prerequisites())
             result = {"valid": not conflicts, "conflicts": conflicts, "warnings": warnings}
+        elif args.module == "python":
+            from .python_module import python_plan_target
+            result, _ = python_plan_target(args.target, version)
         else:
             _, result = plan_target(args.target, version)
         _emit(result, args.as_json)
-        if args.command == "new" and not args.as_json and not result["conflicts"] and not result["operations"]:
+        if args.command == "new" and not args.as_json and not result.get("conflicts") and not result["operations"]:
             print("Die Generator-Version ist bereits aktuell.")
-        return 1 if result["conflicts"] else 0
+        return 1 if result.get("conflicts") else 0
     except (ConfigurationError, PathSafetyError) as error:
         print(f"Fehler: {error}", file=sys.stderr)
         return 2

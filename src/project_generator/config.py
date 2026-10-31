@@ -118,4 +118,5 @@ def load_metadata(content: bytes) -> dict[str, object]:
         "sdd_version": tool_version,
         "generator_version": generator_version,
         "has_modules": bool(modules),
+        "modules": modules,
     }
