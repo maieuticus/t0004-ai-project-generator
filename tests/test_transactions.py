@@ -337,6 +337,53 @@ class Transactions(unittest.TestCase):
         transaction.restore(str(self.project), backup_id)
         self.assertEqual(self.config.read_bytes(), self.original)
 
+    def test_partial_write_requires_manual_recovery(self):
+        plan = self.plan()
+        other = self.project / "other.txt"
+        other.write_bytes(b"untouched")
+
+        def partial_write(source, target):
+            target.write_bytes(source.read_bytes()[:32])
+            raise OSError("injected partial write")
+
+        with mock.patch.object(transaction, "_replace", side_effect=partial_write):
+            with self.assertRaises(transaction.TransactionError) as raised:
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+        backup_id = self.backup_id(str(raised.exception))
+        partial = self.config.read_bytes()
+        with self.assertRaisesRegex(transaction.TransactionError, "manuelle Wiederherstellung"):
+            transaction.restore(str(self.project), backup_id)
+        self.assertEqual(self.config.read_bytes(), partial)
+        self.assertEqual(other.read_bytes(), b"untouched")
+        self.assertEqual((self.project / (transaction.BACKUP_PREFIX + backup_id) / "original").read_bytes(),
+                         self.original)
+
+    @unittest.skipUnless(os.name == "nt", "Windows alternate streams")
+    def test_windows_alternate_streams_are_rejected(self):
+        try:
+            with open(str(self.config) + ":extra", "wb") as stream:
+                stream.write(b"untouched stream")
+        except OSError:
+            self.skipTest("filesystem does not support alternate streams")
+        result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Dateistreams", result.stderr)
+        self.assertEqual(self.config.read_bytes(), self.original)
+        with open(str(self.config) + ":extra", "rb") as stream:
+            self.assertEqual(stream.read(), b"untouched stream")
+
+    @unittest.skipUnless(os.name == "nt", "Windows hard links")
+    def test_windows_hard_links_outside_project_are_rejected(self):
+        outside = self.base / "outside.yaml"
+        try:
+            os.link(self.config, outside)
+        except OSError:
+            self.skipTest("filesystem does not support hard links")
+        result = self.cli("plan", str(self.project), "--json")
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertIn("Hardlinks", result.stderr)
+        self.assertEqual(outside.read_bytes(), self.original)
+
     def test_symlinked_config_or_backup_is_refused(self):
         plan = self.plan()
         outside = self.base / "outside.yaml"

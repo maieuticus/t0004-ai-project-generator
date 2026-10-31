@@ -75,6 +75,11 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - Snapshotdateien werden vor der Ersetzung synchronisiert, unter POSIX zusätzlich die
   Verzeichniseinträge. Eine Wiederherstellbarkeit nach Stromausfall oder Dateisystemfehlern
   kann insbesondere unter Windows nicht garantiert werden.
+- Unter Windows bleibt die Originaldatei zur Wahrung ihrer Sicherheitsmetadaten erhalten
+  und wird nach dem Snapshot direkt beschrieben. Ein unterbrochener Schreibvorgang kann
+  einen Teilzustand hinterlassen, der manuell aus dem Snapshot wiederherzustellen ist.
+  Zusätzliche Dateistreams, mehrere oder unbekannte Hardlinks und nicht unterstützte
+  Dateiattribute werden vorab abgelehnt.
 - Die Zielzustandsprüfung nach `apply` und `restore` umfasst Dateiinhalt und
   Zugriffs-Fingerabdruck. Ein fehlgeschlagenes `apply` nennt die Backup-ID, sofern die
   Transaktion bereits begonnen wurde. Ist der Zielzustand weder Original noch das

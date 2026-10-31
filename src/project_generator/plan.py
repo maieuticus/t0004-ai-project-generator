@@ -148,6 +148,36 @@ def _windows_security_component(path: Path, information: int) -> str:
         kernel.LocalFree(ctypes.cast(output, ctypes.c_void_p))
 
 
+def _windows_check_streams(path: Path) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    class StreamData(ctypes.Structure):
+        _fields_ = [("size", ctypes.c_longlong), ("name", wintypes.WCHAR * 296)]
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.FindFirstStreamW.argtypes = [wintypes.LPCWSTR, ctypes.c_int, ctypes.POINTER(StreamData), wintypes.DWORD]
+    kernel.FindFirstStreamW.restype = wintypes.HANDLE
+    kernel.FindNextStreamW.argtypes = [wintypes.HANDLE, ctypes.POINTER(StreamData)]
+    kernel.FindNextStreamW.restype = wintypes.BOOL
+    kernel.FindClose.argtypes = [wintypes.HANDLE]
+    kernel.FindClose.restype = wintypes.BOOL
+    data = StreamData()
+    handle = kernel.FindFirstStreamW(str(path), 0, ctypes.byref(data), 0)
+    if handle == ctypes.c_void_p(-1).value:
+        raise PathSafetyError("Windows-Dateistreams können nicht sicher geprüft werden.")
+    try:
+        while True:
+            if data.name != "::$DATA":
+                raise PathSafetyError("Zusätzliche Windows-Dateistreams werden nicht unterstützt.")
+            if not kernel.FindNextStreamW(handle, ctypes.byref(data)):
+                if ctypes.get_last_error() != 38:
+                    raise PathSafetyError("Windows-Dateistreams können nicht sicher geprüft werden.")
+                break
+    finally:
+        kernel.FindClose(handle)
+
+
 def file_attributes(target: str) -> str:
     """Fingerprint access metadata without exporting its potentially sensitive contents."""
     path = Path(target).expanduser().resolve(strict=True) / "config" / "project.yaml"
@@ -156,6 +186,13 @@ def file_attributes(target: str) -> str:
         raise PathSafetyError("config/project.yaml muss eine reguläre Datei sein.")
     attributes = {"mode": stat.S_IMODE(info.st_mode)}
     if os.name == "nt":
+        if info.st_nlink != 1:
+            raise PathSafetyError("Windows-Dateien mit mehreren oder unbekannten Hardlinks werden nicht unterstützt.")
+        supported_flags = 0x2 | 0x4 | 0x20 | 0x80 | 0x100 | 0x2000
+        if info.st_file_attributes & ~supported_flags:
+            raise PathSafetyError("Windows-Dateiattribute werden für sichere Ersetzung nicht unterstützt.")
+        _windows_check_streams(path)
+        attributes["file_flags"] = info.st_file_attributes
         descriptor = _windows_security_component(path, 7)
         attributes["security"] = hashlib.sha256(descriptor.encode("utf-8")).hexdigest()
     else:
