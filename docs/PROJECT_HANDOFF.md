@@ -20,9 +20,10 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - CI des Feature-Branches unter Linux und Windows und menschliches PR-Review.
   - `new`, read-only-`migrate`, technologieabhängiges `verify`, Integration und Releases
     bleiben separate Etappen; t0003 bleibt unverändert.
-- Blocker: keine; Windows-DACL und Windows-Dateipfade müssen die CI noch bestätigen.
-- Letzte Prüfergebnisse: 16 Baseline-Tests lokal erfolgreich; aktuelle Generator- und
-  CI-Ergebnisse anhand des tatsächlichen Commit- und PR-Stands prüfen.
+- Blocker: Windows-CI meldete abweichende Zugriffsmetadaten nach Dateiersetzung; die
+  Ursache und der plattformübergreifende Nachweis werden untersucht.
+- Letzte Prüfergebnisse: 16 Baseline-Tests und 36 Generator-Tests lokal erfolgreich,
+  ein Windows-Test lokal übersprungen; Linux-CI erfolgreich, Windows-CI fehlgeschlagen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
@@ -37,4 +38,4 @@ Die verbindliche Gate-A-Matrix und PR-Reihenfolge stehen in
 
 ## Probleme
 
-Keine über die noch ausstehenden Prüfungen hinaus bekannt.
+Windows-Dateiersetzung und Zugriffsmetadaten müssen vor dem Review erfolgreich geprüft sein.

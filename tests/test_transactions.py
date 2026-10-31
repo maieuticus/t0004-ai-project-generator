@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import installed_version
 from project_generator import transaction
+from project_generator.plan import _windows_security_component
 
 SOURCE_CONFIG = (ROOT / "config/project.yaml").read_text(encoding="utf-8")
 
@@ -247,6 +248,28 @@ class Transactions(unittest.TestCase):
         self.assertEqual(restored.returncode, 1, restored.stderr)
         self.assertIn("nicht ausreichend geschützt", restored.stderr)
         self.assertEqual(self.config.read_bytes(), current)
+
+    @unittest.skipUnless(os.name == "nt", "Windows DACL semantics")
+    def test_windows_replace_preserves_access_metadata(self):
+        before = {
+            "mode": stat.S_IMODE(self.config.stat().st_mode),
+            "owner": _windows_security_component(self.config, 1),
+            "group": _windows_security_component(self.config, 2),
+            "dacl": _windows_security_component(self.config, 4),
+        }
+        backup = self.project / ".private-fixture"
+        transaction._private_mkdir(backup)
+        stage = backup / "stage"
+        transaction._write_new(stage, self.original + b"# fixture\r\n")
+        transaction._replace(stage, self.config)
+        after = {
+            "mode": stat.S_IMODE(self.config.stat().st_mode),
+            "owner": _windows_security_component(self.config, 1),
+            "group": _windows_security_component(self.config, 2),
+            "dacl": _windows_security_component(self.config, 4),
+        }
+        changed = [key for key in before if before[key] != after[key]]
+        self.assertEqual(changed, [])
 
     @unittest.skipUnless(os.name == "nt", "Windows DACL semantics")
     def test_windows_insecure_backup_dacl_prevents_restore(self):

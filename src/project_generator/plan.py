@@ -114,6 +114,40 @@ def metadata_result(content: bytes, generator_version: str) -> bytes:
     raise ConfigurationError("config/project.yaml: generator.version kann nicht sicher geändert werden.")
 
 
+def _windows_security_component(path: Path, information: int) -> str:
+    import ctypes
+    from ctypes import wintypes
+
+    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    advapi.GetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p,
+                                         wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
+    advapi.GetFileSecurityW.restype = wintypes.BOOL
+    advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.argtypes = [
+        ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(wintypes.LPWSTR),
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW.restype = wintypes.BOOL
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.restype = ctypes.c_void_p
+    size = wintypes.DWORD()
+    advapi.GetFileSecurityW(str(path), information, None, 0, ctypes.byref(size))
+    if not size.value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    data = ctypes.create_string_buffer(size.value)
+    if not advapi.GetFileSecurityW(str(path), information, data, size, ctypes.byref(size)):
+        raise ctypes.WinError(ctypes.get_last_error())
+    output = wintypes.LPWSTR()
+    if not advapi.ConvertSecurityDescriptorToStringSecurityDescriptorW(
+        data, 1, information, ctypes.byref(output), None
+    ):
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        return output.value
+    finally:
+        kernel.LocalFree(ctypes.cast(output, ctypes.c_void_p))
+
+
 def file_attributes(target: str) -> str:
     """Fingerprint access metadata without exporting its potentially sensitive contents."""
     path = Path(target).expanduser().resolve(strict=True) / "config" / "project.yaml"
@@ -122,21 +156,8 @@ def file_attributes(target: str) -> str:
         raise PathSafetyError("config/project.yaml muss eine reguläre Datei sein.")
     attributes = {"mode": stat.S_IMODE(info.st_mode)}
     if os.name == "nt":
-        import ctypes
-        from ctypes import wintypes
-
-        advapi = ctypes.WinDLL("advapi32", use_last_error=True)
-        advapi.GetFileSecurityW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, ctypes.c_void_p,
-                                             wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
-        advapi.GetFileSecurityW.restype = wintypes.BOOL
-        size = wintypes.DWORD()
-        advapi.GetFileSecurityW(str(path), 7, None, 0, ctypes.byref(size))
-        if not size.value:
-            raise ctypes.WinError(ctypes.get_last_error())
-        data = ctypes.create_string_buffer(size.value)
-        if not advapi.GetFileSecurityW(str(path), 7, data, size, ctypes.byref(size)):
-            raise ctypes.WinError(ctypes.get_last_error())
-        attributes["security"] = hashlib.sha256(data.raw[:size.value]).hexdigest()
+        descriptor = _windows_security_component(path, 7)
+        attributes["security"] = hashlib.sha256(descriptor.encode("utf-8")).hexdigest()
     else:
         attributes["owner"] = info.st_uid
         attributes["group"] = info.st_gid
