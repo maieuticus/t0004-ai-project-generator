@@ -25,6 +25,11 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   Basistests und `python scripts/check.py` erfolgreich; nach der Windows-Korrektur wurden die
   gezielten Migrationstests erneut erfolgreich ausgeführt. Linux-/Windows-CI des aktuellen
   PR-Kopfstands gesondert prüfen.
+  Der Codespaces-Praxistest für `migrate` auf Commit `31023f8` mit künstlichem Git-Projekt
+  bestätigte Text und JSON, Technologie- und Änderungsstatus, Strategien und Grenzen sowie
+  unveränderte Projektdateien und Git-Daten; die Testdaten wurden entfernt. Die damals
+  installierte CLI kannte `migrate` nicht; getestet wurde ihr Einstiegspunkt mit dem
+  PR-Quellcode über `PYTHONPATH`, ohne die Installation zu verändern.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
