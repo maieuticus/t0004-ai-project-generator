@@ -27,9 +27,9 @@ class SafetyCoreCli(unittest.TestCase):
         for name in ("README.md", "AGENTS.md", "docs/DV_KONZEPT.md", "docs/PROJECT_HANDOFF.md"):
             (self.project / name).write_text("fixture\n", encoding="utf-8")
 
-    def run_cli(self, *args: str, path: str | None = None):
+    def run_cli(self, *args: str, path: str | None = None, encoding: str = "utf-8"):
         env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1",
-                   PYTHONIOENCODING="utf-8")
+                   PYTHONIOENCODING=encoding)
         if path is not None:
             env["PATH"] = path
         return subprocess.run(
@@ -49,6 +49,11 @@ class SafetyCoreCli(unittest.TestCase):
         checked = self.run_cli("check", "--json")
         self.assertEqual(checked.returncode, 0, checked.stderr)
         self.assertTrue(json.loads(checked.stdout)["valid"])
+
+    def test_text_output_is_utf8_with_non_utf8_environment(self):
+        result = self.run_cli("check", encoding="cp1252")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Kompatibilität", result.stdout)
 
     def test_neutral_template_without_project_name_is_valid(self):
         self.change('name: "t0004-ai-project-generator"', 'name: ""')
