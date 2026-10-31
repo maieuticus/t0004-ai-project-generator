@@ -25,4 +25,25 @@
 python scripts/check.py
 python scripts/status.py
 python -m unittest discover -s .github/template-tests -v
+python -m unittest discover -s tests -v
 ```
+
+## Generator Safety-Core
+
+Python 3.11+ und Git werden vorausgesetzt. Den Generator bei Bedarf ausdrücklich installieren:
+
+```text
+python -m pip install .
+t0004-generator version
+t0004-generator check /pfad/zum/projekt
+t0004-generator plan /pfad/zum/projekt
+```
+
+Unter Windows statt `/pfad/zum/projekt` einen Windows-Pfad angeben. Ohne Pfad wird das aktuelle
+Verzeichnis verwendet; `check` und `plan` unterstützen `--json`. Beide führen keine Befehle aus
+der Projektkonfiguration aus und greifen nicht auf das Netzwerk zu. `plan` zeigt ausschließlich
+einen semantischen Vorschlag für `generator.version`, keine ausführbare Patchdatei. Er schreibt
+nichts ins Zielprojekt. `new`, `apply`, Backup, Rollback und Migration sind noch nicht verfügbar.
+
+Details zu Versionsgrenzen, Konflikten, Fingerabdruck und Exitcodes stehen im
+[Generator-Vertrag](docs/GENERATOR_CONTRACT.md).

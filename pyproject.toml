@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "t0004-ai-project-generator"
+dynamic = ["version"]
+description = "Safe dry-run core for the t0004 project generator"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+t0004-generator = "project_generator.cli:main"
+
+[tool.setuptools.dynamic]
+version = {file = ["VERSION"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]

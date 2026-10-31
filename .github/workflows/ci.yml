@@ -24,3 +24,8 @@ jobs:
           node-version: "24"
       - run: python scripts/check.py
       - run: python -m unittest discover -s .github/template-tests -v
+      - run: python -m unittest discover -s tests -v
+      - run: python -m pip install --no-deps .
+      - run: t0004-generator version
+      - run: t0004-generator check
+      - run: t0004-generator plan

@@ -4,6 +4,13 @@ Alle wesentlichen Änderungen am Template. Format: [SemVer](https://semver.org/l
 Template wird getrennt vom Generator versioniert. Kategorien: Arbeitsregeln, Specify/Tooling,
 Projektstruktur, Adapter, CI, Sicherheit, Breaking Changes, Migrationshinweise.
 
+## [Unveröffentlicht]
+
+### Sicherheit
+- Installierbare Generator-CLI mit lokaler Konfigurationsprüfung und ausschließlich lesendem,
+  deterministischem Safety-Core-Plan; keine Schreib-, Backup- oder Migrationsfunktion.
+- Basis- und neue Generator-Tests laufen weiterhin in der vorhandenen Linux-/Windows-CI.
+
 ## [0.1.0] – 2026-10-30
 
 ### Projektstruktur
