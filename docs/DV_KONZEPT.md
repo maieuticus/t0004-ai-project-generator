@@ -9,8 +9,8 @@ Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge s
 verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation; `migrate`
 liefert eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration. Weitergehende
 Einrichtung und die übrigen Generator-Modi sind offen.
-Für die nächste Etappe ist die interne Erweiterung der bestehenden Transaktions-Engine um
-Mehrdatei-Operationen freigegeben. Sie führt noch kein Technologiemodul oder neuen CLI-Modus ein.
+Die bestehende Mehrdatei-Engine dient jetzt auch dem freigegebenen Modul `python@0.1.0`.
+Die abschließende `verify`-/Release-Etappe bleibt offen.
 
 ## Projektziel
 
@@ -63,10 +63,10 @@ Die vier verpflichtenden Praxistests der abschließenden Etappe sind:
 Codespaces bleibt ein Plattformziel des Generatorvertrags und wird zusätzlich zur Vierer-Matrix
 geprüft, sobald die technische Ausführung dafür bereitsteht.
 
-Der minimale `new`-Einstieg plant ausschließlich `generator.version` und verwendet den
-bestehenden Freigabe-, Backup- und Restore-Pfad. Er erstellt kein Repository und richtet
-keine Profile oder SDD-Werkzeuge ein. Weitergehende Einrichtung und die abschließenden
-Praxistests bleiben offen.
+Ohne Modul plant `new` ausschließlich `generator.version`. Mit `--module python` plant es
+das Python-Starterprojekt und die Check-/CI-Ergänzungen über denselben Freigabe-, Backup-
+und Restore-Pfad. Es erstellt kein Repository und richtet keine SDD-Werkzeuge ein.
+Die abschließenden plattformübergreifenden Praxistests bleiben offen.
 
 ## Entwicklung und Betrieb
 
@@ -82,3 +82,4 @@ Template nur nach expliziter Auswahl eingerichtet.
 | 2026-10-30 | Keycloak, Colyseus und API-Service-Rezept aus erstem Release zurückgestellt | Nutzer |
 | 2026-10-31 | GitHub erstellt das t0003-basierte Repository; `new` richtet das vorhandene Projekt optional ein | Nutzer |
 | 2026-10-31 | PR A erweitert die bestehende Engine um sichere interne Mehrdatei-Operationen; Technologieauswahl bleibt eine separate Etappe | Nutzer |
+| 2026-10-31 | `python@0.1.0` nutzt die bestehende Mehrdatei-Engine; `template.release: 0.1.0` bleibt erforderlich, zusätzlich werden nachgewiesene Check-/CI-Dateistände an den Plan gebunden und vor Apply geprüft. Kein t0003-Release oder t0003-Änderung. | Nutzer |

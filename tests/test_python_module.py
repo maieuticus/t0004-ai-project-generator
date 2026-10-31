@@ -113,6 +113,9 @@ class PythonModule(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(noop["operations"], [])
         self.assertIsNone(noop["backup"])
+        text = self.cli("new", "--module", "python")
+        self.assertEqual(text.returncode, 0, text.stderr)
+        self.assertIn("Python-Modul ist bereits korrekt eingerichtet", text.stdout)
         restored = self.cli("restore", "--backup", first["backup"]["id"])
         self.assertEqual(restored.returncode, 0, restored.stderr)
         self.assertEqual(before, {path.relative_to(self.project): path.read_bytes()
@@ -120,6 +123,10 @@ class PythonModule(unittest.TestCase):
 
     def test_existing_or_changed_module_file_is_conflict(self):
         path = self.project / "pyproject.toml"
+        path.write_bytes(python_module.FILES["pyproject.toml"])
+        result, plan = self.plan()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(plan["operations"], [])
         path.write_text("foreign", encoding="utf-8")
         result, plan = self.plan()
         self.assertEqual(result.returncode, 1)
@@ -138,6 +145,26 @@ class PythonModule(unittest.TestCase):
         plan = self.save_plan()
         path = self.project / "scripts/check.py"
         path.write_bytes(path.read_bytes() + b"# user change\n")
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 1, applied.stderr)
+        self.assertFalse((self.project / "pyproject.toml").exists())
+        self.assertFalse((self.base / "data").exists())
+
+    @unittest.skipIf(os.name == "nt", "POSIX mode test")
+    def test_changed_capability_permissions_reject_stale_plan(self):
+        plan = self.save_plan()
+        path = self.project / "scripts/check.py"
+        path.chmod(path.stat().st_mode ^ 0o100)
+        applied = self.apply(plan)
+        self.assertEqual(applied.returncode, 1, applied.stderr)
+        self.assertFalse((self.project / "pyproject.toml").exists())
+        self.assertFalse((self.base / "data").exists())
+
+    def test_tampered_public_plan_is_rejected(self):
+        plan = self.save_plan()
+        tampered = json.loads(self.plan_file.read_text(encoding="utf-8"))
+        tampered["operations"][0]["after_sha256"] = "0" * 64
+        self.plan_file.write_text(json.dumps(tampered), encoding="utf-8")
         applied = self.apply(plan)
         self.assertEqual(applied.returncode, 1, applied.stderr)
         self.assertFalse((self.project / "pyproject.toml").exists())
@@ -245,6 +272,29 @@ class PythonModule(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(plan["operations"], [])
         self.assertTrue(any("t0003-Check-/CI-Fähigkeiten" in item for item in plan["conflicts"]))
+
+    def test_module_still_requires_supported_template_release(self):
+        config = self.project / "config/project.yaml"
+        config.write_bytes(config.read_bytes().replace(b"release: 0.1.0", b"release: 9.0.0"))
+        result, plan = self.plan()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(plan["operations"], [])
+        self.assertTrue(any("template.release" in item for item in plan["conflicts"]))
+
+    def test_crlf_configuration_and_existing_check_are_preserved(self):
+        config = self.project / "config/project.yaml"
+        original = config.read_bytes().replace(
+            b"checks: []", b'checks: # existing checks\n  - ["python", "-c", "print(123)"]'
+        ).replace(b"\n", b"\r\n").rstrip(b"\r\n")
+        config.write_bytes(original)
+        plan = self.save_plan()
+        self.assertEqual(self.apply(plan).returncode, 0)
+        result = config.read_bytes()
+        self.assertNotIn(b"\n", result.replace(b"\r\n", b""))
+        self.assertIn(b'checks: # existing checks\r\n', result)
+        self.assertIn(b'  - ["python", "-c", "print(123)"]', result)
+        self.assertEqual(self.cli("restore", "--backup", plan["backup"]["id"]).returncode, 0)
+        self.assertEqual(config.read_bytes(), original)
 
 
 if __name__ == "__main__":

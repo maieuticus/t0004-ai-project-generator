@@ -52,7 +52,8 @@ def _emit(data: dict[str, object], as_json: bool) -> None:
         print(f"Plan-ID (SHA-256): {data['plan_id']}")
         source = data.get("source_fingerprint", data.get("source_sha256"))
         print(f"Ausgangsfingerabdruck (SHA-256, config/project.yaml): {source}")
-        print("Nur lesend; semantischer Diff (apply benötigt den bestätigten JSON-Plan):")
+        kind = "geplante Dateioperationen" if data.get("format") == 4 else "semantischer Diff"
+        print(f"Nur lesend; {kind} (apply benötigt den bestätigten JSON-Plan):")
         if not data["operations"]:
             print("Keine Dateioperationen geplant.")
         for operation in data["operations"]:
@@ -110,7 +111,10 @@ def main(argv: list[str] | None = None) -> int:
             _, result = plan_target(args.target, version)
         _emit(result, args.as_json)
         if args.command == "new" and not args.as_json and not result.get("conflicts") and not result["operations"]:
-            print("Die Generator-Version ist bereits aktuell.")
+            if args.module == "python":
+                print("Das Python-Modul ist bereits korrekt eingerichtet.")
+            else:
+                print("Die Generator-Version ist bereits aktuell.")
         return 1 if result.get("conflicts") else 0
     except (ConfigurationError, PathSafetyError) as error:
         print(f"Fehler: {error}", file=sys.stderr)

@@ -14,6 +14,7 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID` und
   `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
   `--json` liefert bei `check`, `plan`, `new` und `migrate` eine maschinenlesbare Darstellung.
+  `new` und `plan` akzeptieren optional `--module python`.
 - Exitcodes: `0` erfolgreich, `1` bei Kompatibilitäts- oder Voraussetzungskonflikten,
   verweigerten Transaktionen oder Transaktionsfehlern, `2` bei ungültigen Argumenten,
   Pfaden oder Konfigurationen.
@@ -22,9 +23,10 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 
 - Der Benutzer erstellt ein Repository über GitHubs Template-Funktion aus t0003. `new`
   richtet das vorhandene kompatible Projekt optional ein; es erstellt kein Repository.
-  Der derzeitige Einstieg ist lesend und erzeugt denselben Plan wie `plan`: ausschließlich
-  `generator.version` kann anschließend mit bestätigtem `apply` gesetzt werden. Bei bereits
-  aktueller Version ist der Plan ohne Operation und Backup. Profile, SDD-Initialisierung und
+  Der Einstieg ist lesend und erzeugt denselben Plan wie `plan`. Ohne Modulauswahl wird
+  ausschließlich `generator.version` geplant; mit `--module python` wird `python@0.1.0`
+  einschließlich Projektchecks und CI geplant. Bei bereits korrekt eingerichtetem Zustand
+  gibt es keine Operation und kein Backup. Andere Profile, SDD-Initialisierung und
   Generator-Upgrades sind nicht implementiert.
 - `migrate` prüft ein bestehendes Projekt ausschließlich lesend, auch ohne
   `config/project.yaml`. Es vergleicht Strategien, erzeugt aber keinen ausführbaren Plan,
@@ -114,18 +116,41 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - `check` prüft das unterstützte YAML-Teilschema, die Existenz regulärer Basisdateien und Git
   im `PATH`, ohne Projektprüfungen auszuführen. Die geprüfte Template-Version ist ausschließlich
   t0003 `0.1.0`; andere Versionen sind nicht als kompatibel nachgewiesen. Eine abweichende
-  gespeicherte Generator-Version und nicht leere Modullisten sind Konflikte, keine Upgrades.
+  gespeicherte Generator-Version und unbekannte Modullisten sind Konflikte, keine Upgrades.
+  `check` erkennt die Metadaten von `python@0.1.0`, prüft aber weder Moduldateien noch
+  die zusätzlichen Modulvoraussetzungen; dafür ist `plan --module python` erforderlich.
   Eine SDD-Auswahl wird auf Konsistenz und Versionsformat geprüft; ihre Laufzeit- und
   Integrationskompatibilität bleibt ausdrücklich ungeprüft. `plan` und `new` benötigen Git nicht.
 
-### Interne Mehrdatei-Pläne
+### Mehrdatei-Pläne und Python-Modul
 
-- Die bestehende Engine unterstützt intern Planformat 4 mit deterministisch sortierten
-  `create`- und `modify`-Operationen. Es gibt dafür noch keinen öffentlichen Planer oder
-  CLI-Einstieg: `new`, `plan` und das öffentliche `apply` bleiben bei Format 3. Format 4
-  wird ausschließlich mit vertrauenswürdigem, intern bereitgestelltem Operationsinhalt
-  erzeugt und angewendet; JSON-Planinhalte werden nicht als auszuführende Dateiinhalte
-  übernommen.
+- Die bestehende Engine unterstützt Planformat 4 mit deterministisch sortierten
+  `create`- und `modify`-Operationen. Für `--module python` wird es öffentlich von `new`
+  und `plan` erzeugt und von `apply` akzeptiert. Ohne Modulauswahl bleibt Format 3 erhalten.
+  Format 4 wird ausschließlich mit vertrauenswürdigem, intern bereitgestelltem Operationsinhalt
+  erzeugt und angewendet; JSON-Planinhalte werden nicht als auszuführende Dateiinhalte übernommen.
+- `python@0.1.0` erstellt `pyproject.toml`, `src/project_app/`, ein ausführbares Beispiel,
+  `tests/test_project_app.py` und `docs/PYTHON.md`. Es ergänzt den `unittest`-Aufruf in
+  `config/project.yaml` und erweitert `.github/workflows/ci.yml` um Paketinstallation und
+  Beispielaufruf. Andere konfigurierte Checks bleiben erhalten. Die Namen `project-app` und
+  `project_app` sind feste Starter-Namen und müssen bei Bedarf vom Projekt angepasst werden.
+- Zusätzlich zum weiterhin erforderlichen `template.release: 0.1.0` müssen
+  `scripts/check.py`, `scripts/projectcfg.py` und `.github/workflows/ci.yml` den bytegenau
+  geprüften t0003-Dateiständen von Commit `6e8363a` entsprechen. Der Check muss konfigurierte
+  Prüfungen ausführen, die CI muss Template-Tests auf das Template-Repository beschränken.
+  Der ursprüngliche Release-Stand erfüllt Letzteres nicht und wird abgelehnt. Nach Einrichtung
+  ist auch der exakt vom Modul erweiterte CI-Stand zulässig. Andere, eventuell gleichwertige
+  Varianten werden vorsorglich abgelehnt; es wird kein neues t0003-Release behauptet.
+- Modulpläne binden Rohbyte- und Zugriffs-Fingerabdrücke dieser drei Dateien sowie ihrer
+  Verzeichnisse als Voraussetzungen ein. `apply` prüft sie bei der Planneuberechnung und
+  nach dem Snapshot vor dem ersten Projekt-Schreibzugriff erneut. Einzelne Konflikte liefern
+  keine Operationen. Bereits korrekt eingerichtete Module liefern einen No-op; fehlende oder
+  inhaltlich veränderte Moduldateien, geänderte CI oder ein fehlender Projektcheck sind
+  Konflikte. Nach Einrichtung vergleicht der No-op-Test die Inhalte, nicht frühere
+  Zugriffsmetadaten der generierten Dateien.
+- Die JSON-Ausgabe enthält Dateipfade, Zustands- und Ergebnis-Hashes sowie Konflikte, aber keine
+  Dateiinhalte oder textuellen Diffs der Mehrdatei-Operationen. Ein bestehender fremder
+  Dateipfad ist auch bei identischem Inhalt ein Konflikt, solange das Modul nicht eingetragen ist.
 - Format 4 bindet Generatorversion, Ausgangskonfiguration, Projekt- und Speicherort,
   Operationen, Verzeichniszustände, Warnungen und Backup-ID an seine Plan-ID. Pro Datei
   sind Aktion, relativer Pfad, Originalhash und Zugriffs-Fingerabdruck beziehungsweise

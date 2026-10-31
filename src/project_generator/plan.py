@@ -475,6 +475,7 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         if capabilities["conflicts"]:
             raise PathSafetyError("t0003-Check-/CI-Fähigkeiten sind nicht nachgewiesen.")
         identity["module"] = module
+        identity["conflicts"] = []
         identity["preconditions"] = {
             "files": capabilities["files"], "directories": capabilities["directories"],
         }

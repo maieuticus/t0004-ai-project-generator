@@ -585,12 +585,12 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
               "project_fingerprint", "storage_fingerprint", "operations", "directories",
               "warnings", "backup", "plan_id", "read_only"}
     if isinstance(plan, dict) and "module" in plan:
-        fields |= {"module", "preconditions"}
+        fields |= {"module", "preconditions", "conflicts"}
     if not isinstance(plan, dict) or set(plan) != fields:
         raise TransactionError("Mehrdatei-Plan im Backup ist ungültig.")
     if "module" in plan:
         conditions = plan["preconditions"]
-        if (plan["module"] != "python" or not isinstance(conditions, dict)
+        if (plan["module"] != "python" or plan["conflicts"] != [] or not isinstance(conditions, dict)
                 or set(conditions) != {"files", "directories"}
                 or not isinstance(conditions["files"], list)
                 or not isinstance(conditions["directories"], list)
