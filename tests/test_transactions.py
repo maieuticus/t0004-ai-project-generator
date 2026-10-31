@@ -562,7 +562,7 @@ class Transactions(unittest.TestCase):
 
         def faulty_open(path, *args, **kwargs):
             file = original_open(path, *args, **kwargs)
-            if path == self.config and args and args[0] == "r+b":
+            if args and args[0] == "r+b" and path.samefile(self.config):
                 return FailedWrite(file)
             return file
 
