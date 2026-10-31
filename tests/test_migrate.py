@@ -53,6 +53,7 @@ class MigrationAnalysis(unittest.TestCase):
         self.git("config", "user.email", "fixture@example.invalid")
         self.git("config", "maintenance.auto", "false")
         self.git("config", "gc.auto", "0")
+        self.git("config", "core.autocrlf", "false")
         self.write("tracked.txt")
         self.git("add", "tracked.txt")
         self.git("commit", "-qm", "fixture")

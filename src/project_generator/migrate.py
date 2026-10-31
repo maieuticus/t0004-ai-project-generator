@@ -246,6 +246,7 @@ def analyze(value: str) -> dict[str, object]:
         "Quelltexte, Abhängigkeiten, ausführbare Befehle und Binärdaten werden nicht inhaltlich ausgewertet.",
         "Individuelle Dateinamen, Konfigurationswerte und Git-Diagnosen werden nicht ausgegeben.",
         "Ignorierte Git-Dateien, Submodule und ausgeschlossene Verzeichnisse werden beim Git-Status nicht erfasst; unversionierte Verzeichnisse zählen als ein Eintrag.",
+        "Der Git-Status verwendet isolierte Konfiguration und kann insbesondere bei globalen Zeilenendeneinstellungen vom üblichen Status abweichen.",
     }
     seen = 0
     truncated = False

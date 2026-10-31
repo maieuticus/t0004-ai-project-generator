@@ -47,7 +47,9 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   unversionierte Einträge, ohne optionale Sperren, FSMonitor, Hooks oder Submodule. Git kann
   dabei Git-Konfiguration, Index, Ignore-Dateien und versionierte Dateiinhalte lesen.
   Git-Ausgaben und Fehlermeldungen mit Pfaden bleiben intern. Globale/systemweite Konfiguration,
-  Attribute und übernommene Git-Umgebungsvariablen werden deaktiviert. Repositories mit
+  Attribute und übernommene Git-Umgebungsvariablen werden deaktiviert. Dadurch kann der Status
+  insbesondere bei globalen Zeilenendeneinstellungen vom üblichen Git-Status abweichen.
+  Repositories mit
   konfigurierten Git-Filtern, Konfigurations-Includes, partiellen Klonen und Git-Indirektionen
   werden nicht per Git untersucht; ihr Status ist nicht verfügbar.
   Git-Worktrees mit `.git`-Datei, Repositories ohne lesbaren Index sowie große oder unsichere
