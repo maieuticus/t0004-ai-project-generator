@@ -683,7 +683,8 @@ def _restore_multi(root: Path, store: Path, backup: Path, backup_id: str, manife
         recorded = progress["files"].get(operation["path"])
         expected_result = (original is not None and digest == operation["after_sha256"]
                            and attributes == operation["before_attributes"])
-        if not expected_result and recorded != {"sha256": digest, "attributes": attributes}:
+        if ((recorded is None and not expected_result)
+                or (recorded is not None and recorded != {"sha256": digest, "attributes": attributes})):
             raise TransactionError("Fremde Zwischenänderung; keine automatische Wiederherstellung.")
         states.append("changed")
 
@@ -778,11 +779,12 @@ def restore(target: str, backup_id: str) -> str:
             raise TransactionError("Dateiberechtigungen wurden zwischenzeitlich geändert.")
         if current == original:
             return "Bereits im ursprünglichen Zustand; keine Änderung."
-        if _digest(current) != manifest["after_sha256"]:
-            try:
-                record = _json_object(_read_file(backup / "recovery.json", MAX_PLAN_BYTES, private=True))
-            except FileNotFoundError:
+        try:
+            record = _json_object(_read_file(backup / "recovery.json", MAX_PLAN_BYTES, private=True))
+        except FileNotFoundError:
+            if _digest(current) != manifest["after_sha256"]:
                 raise TransactionError("Fremde Zwischenänderung; keine automatische Wiederherstellung.")
+        else:
             if (set(record) != {"format", "plan_id", "partial_sha256"}
                     or type(record["format"]) is not int or record["format"] != 1
                     or record["plan_id"] != manifest["plan_id"]

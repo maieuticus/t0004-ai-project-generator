@@ -8,7 +8,7 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 - Stand: 2026-10-31
 - Branch: `feat/multi-file-operations`, ausgehend von `main` / `f7d32f9` (PR #7 gemergt).
-- Aktive Aufgabe: PR A für interne sichere Mehrdatei-Operationen.
+- Aktive Aufgabe: Abschlussprüfung von PR #8 für interne sichere Mehrdatei-Operationen.
 - Erledigt:
   - Safety-Core, bestätigtes Apply/Restore und minimaler `new`-Einstieg sind gemergt.
   - `migrate` liefert einen versionierten Analysebericht statt eines Apply-Plans und unterstützt
@@ -19,17 +19,24 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - Format-3-Pläne und Manifestformat-2-Backups bleiben unter den bisherigen Bedingungen
     unterstützt. Mehrdatei-Änderungen sind nicht atomar; Einzelheiten und Grenzen stehen
     im Generator-Vertrag.
+  - Das Review fand einen Restore-Konflikt nach protokolliertem Teilzustand in beiden
+    Manifestformaten. Der protokollierte Zustand hat nun Vorrang; Regressionstests decken
+    Fehler bei Apply und Restore ab.
 - Offen:
   - CI des endgültigen PR-Kopfstands und menschliches Review prüfen; nicht automatisch mergen.
   - Python-Modul, technologieabhängiges `verify`, Integration und Releases bleiben separate
     Etappen; t0003 bleibt unverändert.
 - Blocker: keine bekannten; tatsächlichen CI-, Git- und PR-Stand prüfen.
-- Prüfergebnisse: Lokal unter Linux 107 Generator-Tests erfolgreich, davon 6 Windows-Tests
+- Prüfergebnisse: Lokal unter Linux 111 Generator-Tests erfolgreich, davon 6 Windows-Tests
   übersprungen. 16 Basistests erfolgreich, davon 3 netzwerkabhängige Tests im Offline-Modus
-  übersprungen. `python scripts/check.py` erfolgreich. Die Linux-/Windows-CI für den
+  übersprungen. `python scripts/check.py` erfolgreich. Ein isolierter Codespaces-Praxistest
+  bestätigte zwei Create-Operationen, Modify, Snapshot, bytegenaues Restore und die
+  Restore-Verweigerung bei Fremdänderungen auch nach protokolliertem Teilzustand; die
+  temporären Daten wurden entfernt. Die Linux-/Windows-CI für den
   Implementierungscommit `19ebd81` war erfolgreich: jeweils 107 Generator-Tests (Linux:
   6, Windows: 10 plattformbedingt übersprungen) und 16 Basistests ohne Überspringen. Bei
-  späteren Commits die CI des tatsächlichen PR-Kopfstands erneut prüfen.
+  späteren Commits, insbesondere nach der Restore-Korrektur, die CI des tatsächlichen
+  PR-Kopfstands erneut prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt

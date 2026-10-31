@@ -154,6 +154,11 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   fehlschlägt, kann manuelle Wiederherstellung nötig sein. Auch Restore selbst kann
   teilweise scheitern; ein erneuter Aufruf prüft die verbleibenden Zustände. Ein
   Mehrdatei-Apply oder -Restore ist nicht atomar.
+- Für eine zurückzunehmende Datei hat ein vorhandener protokollierter Teilzustand Vorrang
+  vor einem älteren Generatorergebnis. Weicht die Datei vom zuletzt protokollierten Zustand
+  ab, wird Restore verweigert, auch wenn sie wieder den alten Ergebnisbytes entspricht.
+  Ohne Dateiprotokoll kann der bekannte Ergebniszustand als Rückfall dienen; ursprünglich
+  fehlende Dateien benötigen weiterhin einen dokumentierten Generatorzustand.
 - Format-3-Pläne bleiben unter den bisherigen Versions- und Zustandsbedingungen ausführbar;
   Manifestformat-2-Backups bleiben wiederherstellbar. Plan- und Backup-IDs sind
   Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
@@ -202,7 +207,9 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Zugriffsmetadaten mit Fingerabdruck im geschützten Backup protokolliert. `restore` darf
   diesen Zustand nur zurücknehmen, wenn Inhalt und Rechte unverändert sind. Bei einem
   abrupten Abbruch vor der Protokollierung oder wenn die Protokollierung fehlschlägt,
-  muss ein Teilzustand manuell aus dem Snapshot wiederhergestellt werden.
+  muss ein Teilzustand manuell aus dem Snapshot wiederhergestellt werden. Auch bei
+  Manifestformat 2 hat ein vorhandenes Teilzustandsprotokoll Vorrang vor den älteren
+  Generator-Ergebnisbytes.
 - Die Zielzustandsprüfung nach `apply` und `restore` umfasst Dateiinhalt und
   Zugriffs-Fingerabdruck. Ein fehlgeschlagenes `apply` nennt die Backup-ID, sofern die
   Transaktion bereits begonnen wurde. Ist der Zielzustand weder Original, berechnetes

@@ -269,6 +269,24 @@ class MultiTransactions(unittest.TestCase):
         self.assertEqual((self.project / "a").read_bytes(), b"new")
         self.assertEqual((self.project / "b").read_bytes(), b"foreign")
 
+    def test_foreign_return_to_generator_result_after_partial_apply_is_refused(self):
+        (self.project / "b").write_bytes(b"before")
+        changes = [("a", "create", b"new"), ("b", "modify", b"after")]
+        plan = self.plan(changes)
+
+        def partial_modify(backup, target, content):
+            target.write_bytes(b"partial")
+            raise OSError(errno.ENOSPC, "simulated")
+
+        with mock.patch.object(transaction, "_stage_and_replace", side_effect=partial_modify):
+            with self.assertRaises(transaction.TransactionError):
+                self.apply(changes, plan)
+        (self.project / "b").write_bytes(b"after")
+        with self.assertRaisesRegex(transaction.TransactionError, "Fremde Zwischenänderung"):
+            transaction.restore(self.target, plan["backup"]["id"])
+        self.assertEqual((self.project / "a").read_bytes(), b"new")
+        self.assertEqual((self.project / "b").read_bytes(), b"after")
+
     def test_failed_directory_record_can_be_recovered(self):
         changes = [("new/file", "create", b"new")]
         plan = self.plan(changes)
@@ -387,6 +405,24 @@ class MultiTransactions(unittest.TestCase):
         transaction.restore(self.target, backup_id)
         self.assertEqual((self.project / "a.txt").read_bytes(), b"before")
         self.assertFalse((self.project / "b.txt").exists())
+
+    def test_foreign_return_to_generator_result_after_partial_restore_is_refused(self):
+        (self.project / "b.txt").write_bytes(b"before")
+        changes = [("b.txt", "modify", b"after"), ("z.txt", "create", b"new")]
+        backup_id = self.apply(changes)
+
+        def partial_restore(backup, target, content):
+            target.write_bytes(b"partial")
+            raise OSError(errno.ENOSPC, "simulated")
+
+        with mock.patch.object(transaction, "_stage_and_replace", side_effect=partial_restore):
+            with self.assertRaisesRegex(transaction.TransactionError, "Teilzustand erfasst"):
+                transaction.restore(self.target, backup_id)
+        (self.project / "b.txt").write_bytes(b"after")
+        with self.assertRaisesRegex(transaction.TransactionError, "Fremde Zwischenänderung"):
+            transaction.restore(self.target, backup_id)
+        self.assertEqual((self.project / "z.txt").read_bytes(), b"new")
+        self.assertEqual((self.project / "b.txt").read_bytes(), b"after")
 
     def test_restore_failure_after_removing_first_file_can_be_retried(self):
         (self.project / "b").write_bytes(b"before")
