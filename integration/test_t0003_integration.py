@@ -92,6 +92,11 @@ class T0003Integration(unittest.TestCase):
                 for p in self.project.rglob("*")
                 if p.is_file() and ".git" not in p.relative_to(self.project).parts}
 
+    def file_states(self):
+        return {name: (content, (self.project / name).stat().st_mtime_ns,
+                       stat.S_IMODE((self.project / name).stat().st_mode))
+                for name, content in self.files().items()}
+
     def plan(self, *, module=True, expected=0):
         args = ["new"]
         if module:
@@ -126,9 +131,10 @@ class T0003Integration(unittest.TestCase):
 
     def test_complete_installed_cli_cycle(self):
         before = self.files()
+        before_states = self.file_states()
         self.assertEqual(self.cli("version").stdout.strip(), (ROOT / "VERSION").read_text().strip())
         plan = self.plan()
-        self.assertEqual(before, self.files())
+        self.assertEqual(before_states, self.file_states())
         self.assertEqual(plan["format"], 4)
         self.assertEqual(plan["module"], "python")
         self.assertEqual(plan["conflicts"], [])
@@ -262,6 +268,7 @@ class T0003Integration(unittest.TestCase):
         config.write_bytes(config.read_bytes() + f"\n# {marker}\n".encode())
         before = self.files()
         plan = self.plan()
+        self.assertNotIn(marker, self.plan_file.read_text(encoding="utf-8"))
         applied = self.apply(plan)
         self.assertNotIn(marker, applied.stdout + applied.stderr)
         backup = self.snapshot(plan, before)
