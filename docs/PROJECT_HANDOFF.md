@@ -16,14 +16,17 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
     Restore prüfen Inhalt und Zugriffsmetadaten und verweigern fremde Änderungen.
   - Für die Dauer jedes `apply`-/`restore`-Aufrufs ist exklusiver Projektzugriff mit dem
     Nutzer vereinbart. Backups können Secrets enthalten und werden nicht automatisch ignoriert.
+  - Unter Windows bleiben die Sicherheitsmetadaten durch direktes Schreiben erhalten;
+    zusätzliche Streams, Hardlinks und nicht unterstützte Attribute werden abgelehnt.
+    Ein unterbrochener Schreibvorgang kann manuelle Wiederherstellung erfordern.
 - Offen:
   - CI des Feature-Branches unter Linux und Windows und menschliches PR-Review.
   - `new`, read-only-`migrate`, technologieabhängiges `verify`, Integration und Releases
     bleiben separate Etappen; t0003 bleibt unverändert.
-- Blocker: Windows-CI meldete abweichende Zugriffsmetadaten nach Dateiersetzung; die
-  Ursache und der plattformübergreifende Nachweis werden untersucht.
-- Letzte Prüfergebnisse: 16 Baseline-Tests und 36 Generator-Tests lokal erfolgreich,
-  ein Windows-Test lokal übersprungen; Linux-CI erfolgreich, Windows-CI fehlgeschlagen.
+- Blocker: keine bekannten; CI des aktuellen PR-Commitstands prüfen.
+- Letzte Prüfergebnisse: 16 Baseline-Tests und 37 Generator-Tests lokal erfolgreich,
+  vier Windows-spezifische Tests lokal übersprungen. Für Commit `ca43db3` waren Linux
+  und ein Windows-CI-Job erfolgreich; einen weiteren Windows-Job und spätere Commits prüfen.
 - Nicht synchronisierte Änderungen: per `git status` und PR-Stand prüfen.
 
 ## Nächster Schritt
@@ -38,4 +41,4 @@ Die verbindliche Gate-A-Matrix und PR-Reihenfolge stehen in
 
 ## Probleme
 
-Windows-Dateiersetzung und Zugriffsmetadaten müssen vor dem Review erfolgreich geprüft sein.
+Keine über die noch ausstehenden Prüfungen hinaus bekannt.
