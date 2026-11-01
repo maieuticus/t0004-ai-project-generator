@@ -2,6 +2,7 @@
 
 from importlib import resources
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -34,7 +35,8 @@ class TypeScriptTemplates(unittest.TestCase):
     def test_public_typescript_selection_is_not_enabled_in_pr_a(self):
         result = subprocess.run(
             [sys.executable, "-m", "project_generator", "plan", "--module", "typescript"],
-            cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
+            cwd=ROOT, env=dict(os.environ, PYTHONPATH=str(ROOT / "src")),
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
         self.assertEqual(result.returncode, 2)
 
