@@ -8,8 +8,8 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 - Stand: 2026-11-01
 - Branch: `feat/typescript-module-pr-a`, ausgehend von `main` / `f90951e`.
-- Aktive Aufgabe: PR A für das freigegebene TypeScript-Modul vorbereiten; noch keine öffentliche
-  TypeScript-Modulauswahl oder schreibende TypeScript-Planung.
+- Aktive Aufgabe: PR #11 (TypeScript-Modul, PR A) im menschlichen Review-Gate; noch keine
+  öffentliche TypeScript-Modulauswahl oder schreibende TypeScript-Planung.
 - Erledigt:
   - PR #10 für die t0003-Integration ist laut Git-Historie gemergt. Acht bestehende
     Integrationstests bleiben erhalten; der kompatible t0003-Commit `6e8363a` ist
@@ -23,16 +23,19 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
   - Lokal unter Windows erfolgreich: Projektcheck, 16 Basistests, 138 Generator-Unit-Tests
     (19 plattformbedingt übersprungen) und 9 Integrationstests. Für den bekannten
     Spec-Kit-Basistest galt `RemoteSigned` nur im Process-Scope; danach wieder `Restricted`.
+  - PR #11 ist geöffnet. Die Linux-/Windows-CI auf dem Implementierungsstand `c5c9a13`
+    ist erfolgreich; ein anfänglicher Linux-Fehler im neuen Test wurde durch expliziten
+    Python-Quellpfad vor der Paketinstallation behoben.
 - Offen:
-  - Linux-/Windows-CI des PR A und menschliches Review-Gate prüfen; nicht automatisch mergen.
+  - Menschliches Review-Gate für PR #11 durchführen; nicht automatisch mergen.
   - Öffentliche TypeScript-Planung, Apply, No-op und kombinierte Python-/TypeScript-Zustände
     folgen erst in späteren freigegebenen PRs. `verify` und Releases bleiben offen.
-- Blocker: keiner für PR A; CI- und Review-Ergebnis stehen bis zum PR-Lauf aus.
-- Synchronisierung: Commit- und PR-Stand über Git/GitHub prüfen; Merge ist nicht beauftragt.
+- Blocker: keiner für PR A; menschliches Review steht aus.
+- Synchronisierung: Feature-Branch zu origin gepusht, PR #11 offen; Merge ist nicht beauftragt.
 
 ## Nächster Schritt
 
-Linux-/Windows-CI des PR A prüfen und anschließend das Review-Gate durch den Menschen durchführen.
+Das menschliche Review-Gate für PR #11 durchführen.
 
 ## Entscheidungen und Quellen
 
