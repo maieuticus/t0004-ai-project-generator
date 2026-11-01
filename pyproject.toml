@@ -17,3 +17,14 @@ version = {file = ["VERSION"]}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+project_generator = [
+  "templates/typescript/.gitignore",
+  "templates/typescript/package.json",
+  "templates/typescript/package-lock.json",
+  "templates/typescript/tsconfig.json",
+  "templates/typescript/src/*.ts",
+  "templates/typescript/test/*.mjs",
+  "templates/typescript/docs/*.md",
+]

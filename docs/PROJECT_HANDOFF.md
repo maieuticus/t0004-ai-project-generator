@@ -6,38 +6,39 @@ Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
 
 ## Aktueller Stand
 
-- Stand: 2026-10-31
-- Branch: `feat/t0003-integration-tests`, ausgehend von `main` / `c0e5587` (PR #9 gemergt).
-- Aktive Aufgabe: Integration von t0003 und dem installierten Python-Generator nachweisen.
+- Stand: 2026-11-01
+- Branch: `feat/typescript-module-pr-a`, ausgehend von `main` / `f90951e`.
+- Aktive Aufgabe: PR A für das freigegebene TypeScript-Modul vorbereiten; noch keine öffentliche
+  TypeScript-Modulauswahl oder schreibende TypeScript-Planung.
 - Erledigt:
-  - Acht Integrationstests verwenden die installierte CLI und echte Git-Quellstände:
-    kompatibler t0003-Commit `6e8363a7ac7d99220d743eea077dcd5cefda9042` sowie
-    ursprünglicher Release-Commit `964de8538d19cefcb483faff38f10124615a9783`.
-  - Plan, bestätigtes Apply, Python-Anwendung und -Tests, Projektcheck, Snapshot, No-op und
-    bytegenaues Restore sowie Konflikte und Format 3 werden geprüft. Die vorhandene
-    Linux-/Windows-CI führt die Tests aus; ein lokaler Git-Mirror ist optional.
-  - PR #9 ist gemergt. Der kompatible t0003-Entwicklungsstand ist kein neues Release;
-    `migrate` bleibt eine lesende Bestandsanalyse.
+  - PR #10 für die t0003-Integration ist laut Git-Historie gemergt. Acht bestehende
+    Integrationstests bleiben erhalten; der kompatible t0003-Commit `6e8363a` ist
+    weiterhin kein offizielles neues Release.
+  - Architektur für `typescript@0.1.0` durch den Nutzer freigegeben: isolierter Ordner,
+    Node 24, strict/NodeNext, `node:test`, feste Abhängigkeiten und Lockfile, bestehende
+    Mehrdatei-Engine, sequenzielle Installation beider Module und Restore rückwärts.
+  - PR A dokumentiert den Modulvertrag und paketiert acht feste Starterdateien. Ein neuer
+    Integrationstest verwendet die installierten Paketdaten in einer temporären t0003-Kopie
+    und prüft `npm ci --ignore-scripts`, Build, zwei Node-Tests und das ausführbare Beispiel.
+  - Lokal unter Windows erfolgreich: Projektcheck, 16 Basistests, 138 Generator-Unit-Tests
+    (19 plattformbedingt übersprungen) und 9 Integrationstests. Für den bekannten
+    Spec-Kit-Basistest galt `RemoteSigned` nur im Process-Scope; danach wieder `Restricted`.
 - Offen:
-  - CI des PR-Kopfstands und menschliches Review prüfen; nicht automatisch mergen.
-  - Die tatsächliche GitHub-Erstellung über „Use this template“ ist nicht automatisiert
-    und braucht eine separate manuelle Abnahme. Abschließendes `verify`, separate Releases
-    und die vollständige Gate-A-Praxismatrix bleiben spätere Etappen.
-- Blocker: Windows nur über CI prüfbar; tatsächlichen CI- und PR-Stand abfragen.
-- Prüfergebnisse: Unter Linux acht Integrationstests mit öffentlicher Quelle und lokalem
-  Mirror, 135 Generator-Tests (6 plattformbedingt übersprungen), 16 Basistests und
-  Projektcheck erfolgreich. Windows ist lokal nicht geprüft.
-- Synchronisierung: Git- und PR-Stand prüfen; Merge ist nicht beauftragt.
+  - Linux-/Windows-CI des PR A und menschliches Review-Gate prüfen; nicht automatisch mergen.
+  - Öffentliche TypeScript-Planung, Apply, No-op und kombinierte Python-/TypeScript-Zustände
+    folgen erst in späteren freigegebenen PRs. `verify` und Releases bleiben offen.
+- Blocker: keiner für PR A; CI- und Review-Ergebnis stehen bis zum PR-Lauf aus.
+- Synchronisierung: Commit- und PR-Stand über Git/GitHub prüfen; Merge ist nicht beauftragt.
 
 ## Nächster Schritt
 
-CI des Integrationstest-PR-Kopfstands prüfen und das Review-Gate durch den Menschen durchführen.
+Linux-/Windows-CI des PR A prüfen und anschließend das Review-Gate durch den Menschen durchführen.
 
 ## Entscheidungen und Quellen
 
-Die verbindliche Gate-A-Matrix und PR-Reihenfolge stehen in
-[DV_KONZEPT.md](DV_KONZEPT.md). Der Schnittstellenvertrag einschließlich Analysegrenzen steht in
-[GENERATOR_CONTRACT.md](GENERATOR_CONTRACT.md).
+Die Gate-A-Matrix und freigegebene TypeScript-Architektur stehen in
+[DV_KONZEPT.md](DV_KONZEPT.md). Der TypeScript-Modulvertrag und die Grenzen der vorhandenen
+Engine stehen in [GENERATOR_CONTRACT.md](GENERATOR_CONTRACT.md).
 
 ## Probleme
 

@@ -89,6 +89,12 @@ Projekt-Schreibzugriff erneut geprüft.
 Andere Technologiemodule, SDD-Initialisierung, Generator-Upgrades, eine schreibende Migration
 und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
+Der freigegebene Vertrag für `typescript@0.1.0` steht im
+[Generator-Vertrag](docs/GENERATOR_CONTRACT.md). Die festen Startervorlagen werden mit dem
+Generatorpaket ausgeliefert und in einer temporären t0003-Kopie geprüft. Eine öffentliche
+TypeScript-Modulauswahl und deren Apply sind noch nicht verfügbar; Plan und Apply starten
+keine npm-Installation.
+
 `migrate` untersucht auch Projekte ohne t0003-Konfiguration und vergleicht selektive Übernahme
 mit schrittweiser Anpassung. Der Bericht ist **kein Apply-Plan** und verändert keine Projektdateien.
 Er enthält nur feste Kategorien und Zählwerte, keine individuellen Dateinamen, Inhalte oder

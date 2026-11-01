@@ -1,6 +1,7 @@
 """Installed CLI integration against two immutable public t0003 commits."""
 
 import hashlib
+from importlib import resources
 import json
 import os
 from pathlib import Path
@@ -293,6 +294,34 @@ class T0003Integration(unittest.TestCase):
         self.assertEqual(noop["operations"], [])
         self.cli("restore", "--backup", plan["backup"]["id"])
         self.assertEqual(before, self.files())
+
+    def test_packaged_typescript_starter_in_t0003_copy(self):
+        """Exercise installed package data without enabling a TypeScript apply path."""
+        source = resources.files("project_generator").joinpath("templates", "typescript")
+        names = (
+            ".gitignore", "package.json", "package-lock.json", "tsconfig.json",
+            "src/app.ts", "src/main.ts", "test/app.test.mjs", "docs/TYPESCRIPT.md",
+        )
+        copied = {}
+        for name in names:
+            destination = self.project / (name if name.startswith("docs/") else "typescript/" + name)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            content = source.joinpath(*name.split("/")).read_bytes()
+            destination.write_bytes(content)
+            copied[destination] = content
+        npm = "npm.cmd" if os.name == "nt" else "npm"
+        environment = dict(self.env, npm_config_cache=str(self.case / "npm-cache"))
+        module = self.project / "typescript"
+        node = self.run_command(["node", "--version"], cwd=module, env=environment)
+        self.assertRegex(node.stdout.strip(), r"^v24\.")
+        self.run_command([npm, "ci", "--ignore-scripts", "--no-audit", "--no-fund"],
+                         cwd=module, env=environment)
+        self.run_command([npm, "run", "build"], cwd=module, env=environment)
+        tested = self.run_command([npm, "test"], cwd=module, env=environment)
+        self.assertRegex(tested.stdout, r"\bpass 2\b")
+        example = self.run_command([npm, "run", "start"], cwd=module, env=environment)
+        self.assertIn("Hello from project-typescript-starter!", example.stdout)
+        self.assertEqual({path: path.read_bytes() for path in copied}, copied)
 
 
 if __name__ == "__main__":
