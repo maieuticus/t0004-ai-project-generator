@@ -196,6 +196,41 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
   denselben Bytes und Zugriffsmetadaten nicht von Generatorzuständen unterscheidbar.
 
+### Freigegebener Vertrag für `typescript@0.1.0` (noch nicht öffentlich ausführbar)
+
+- Das Modul ist fest im Generator vorgesehen. Es verwendet ausschließlich die vorhandene
+  Format-4-Mehrdatei-Engine. Dieser PR enthält Vertrag und paketierte Starterdateien, aber
+  weder `--module typescript` noch einen TypeScript-Apply-Pfad. Es gibt keine zweite
+  Schreib-Engine und kein allgemeines Plugin-System.
+- Die festen Moduldateien liegen im Zielprojekt unter `typescript/`: `.gitignore`,
+  `package.json`, `package-lock.json`, `tsconfig.json`, `src/app.ts`, `src/main.ts` und
+  `test/app.test.mjs`; hinzu kommt `docs/TYPESCRIPT.md`. Node.js 24, TypeScript mit
+  `strict` und `NodeNext`, sowie `node:test` sind die erste geprüfte Laufzeitkombination.
+  Entwicklungsabhängigkeiten sind exakt gepinnt und im Lockfile mit Integritätshashes
+  gebunden. `node_modules/` und `dist/` bleiben lokale, ignorierte Ergebnisse.
+- Die spätere Planung setzt weiterhin `template.release: 0.1.0` und bytegenau nachgewiesene
+  t0003-Fähigkeiten für `scripts/check.py`, `scripts/projectcfg.py` und die bestehende CI
+  voraus. Der ursprüngliche Release-Commit ohne passende CI wird nicht still zugelassen.
+  Für die CI sind nur explizit geprüfte Basis-, Python-, TypeScript- und kombinierte
+  Dateistände zulässig. Das Modul ergänzt einen festen `verify`-Check, ohne bestehende
+  Checks umzuordnen. Die bestehende CI erhält `npm ci --ignore-scripts` vor dem
+  Projektcheck; Plan und Apply führen niemals npm oder andere Projektbefehle aus.
+- `generator.modules` erlaubt nach Umsetzung nur die bekannten Einträge
+  `python@0.1.0` und `typescript@0.1.0`, jeweils höchstens einmal. Unbekannte Versionen,
+  doppelte Einträge und abweichende Moduldateien sind Konflikte. Die Module werden
+  einzeln geplant und angewandt; beide Reihenfolgen müssen zum selben unterstützten
+  Doppelmodul-Zustand führen. Es gibt keinen gemeinsamen Zwei-Modul-Apply.
+- Ein vorhandener fremder Modulpfad wird nicht überschrieben, auch bei identischem Inhalt.
+  Plan und Apply binden die Voraussetzungen, Datei- und Verzeichniszustände sowie
+  CI-/Konfigurationsänderungen wie beim Python-Modul an Fingerabdrücke und Plan-ID.
+  Ein vollständig unverändertes, eingetragenes Modul ergibt einen No-op ohne Backup;
+  fehlende oder geänderte Moduldateien, Check oder CI ergeben einen Konflikt.
+- `restore` verwendet unverändert das geschützte Format-3-Mehrdatei-Manifest und prüft
+  fremde Zwischenänderungen vor jeder Rücknahme. Nach Installation beider Module ist
+  in umgekehrter Apply-Reihenfolge zurückzunehmen. Der Versuch, zuerst das ältere
+  Modul-Backup zurückzunehmen, wird wegen des geänderten Konfigurations-/CI-Zustands
+  verweigert. Backups werden nicht automatisch gelöscht.
+
 ## Sicherheit und Änderungsstrategie
 
 - Für jeden Aufruf von `apply` oder `restore` muss das Zielprojekt exklusiv genutzt werden:
