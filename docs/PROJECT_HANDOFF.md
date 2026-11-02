@@ -5,6 +5,19 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 118B.3: Isolierter Windows-Prototyp in
+  `tests/test_windows_backup_prototype.py` untersucht zwei selbst gesteuerte
+  Robocopy-Läufe ausschließlich anhand synthetischer temporärer Git-Projekte.
+  Der Prototyp ist kein Backup-Gate und nicht an Strategie-B-Apply angebunden.
+  Dateien, Zeitstempel, Windows-Attribute sowie lesbare Eigentümer-/Gruppen- und
+  DACL-Daten werden im Experiment verglichen; ADS und Links werden abgelehnt.
+  SACLs, weitere nicht erfasste Metadaten und ausschließlicher Zugriff sind nicht
+  nachgewiesen. Ein Test dokumentiert, dass ein manipuliertes Kopierprogramm bei
+  identischem Quell- und Backupzustand durch Inhaltsvergleich nicht als solches
+  erkennbar ist. Windows: 17 gezielte Prototyp-Tests und der Projektcheck bestanden;
+  Generator-Regression außerhalb der Sandbox: 198 Tests, 24 übersprungen.
+  Strategie-B-Apply bleibt gesperrt.
+
 - Schritt 118A.2 auf `feat/strategy-b-baseline-plan`: Architektur für eine additive,
   ausdrücklich gekennzeichnete Migrationsbasis ist freigegeben. Der lesende Plan und das
   feste Paket sind implementiert; Strategie-B-Apply und -Restore sind nicht enthalten.
@@ -86,7 +99,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Linux- und Windows-CI zum Strategie-B-PR prüfen und das menschliche Review-Gate durchführen.
+Den Prototyp und seine Vertrauensgrenzen menschlich prüfen, bevor ein produktives
+Windows-Backup-Profil oder eine Apply-Anbindung entworfen wird.
 
 ## Risiken
 
