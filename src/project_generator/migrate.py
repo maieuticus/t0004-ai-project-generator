@@ -87,7 +87,8 @@ def _metadata(path: Path, device: int, parent_fd: int | None = None) -> tuple[st
                 or any(len(line) > MAX_METADATA_LINE_BYTES for line in lines)):
             return "unreadable_or_unsupported", None
         metadata = load_metadata(content)
-        status = ("recognized_supported" if metadata["template_release"] in SUPPORTED_TEMPLATE_RELEASES
+        status = ("recognized_migration_baseline" if metadata["template_origin"] == "migration" else
+                  "recognized_supported" if metadata["template_release"] in SUPPORTED_TEMPLATE_RELEASES
                   else "recognized_unverified_version")
         return status, {
             "generator_version_configured": metadata["generator_version"] is not None,
@@ -360,6 +361,8 @@ def analyze(value: str) -> dict[str, object]:
         conflicts.append("Vorhandene Projektmetadaten sind nicht als unterstützte t0003-Konfiguration erkennbar; mögliche Namenskollision prüfen.")
     elif metadata == "recognized_unverified_version":
         conflicts.append("Die erkannte t0003-Version ist nicht auf Kompatibilität geprüft.")
+    elif metadata == "recognized_migration_baseline":
+        conflicts.append("Additive Migrationsbasis erkannt; vollständige Template- und Modulkompatibilität ist nicht nachgewiesen.")
     elif metadata == "unreadable_or_unsupported":
         conflicts.append("Vorhandene Projektmetadaten konnten nicht sicher geprüft werden.")
     if git["state"] == "available" and (git["tracked_changes"] or git["untracked"]):
@@ -426,6 +429,7 @@ def emit_text(report: dict[str, object]) -> None:
         print("- Git: " + ("nicht erkannt." if git["state"] == "not_detected" else "nicht prüfbar."))
     metadata_labels = {
         "not_observed": "nicht erkannt", "recognized_supported": "t0003-Metadaten erkannt, Version unterstützt",
+        "recognized_migration_baseline": "additive Migrationsbasis erkannt, Kompatibilität nicht nachgewiesen",
         "recognized_unverified_version": "t0003-Metadaten erkannt, Version ungeprüft",
         "not_recognized": "nicht als t0003-Metadaten erkannt",
         "unreadable_or_unsupported": "nicht sicher prüfbar",

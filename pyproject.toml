@@ -20,6 +20,10 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 project_generator = [
+  "templates/baseline/AGENTS.md",
+  "templates/baseline/config/*.yaml",
+  "templates/baseline/docs/*.md",
+  "templates/baseline/scripts/*.py",
   "templates/typescript/.gitignore",
   "templates/typescript/package.json",
   "templates/typescript/package-lock.json",

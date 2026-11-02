@@ -116,6 +116,19 @@ erzeugen. Liegt die Generatorinstallation im Quellprojekt, zum Schutz davor
 `PYTHONDONTWRITEBYTECODE=1` setzen. Weitere Grenzen und das JSON-Format stehen im
 [Generator-Vertrag](docs/GENERATOR_CONTRACT.md).
 
+Strategie B bietet einen ausschließlich lesenden Basisplan:
+
+```text
+t0004-generator migrate /pfad/zum/bestandsprojekt --baseline --json
+```
+
+Der Plan zeigt das feste Paket einschließlich Ergebnis-Hashes. Die migrationsspezifische
+`AGENTS.md` muss nach Inhaltsprüfung separat mit `--confirm-agents <SHA256>` bestätigt werden;
+die Bestätigung ist an die Plan-ID gebunden. Auch ein konfliktfreier Plan ist nicht ausführbar.
+Vor einem späteren Apply ist ein unabhängiges, auf Wiederherstellbarkeit geprüftes Komplettbackup
+erforderlich; siehe [Generator-Vertrag](docs/GENERATOR_CONTRACT.md). Es werden keine Checks
+ausgeführt, keine CI verändert und keine Module eingerichtet oder freigegeben.
+
 Für Strategie A kann eine konkrete Auswahl ausschließlich lesend geplant werden:
 
 ```text

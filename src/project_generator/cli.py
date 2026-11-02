@@ -36,6 +36,8 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbarer Analysebericht")
     command.add_argument("--destination", help="vorhandenes t0003-Ziel für Strategie A")
     command.add_argument("--file", action="append", dest="files", help="ausdrücklich ausgewählte relative Datei; wiederholbar")
+    command.add_argument("--baseline", action="store_true", help="lesenden Strategie-B-Basisplan erstellen")
+    command.add_argument("--confirm-agents", metavar="SHA256", help="exakten AGENTS.md-Ergebnis-Hash bestätigen")
     command = commands.add_parser("apply", help="bestätigten Plan ausführen")
     command.add_argument("target", nargs="?", default=".", help="Zielprojekt")
     command.add_argument("--plan", required=True, help="gespeicherter JSON-Plan")
@@ -95,6 +97,25 @@ def main(argv: list[str] | None = None) -> int:
             print(restore(args.target, args.backup))
             return 0
         if args.command == "migrate":
+            if args.baseline:
+                if args.destination is not None or args.files is not None:
+                    raise PathSafetyError("Strategie B kann nicht mit Strategie A kombiniert werden.")
+                from .baseline_plan import baseline_plan
+                report = baseline_plan(args.target, installed_version(), args.confirm_agents)
+                if args.as_json:
+                    print(json.dumps(report, ensure_ascii=True, sort_keys=True, indent=2))
+                else:
+                    print(f"Nicht ausführbarer Strategie-B-Plan: {report['plan_id']}")
+                    print("AGENTS.md-Vorschau:\n" + report["agents_preview"])
+                    for operation in report["operations"]:
+                        print(f"create: {operation['path']} {operation['after_sha256']}")
+                    for item in report["conflicts"]:
+                        print(f"Konflikt: {item}")
+                    for item in report["warnings"]:
+                        print(f"Hinweis: {item}")
+                return 1 if report["conflicts"] else 0
+            if args.confirm_agents is not None:
+                raise PathSafetyError("AGENTS-Bestätigung benötigt --baseline.")
             if args.destination is not None or args.files is not None:
                 if not args.destination or not args.files:
                     raise PathSafetyError("Migrationsplanung benötigt --destination und mindestens ein --file.")
