@@ -22,6 +22,28 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class T0003Integration(unittest.TestCase):
+    def test_strategy_a_read_only_plan_against_real_t0003(self):
+        old = self.case / "old-project"
+        (old / "src").mkdir(parents=True)
+        (old / "src/example.py").write_text("print('private fixture')\n", encoding="utf-8")
+        self.git("init", "--quiet", str(old), cwd=self.case)
+        self.git("-C", str(old), "add", "src/example.py", cwd=self.case)
+        source_index = (old / ".git/index").read_bytes()
+        target_index = (self.project / ".git/index").read_bytes()
+        before = self.file_states()
+        args = ("migrate", str(old), "--destination", str(self.project),
+                "--file", "src/example.py", "--json")
+        first = self.cli(*args)
+        self.assertEqual(first.stdout, self.cli(*args).stdout)
+        report = json.loads(first.stdout)
+        self.assertFalse(report["executable"])
+        self.assertEqual(report["operations"][0]["path"], "src/example.py")
+        self.assertNotIn("private fixture", first.stdout)
+        self.assertEqual(before, self.file_states())
+        self.assertEqual(source_index, (old / ".git/index").read_bytes())
+        self.assertEqual(target_index, (self.project / ".git/index").read_bytes())
+        self.assertEqual((old / "src/example.py").read_text(encoding="utf-8"), "print('private fixture')\n")
+
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory(prefix="t0004-integration-")

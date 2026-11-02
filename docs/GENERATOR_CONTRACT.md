@@ -38,6 +38,40 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - Der Vergleich benennt Risiken sowie Arbeits- und Tokenaufwand. Eine schreibende Migration setzt
   die ausdrückliche Freigabe der gewählten Strategie voraus.
 
+### Lesender Strategie-A-Plan
+
+- `migrate QUELLE --destination ZIEL --file RELATIVPFAD [--file RELATIVPFAD ...] [--json]`
+  plant nur ausdrücklich ausgewählte Dateien in eine bereits vorhandene, kompatible
+  t0003-Projektkopie. Quell- und Zielpfad dürfen weder gleich sein noch ineinander liegen;
+  Links, Junctions und Reparse Points in Pfadkomponenten sind ausgeschlossen.
+- Version 0.1.0 erlaubt 1 bis 32 reguläre UTF-8-Textdateien ohne NUL mit Endung `.md`, `.txt`, `.py`
+  oder `.ts`, jeweils mit identischem relativem Quell- und Zielpfad, höchstens 1 MiB je
+  Datei und 8 MiB insgesamt. Es gelten die portablen Format-4-Pfadgrenzen sowie maximal
+  64 Verzeichnisse je Projekt. Versteckte Komponenten, Git-, Build- und Abhängigkeitsordner,
+  `config`, `requirements*`, `constraints*`, `setup.py`, `settings.py`, `config.py`,
+  `conftest.py` und andere Dateitypen sind ausgeschlossen. Die Namensprüfung kann nicht alle
+  projektspezifischen Konfigurationen oder Geheimnisse erkennen; die Auswahl ist manuell zu prüfen.
+  Es gibt keine Verzeichnisauswahl, automatische Komplettmigration oder Konfigurationszusammenführung.
+- Das Ziel muss die bestehende t0003-Metadatenprüfung und die bytegenaue Check-/CI-Prüfung
+  erfüllen; die Versionsnummer allein genügt nicht. Bestehende Zieldateien, auch identische,
+  sind Konflikte. Unsichere, fehlende, unlesbare oder veränderte Quelldateien verhindern die
+  Planung. Projektbefehle und Quellcode werden nicht ausgeführt; Git-Historie wird nicht übernommen.
+- JSON enthält `kind: strategy_a_migration_plan`, `plan_version: 1`, `read_only: true`,
+  `executable: false`, Generatorversion, Standortfingerabdrücke, Zielkonfigurations- und
+  Kompatibilitätsfingerabdrücke, Verzeichniszustände, sortierte `operations`, Konflikte,
+  Warnungen und `plan_id`. Jede Operation nennt den relativen Pfad, `create` sowie Quell- und
+  Zielzustand mit SHA-256, Größe und Zugriffs-Fingerabdruck beziehungsweise Zielabwesenheit.
+  Die ID ist SHA-256 über die kanonische Darstellung aller übrigen Planfelder. Sie ist keine
+  Authentisierung. Gleiche vollständige Eingaben und Zustände ergeben denselben Plan.
+- Der Plan enthält keine Dateiinhalte oder Konfigurationswerte. Pfade und Hashes können dennoch
+  vertrauliche Informationen offenlegen; die Ausgabe vor Weitergabe prüfen. Eine Secret-Erkennung
+  der Dateiinhalte findet nicht statt. Der Plan ist kein ausführbarer Format-4-Plan und wird
+  von `apply` nicht akzeptiert. Es werden weder Snapshot noch Projektdateien geschrieben.
+- Während der Planung dürfen Quelle und Ziel nicht verändert werden. Dateisysteme können
+  Zugriffszeiten aktualisieren; Bytecode-Caches am Installationsort lassen sich durch
+  `PYTHONDONTWRITEBYTECODE=1` vermeiden. Bind-Mounts und nicht kooperierende parallele
+  Änderungen sind plattformübergreifend nicht vollständig auszuschließen.
+
 ### Lesender Migrationsbericht
 
 - Die Bestandsanalyse erfasst ausschließlich Dateimetadaten und feste Namens-/Endungsindikatoren
