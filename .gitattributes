@@ -7,3 +7,4 @@
 *.json text eol=lf
 *.template text eol=lf
 Dockerfile text eol=lf
+src/project_generator/templates/java/mvnw.cmd text eol=crlf

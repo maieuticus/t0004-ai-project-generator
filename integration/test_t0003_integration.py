@@ -383,6 +383,57 @@ class T0003Integration(unittest.TestCase):
         self.cli("restore", "--backup", plan["backup"]["id"])
         self.assertEqual(before, self.files())
 
+    def test_packaged_java_starter_in_t0003_copy(self):
+        """Exercise the installed Java resources without exposing a public module."""
+        source = resources.files("project_generator").joinpath("templates", "java")
+        names = (".gitignore", "pom.xml", "mvnw", "mvnw.cmd",
+                 ".mvn/wrapper/maven-wrapper.properties",
+                 "src/main/java/org/example/app/App.java",
+                 "src/test/java/org/example/app/AppTest.java", "docs/JAVA.md")
+        copied = {}
+        for name in names:
+            destination = self.project / (name if name.startswith("docs/") else "java/" + name)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            content = source.joinpath(*name.split("/")).read_bytes()
+            destination.write_bytes(content)
+            copied[destination] = content
+
+        wrapper = self.project / "java" / ("mvnw.cmd" if os.name == "nt" else "mvnw")
+        if os.name != "nt":
+            installed_wrapper = source.joinpath("mvnw")
+            self.assertTrue(os.access(installed_wrapper, os.X_OK), "installed wrapper lost its executable mode")
+            shutil.copymode(installed_wrapper, wrapper)
+            self.assertTrue(os.access(wrapper, os.X_OK))
+        environment = dict(self.env, MAVEN_USER_HOME=str(self.case / "maven-home"))
+        version = self.run_command(["java", "-version"], env=environment)
+        self.assertIn('version "25', version.stdout + version.stderr)
+
+        # An empty wrapper cache forces a download and checksum validation.
+        properties = self.project / "java/.mvn/wrapper/maven-wrapper.properties"
+        correct = properties.read_bytes()
+        properties.write_bytes(correct.replace(b"0d7125e8", b"1d7125e8"))
+        bad = subprocess.run([str(wrapper), "-v"], cwd=self.project / "java", env=environment,
+                             capture_output=True, text=True, encoding="utf-8", errors="replace")
+        self.assertNotEqual(bad.returncode, 0, bad.stdout + bad.stderr)
+        self.assertIn("SHA-256", bad.stdout + bad.stderr)
+        properties.write_bytes(correct)
+        result = self.run_command([str(wrapper), "-v"], cwd=self.project / "java", env=environment)
+        self.assertIn("Apache Maven 3.9.11", result.stdout)
+
+        # Exercise the real t0003 project-check subprocess contract.
+        config = self.project / "config/project.yaml"
+        content = config.read_text(encoding="utf-8")
+        command = ["java/mvnw.cmd" if os.name == "nt" else "java/mvnw", "-f", "java/pom.xml", "verify"]
+        self.assertIn("checks: []", content)
+        config.write_text(content.replace("checks: []", "checks:\n  - " + json.dumps(command)), encoding="utf-8")
+        result = self.run_command([sys.executable, "scripts/check.py"], env=environment)
+        self.assertIn("BUILD SUCCESS", result.stdout)
+        report = self.project / "java/target/surefire-reports/TEST-org.example.app.AppTest.xml"
+        self.assertIn('tests="1"', report.read_text(encoding="utf-8"))
+        example = self.run_command(["java", "-jar", "java/target/project-java-starter-0.1.0.jar"], env=environment)
+        self.assertEqual(example.stdout.strip(), "Hello from project-java-starter!")
+        self.assertEqual({path: path.read_bytes() for path in copied}, copied)
+
     def test_packaged_typescript_starter_in_t0003_copy(self):
         """Exercise installed package data independently of the apply path."""
         source = resources.files("project_generator").joinpath("templates", "typescript")

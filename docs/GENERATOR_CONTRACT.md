@@ -269,6 +269,16 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
   Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
   denselben Bytes und Zugriffsmetadaten nicht von Generatorzuständen unterscheidbar.
 
+### Java-Startervorlage (PR A)
+
+Das Generatorpaket enthält eine feste Java-Startervorlage für das geplante interne
+`java@0.1.0`: Temurin 25, Maven 3.9.11 mit offiziellem Wrapper 3.3.4 und
+Distributions-SHA-256, JUnit Jupiter und ausführbares JAR. Die Vorlage ist noch
+kein öffentlich auswählbares Modul; es gibt weder Java-Planung noch Apply oder
+Restore. Plan und Apply führen keine Maven- oder sonstigen Projektbefehle aus.
+Die späteren Dateimodi und die Einbindung in den Projektcheck müssen in PR B
+mit der bestehenden Engine und den unveränderten Sicherheitsregeln geprüft werden.
+
 ### `typescript@0.1.0` und kombinierte Modulzustände
 
 - Das Modul ist fest im Generator vorgesehen. Es verwendet ausschließlich die vorhandene
