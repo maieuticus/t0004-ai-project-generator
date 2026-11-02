@@ -86,14 +86,15 @@ abgelehnt; `6e8363a` ist kein behauptetes neues offizielles Release. Dateiinhalt
 Zugriffsmetadaten der Voraussetzungen sind an den Plan gebunden und werden vor dem ersten
 Projekt-Schreibzugriff erneut geprüft.
 
-Andere Technologiemodule, SDD-Initialisierung, Generator-Upgrades, eine schreibende Migration
+Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades, eine schreibende Migration
 und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
-Der freigegebene Vertrag für `typescript@0.1.0` steht im
-[Generator-Vertrag](docs/GENERATOR_CONTRACT.md). Die festen Startervorlagen werden mit dem
-Generatorpaket ausgeliefert und in einer temporären t0003-Kopie geprüft. Eine öffentliche
-TypeScript-Modulauswahl und deren Apply sind noch nicht verfügbar; Plan und Apply starten
-keine npm-Installation.
+`--module typescript` plant `typescript@0.1.0` im Ordner `typescript/`. Beide Module
+lassen sich nacheinander in beliebiger Reihenfolge installieren. Jeder Apply erzeugt einen
+eigenen geschützten Snapshot; Restore erfolgt in umgekehrter Installationsreihenfolge.
+Die CI installiert mit Node 24 zuerst per `npm ci --ignore-scripts --prefix typescript`
+und führt danach den Projektcheck mit TypeScript-Build und `node:test` aus. Plan und Apply
+installieren keine Pakete. Der echte GitHub-Template-Test mit p9999 ist abgeschlossen.
 
 `migrate` untersucht auch Projekte ohne t0003-Konfiguration und vergleicht selektive Übernahme
 mit schrittweiser Anpassung. Der Bericht ist **kein Apply-Plan** und verändert keine Projektdateien.
@@ -116,6 +117,9 @@ t0004-generator new /pfad/zum/projekt --module python --json > /tmp/t0004-plan.j
 t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <Plan-ID>
 t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 ```
+
+Für TypeScript `--module typescript` verwenden. Für beide Module nach dem ersten Apply
+einen neuen Plan für das zweite Modul erzeugen und bestätigen.
 
 In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --module python --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`

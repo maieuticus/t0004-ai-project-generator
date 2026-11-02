@@ -14,7 +14,7 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID` und
   `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
   `--json` liefert bei `check`, `plan`, `new` und `migrate` eine maschinenlesbare Darstellung.
-  `new` und `plan` akzeptieren optional `--module python`.
+  `new` und `plan` akzeptieren optional `--module python` oder `--module typescript`.
 - Exitcodes: `0` erfolgreich, `1` bei Kompatibilitäts- oder Voraussetzungskonflikten,
   verweigerten Transaktionen oder Transaktionsfehlern, `2` bei ungültigen Argumenten,
   Pfaden oder Konfigurationen.
@@ -24,8 +24,9 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
 - Der Benutzer erstellt ein Repository über GitHubs Template-Funktion aus t0003. `new`
   richtet das vorhandene kompatible Projekt optional ein; es erstellt kein Repository.
   Der Einstieg ist lesend und erzeugt denselben Plan wie `plan`. Ohne Modulauswahl wird
-  ausschließlich `generator.version` geplant; mit `--module python` wird `python@0.1.0`
-  einschließlich Projektchecks und CI geplant. Bei bereits korrekt eingerichtetem Zustand
+  ausschließlich `generator.version` geplant; mit `--module python` oder
+  `--module typescript` wird das jeweilige feste Modul einschließlich Projektchecks und CI
+  geplant. Bei bereits korrekt eingerichtetem Zustand
   gibt es keine Operation und kein Backup. Andere Profile, SDD-Initialisierung und
   Generator-Upgrades sind nicht implementiert.
 - `migrate` prüft ein bestehendes Projekt ausschließlich lesend, auch ohne
@@ -117,15 +118,16 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   im `PATH`, ohne Projektprüfungen auszuführen. Die geprüfte Template-Version ist ausschließlich
   t0003 `0.1.0`; andere Versionen sind nicht als kompatibel nachgewiesen. Eine abweichende
   gespeicherte Generator-Version und unbekannte Modullisten sind Konflikte, keine Upgrades.
-  `check` erkennt die Metadaten von `python@0.1.0`, prüft aber weder Moduldateien noch
-  die zusätzlichen Modulvoraussetzungen; dafür ist `plan --module python` erforderlich.
+  `check` erkennt die Metadaten beider Module, prüft aber weder Moduldateien noch
+  die zusätzlichen Modulvoraussetzungen; dafür ist `plan --module python` oder
+  `plan --module typescript` erforderlich.
   Eine SDD-Auswahl wird auf Konsistenz und Versionsformat geprüft; ihre Laufzeit- und
   Integrationskompatibilität bleibt ausdrücklich ungeprüft. `plan` und `new` benötigen Git nicht.
 
 ### Mehrdatei-Pläne und Python-Modul
 
 - Die bestehende Engine unterstützt Planformat 4 mit deterministisch sortierten
-  `create`- und `modify`-Operationen. Für `--module python` wird es öffentlich von `new`
+  `create`- und `modify`-Operationen. Für beide Modulauswahlen wird es öffentlich von `new`
   und `plan` erzeugt und von `apply` akzeptiert. Ohne Modulauswahl bleibt Format 3 erhalten.
   Format 4 wird ausschließlich mit vertrauenswürdigem, intern bereitgestelltem Operationsinhalt
   erzeugt und angewendet; JSON-Planinhalte werden nicht als auszuführende Dateiinhalte übernommen.
@@ -169,7 +171,7 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   höchstens 32 Dateien und 64 Verzeichnisse; pro Datei sind höchstens 1 MiB und für
   Original- beziehungsweise Zielinhalte jeweils insgesamt höchstens 8 MiB zulässig.
   Bind-Mounts auf demselben Dateisystem sind nicht zuverlässig erkennbar.
-- Bei Python-Modulpfaden werden auch bereits vorhandene abweichende Schreibweisen in
+- Bei Modulpfaden werden auch bereits vorhandene abweichende Schreibweisen in
   übergeordneten Verzeichnissen als Konflikte erkannt, einschließlich Groß-/Kleinschreibung
   und unter Windows ignorierter abschließender Punkte oder Leerzeichen. Das wird vor dem
   ersten Projekt-Schreibzugriff erneut geprüft.
@@ -196,11 +198,11 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
   denselben Bytes und Zugriffsmetadaten nicht von Generatorzuständen unterscheidbar.
 
-### Freigegebener Vertrag für `typescript@0.1.0` (noch nicht öffentlich ausführbar)
+### `typescript@0.1.0` und kombinierte Modulzustände
 
 - Das Modul ist fest im Generator vorgesehen. Es verwendet ausschließlich die vorhandene
-  Format-4-Mehrdatei-Engine. Dieser PR enthält Vertrag und paketierte Starterdateien, aber
-  weder `--module typescript` noch einen TypeScript-Apply-Pfad. Es gibt keine zweite
+  Format-4-Mehrdatei-Engine. `plan` und `new --module typescript` liefern einen lesenden
+  Plan; `apply` und `restore` verwenden die vorhandene Engine. Es gibt keine zweite
   Schreib-Engine und kein allgemeines Plugin-System.
 - Die festen Moduldateien liegen im Zielprojekt unter `typescript/`: `.gitignore`,
   `package.json`, `package-lock.json`, `tsconfig.json`, `src/app.ts`, `src/main.ts` und
@@ -208,18 +210,22 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   `strict` und `NodeNext`, sowie `node:test` sind die erste geprüfte Laufzeitkombination.
   Entwicklungsabhängigkeiten sind exakt gepinnt und im Lockfile mit Integritätshashes
   gebunden. `node_modules/` und `dist/` bleiben lokale, ignorierte Ergebnisse.
-- Die spätere Planung setzt weiterhin `template.release: 0.1.0` und bytegenau nachgewiesene
+- Die Planung setzt weiterhin `template.release: 0.1.0` und bytegenau nachgewiesene
   t0003-Fähigkeiten für `scripts/check.py`, `scripts/projectcfg.py` und die bestehende CI
   voraus. Der ursprüngliche Release-Commit ohne passende CI wird nicht still zugelassen.
-  Für die CI sind nur explizit geprüfte Basis-, Python-, TypeScript- und kombinierte
+  Für die CI sind nur vier bytegenau geprüfte Basis-, Python-, TypeScript- und kombinierte
   Dateistände zulässig. Das Modul ergänzt einen festen `verify`-Check, ohne bestehende
   Checks umzuordnen. Die bestehende CI erhält `npm ci --ignore-scripts` vor dem
   Projektcheck; Plan und Apply führen niemals npm oder andere Projektbefehle aus.
-- `generator.modules` erlaubt nach Umsetzung nur die bekannten Einträge
+- `generator.modules` erlaubt nur die bekannten Einträge
   `python@0.1.0` und `typescript@0.1.0`, jeweils höchstens einmal. Unbekannte Versionen,
   doppelte Einträge und abweichende Moduldateien sind Konflikte. Die Module werden
   einzeln geplant und angewandt; beide Reihenfolgen müssen zum selben unterstützten
   Doppelmodul-Zustand führen. Es gibt keinen gemeinsamen Zwei-Modul-Apply.
+- Die Modulliste und Modulchecks stehen im Doppelmodul-Zustand stets in der Reihenfolge
+  Python, TypeScript. Vorhandene andere Checks behalten ihre Reihenfolge. Der CI-Zustand
+  wird aus festen Vorlagen gewählt; Änderungen daran führen zum Konflikt. `npm ci` läuft
+  nur in der CI vor `scripts/check.py`, nicht während Plan oder Apply.
 - Ein vorhandener fremder Modulpfad wird nicht überschrieben, auch bei identischem Inhalt.
   Plan und Apply binden die Voraussetzungen, Datei- und Verzeichniszustände sowie
   CI-/Konfigurationsänderungen wie beim Python-Modul an Fingerabdrücke und Plan-ID.

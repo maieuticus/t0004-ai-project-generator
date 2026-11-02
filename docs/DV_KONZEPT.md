@@ -9,6 +9,7 @@ Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge s
 verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation oder das
 freigegebene Modul `python@0.1.0` mit der bestehenden Mehrdatei-Engine; `migrate` liefert
 eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration.
+Die TypeScript-Anbindung nutzt nach PR A die vorhandene Format-4-Engine für beide Module.
 Die abschließende `verify`-/Release-Etappe bleibt offen.
 
 ## Projektziel
@@ -62,9 +63,11 @@ Die vier verpflichtenden Praxistests der abschließenden Etappe sind:
 Codespaces bleibt ein Plattformziel des Generatorvertrags und wird zusätzlich zur Vierer-Matrix
 geprüft, sobald die technische Ausführung dafür bereitsteht.
 
-Ohne Modul plant `new` ausschließlich `generator.version`. Mit `--module python` plant es
-das Python-Starterprojekt und die Check-/CI-Ergänzungen über denselben Freigabe-, Backup-
-und Restore-Pfad. Es erstellt kein Repository und richtet keine SDD-Werkzeuge ein.
+Ohne Modul plant `new` ausschließlich `generator.version`. Mit `--module python` oder
+`--module typescript` plant es das jeweilige Starterprojekt und die Check-/CI-Ergänzungen
+über denselben Freigabe-, Backup- und Restore-Pfad. Beide Module sind nacheinander in
+beliebiger Reihenfolge installierbar. Es erstellt kein Repository und richtet keine
+SDD-Werkzeuge ein.
 Die abschließenden plattformübergreifenden Praxistests bleiben offen.
 
 ## Entwicklung und Betrieb
