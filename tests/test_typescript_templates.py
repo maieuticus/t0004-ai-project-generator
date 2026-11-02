@@ -32,14 +32,6 @@ def asset(name: str) -> bytes:
 
 
 class TypeScriptTemplates(unittest.TestCase):
-    def test_public_typescript_selection_is_not_enabled_in_pr_a(self):
-        result = subprocess.run(
-            [sys.executable, "-m", "project_generator", "plan", "--module", "typescript"],
-            cwd=ROOT, env=dict(os.environ, PYTHONPATH=str(ROOT / "src")),
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-        )
-        self.assertEqual(result.returncode, 2)
-
     def test_assets_fit_existing_multi_file_engine(self):
         changes = [(name, "create", asset(name)) for name in FILES]
         self.assertEqual(len(_operation_paths(changes)), len(FILES))
