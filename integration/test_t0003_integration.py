@@ -400,7 +400,9 @@ class T0003Integration(unittest.TestCase):
 
         wrapper = self.project / "java" / ("mvnw.cmd" if os.name == "nt" else "mvnw")
         if os.name != "nt":
-            wrapper.chmod(0o755)
+            installed_wrapper = source.joinpath("mvnw")
+            self.assertTrue(os.access(installed_wrapper, os.X_OK), "installed wrapper lost its executable mode")
+            shutil.copymode(installed_wrapper, wrapper)
             self.assertTrue(os.access(wrapper, os.X_OK))
         environment = dict(self.env, MAVEN_USER_HOME=str(self.case / "maven-home"))
         version = self.run_command(["java", "-version"], env=environment)
