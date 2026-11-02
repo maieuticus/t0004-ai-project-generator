@@ -5,6 +5,14 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 116: Branch `feat/strategy-a-migration-plan` auf `main` / `f806194`.
+  Das Analyze-Gate für eine lesende, explizite Strategie-A-Dateiplanung ist freigegeben.
+  Der Plan bindet Quelle, Ziel, Auswahl und Zustandsfingerabdrücke und ist nicht ausführbar;
+  Apply und Restore für Migrationsdateien bleiben Schritt 117. Die Ausführungsgrenzen stehen
+  im Generator-Vertrag. Windows: Projektcheck und 13 Integrationstests erfolgreich;
+  die Generator-Regression war mit 21 plattformbedingten Übersprüngen erfolgreich.
+  Von 16 Basistests scheitert lokal `test_speckit` an der PowerShell-Ausführungsrichtlinie;
+  diese wurde nicht geändert. Linux-/Windows-CI und menschliches Review sind offen.
 - Schritt 113C: TypeScript-Vorlage und Regressionstest korrigiert. Lokale Regression
   mit aktueller isolierter Paketinstallation: 140 Generator-Tests bestanden, 21 unter
   Windows übersprungen; 12 Integrationstests bestanden, einschließlich Node-Build,
@@ -56,7 +64,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Schritt 113C zur abschließenden Prüfung und PR C durchführen.
+Schritt 116 nach Abschluss der Prüfungen im PR menschlich prüfen; anschließend über
+Apply und Restore für Strategie A entscheiden.
 
 ## Risiken
 

@@ -116,6 +116,23 @@ erzeugen. Liegt die Generatorinstallation im Quellprojekt, zum Schutz davor
 `PYTHONDONTWRITEBYTECODE=1` setzen. Weitere Grenzen und das JSON-Format stehen im
 [Generator-Vertrag](docs/GENERATOR_CONTRACT.md).
 
+Für Strategie A kann eine konkrete Auswahl ausschließlich lesend geplant werden:
+
+```text
+t0004-generator migrate /pfad/zum/altprojekt --destination /pfad/zum/t0003-projekt --file src/app.py --file docs/anleitung.md --json
+```
+
+Der Plan ist **nicht ausführbar**; `apply` und `restore` unterstützen keine Migration.
+Quelle und Ziel müssen getrennt sein, das Ziel muss den geprüften t0003-Stand erfüllen.
+Nur ausdrücklich ausgewählte `.md`, `.txt`, `.py` und `.ts`-Dateien sind zulässig;
+versteckte Pfade, Konfigurations-, Build- und Abhängigkeitsverzeichnisse sind ausgeschlossen.
+Vorhandene Zieldateien sind Konflikte. Dateinamen und Hashes stehen im Plan und können
+vertraulich sein; Inhalt, Dateinamen und Hashes vor einer Weitergabe selbst prüfen. Die
+Planung erkennt Secrets in ausgewählten Dateien nicht und übernimmt keine Git-Historie.
+Für die Dauer der Planung dürfen Quelle und Ziel nicht gleichzeitig verändert werden.
+Dateisysteme können Zugriffszeiten aktualisieren; liegt die Python-Installation in einem
+Projekt, `PYTHONDONTWRITEBYTECODE=1` setzen.
+
 Beispiel unter Linux; Plan und bestätigte ID vor `apply` selbst prüfen:
 
 ```text

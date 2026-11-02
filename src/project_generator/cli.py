@@ -34,6 +34,8 @@ def _parser() -> argparse.ArgumentParser:
     command = commands.add_parser("migrate", help="bestehendes Projekt ausschließlich lesend analysieren")
     command.add_argument("target", nargs="?", default=".", help="Quellprojekt (Standard: aktuelles Verzeichnis)")
     command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbarer Analysebericht")
+    command.add_argument("--destination", help="vorhandenes t0003-Ziel für Strategie A")
+    command.add_argument("--file", action="append", dest="files", help="ausdrücklich ausgewählte relative Datei; wiederholbar")
     command = commands.add_parser("apply", help="bestätigten Plan ausführen")
     command.add_argument("target", nargs="?", default=".", help="Zielprojekt")
     command.add_argument("--plan", required=True, help="gespeicherter JSON-Plan")
@@ -92,6 +94,22 @@ def main(argv: list[str] | None = None) -> int:
             print(restore(args.target, args.backup))
             return 0
         if args.command == "migrate":
+            if args.destination is not None or args.files is not None:
+                if not args.destination or not args.files:
+                    raise PathSafetyError("Migrationsplanung benötigt --destination und mindestens ein --file.")
+                from .migration_plan import migration_plan
+                report = migration_plan(args.target, args.destination, args.files, installed_version())
+                if args.as_json:
+                    print(json.dumps(report, ensure_ascii=True, sort_keys=True, indent=2))
+                else:
+                    print(f"Nicht ausführbarer Strategie-A-Plan: {report['plan_id']}")
+                    for operation in report["operations"]:
+                        print(f"{operation['action']}: {operation['path']}")
+                    for conflict in report["conflicts"]:
+                        print(f"Konflikt: {conflict}")
+                    for warning in report["warnings"]:
+                        print(f"Hinweis: {warning}")
+                return 1 if report["conflicts"] else 0
             report = analyze(args.target)
             if args.as_json:
                 print(json.dumps(report, ensure_ascii=True, sort_keys=True, indent=2))
