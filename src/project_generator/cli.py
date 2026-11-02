@@ -40,6 +40,7 @@ def _parser() -> argparse.ArgumentParser:
     command.add_argument("target", nargs="?", default=".", help="Zielprojekt")
     command.add_argument("--plan", required=True, help="gespeicherter JSON-Plan")
     command.add_argument("--confirm", required=True, metavar="PLAN_ID", help="bestätigte Plan-ID")
+    command.add_argument("--source", help="Quellprojekt für einen Strategie-A-Plan")
     command = commands.add_parser("restore", help="Generatoränderung kontrolliert zurücknehmen")
     command.add_argument("target", nargs="?", default=".", help="Zielprojekt")
     command.add_argument("--backup", required=True, metavar="BACKUP_ID", help="Backup-ID aus apply")
@@ -86,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
             print(installed_version())
             return 0
         if args.command == "apply":
-            backup_id = apply(args.target, args.plan, args.confirm, installed_version())
+            backup_id = apply(args.target, args.plan, args.confirm, installed_version(), args.source)
             print(f"Apply geprüft und abgeschlossen. Backup-ID: {backup_id}")
             print("Der geschützte lokale Snapshot kann Secrets enthalten und darf nicht geteilt werden.")
             return 0
