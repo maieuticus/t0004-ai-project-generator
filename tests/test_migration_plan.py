@@ -123,7 +123,7 @@ class MigrationPlan(unittest.TestCase):
     def test_unreadable_source(self):
         real_open = os.open
         def deny_source(path, *args, **kwargs):
-            if Path(path) == self.source / "src/app.py":
+            if os.path.samefile(path, self.source / "src/app.py"):
                 raise PermissionError
             return real_open(path, *args, **kwargs)
         with mock.patch.object(migration_plan.os, "open", side_effect=deny_source):
