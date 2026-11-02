@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
 from project_generator.baseline_plan import FILES, PACKAGE, baseline_plan
 from project_generator.config import ConfigurationError, load_metadata
 from project_generator.migrate import analyze
