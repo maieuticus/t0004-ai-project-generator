@@ -86,7 +86,7 @@ abgelehnt; `6e8363a` ist kein behauptetes neues offizielles Release. Dateiinhalt
 Zugriffsmetadaten der Voraussetzungen sind an den Plan gebunden und werden vor dem ersten
 Projekt-Schreibzugriff erneut geprüft.
 
-Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades, eine schreibende Migration
+Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades
 und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
 `--module typescript` plant `typescript@0.1.0` im Ordner `typescript/`. Beide Module
@@ -122,14 +122,28 @@ Für Strategie A kann eine konkrete Auswahl ausschließlich lesend geplant werde
 t0004-generator migrate /pfad/zum/altprojekt --destination /pfad/zum/t0003-projekt --file src/app.py --file docs/anleitung.md --json
 ```
 
-Der Plan ist **nicht ausführbar**; `apply` und `restore` unterstützen keine Migration.
+Der Plan liest nur; eine Übernahme erfordert einen separaten bestätigten `apply`:
+
+```text
+t0004-generator migrate /pfad/zum/altprojekt --destination /pfad/zum/t0003-projekt --file src/app.py --json > /tmp/migration.json
+t0004-generator apply /pfad/zum/t0003-projekt --source /pfad/zum/altprojekt --plan /tmp/migration.json --confirm <Plan-ID>
+t0004-generator restore /pfad/zum/t0003-projekt --backup <Backup-ID>
+```
+
+Die Plan-ID und Auswahl vor der ausdrücklichen Bestätigung prüfen. Apply berechnet den Plan
+erneut, liest die ausgewählten Quellbytes und erstellt vor Zieländerungen einen geschützten
+Snapshot. Restore prüft den Zielzustand und entfernt neue Dateien sowie nur leere, neu
+angelegte Verzeichnisse. Fremdänderungen verhindern die automatische Rücknahme.
 Quelle und Ziel müssen getrennt sein, das Ziel muss den geprüften t0003-Stand erfüllen.
 Nur ausdrücklich ausgewählte `.md`, `.txt`, `.py` und `.ts`-Dateien sind zulässig;
 versteckte Pfade, Konfigurations-, Build- und Abhängigkeitsverzeichnisse sind ausgeschlossen.
 Vorhandene Zieldateien sind Konflikte. Dateinamen und Hashes stehen im Plan und können
 vertraulich sein; Inhalt, Dateinamen und Hashes vor einer Weitergabe selbst prüfen. Die
 Planung erkennt Secrets in ausgewählten Dateien nicht und übernimmt keine Git-Historie.
-Für die Dauer der Planung dürfen Quelle und Ziel nicht gleichzeitig verändert werden.
+Für Planung und Apply müssen Quelle und Ziel exklusiv genutzt werden. Pfadprüfungen und
+Lesezugriffe sind plattformübergreifend nicht atomar; nicht kooperierende Prozesse und
+Bind-Mounts können daher auch während Apply Race-Conditions verursachen. Nach abruptem
+Abbruch kann eine manuelle Wiederherstellung erforderlich sein.
 Dateisysteme können Zugriffszeiten aktualisieren; liegt die Python-Installation in einem
 Projekt, `PYTHONDONTWRITEBYTECODE=1` setzen.
 

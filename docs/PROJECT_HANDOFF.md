@@ -5,6 +5,17 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 117 auf `feat/strategy-a-migration-apply`, ausgehend von `main` / `fad094f`:
+  Strategie A bindet bestätigten Apply und Restore an die bestehende Format-4-Engine.
+  Quelle und Ziel sowie der vollständige lesende Plan werden vor dem Import erneut geprüft;
+  die Quellbytes werden im Speicher gehalten. Verzeichnisidentität und Änderungszeit sind
+  zusätzlich an neue Migrationspläne gebunden. Snapshot und Restore bleiben in der
+  bestehenden Mehrdatei-Engine. Die Plattform-CI und menschliches Review sind noch offen.
+  Windows: 175 Generator-Tests (23 plattformbedingt übersprungen) und 14 Integrationstests
+  mit isolierter echter t0003-Kopie bestanden. Linux steht noch aus. Die Basistests liefen
+  in der Sandbox: 13 bestanden, zwei OpenSpec-Tests scheiterten am Netzwerkzugriff und
+  Spec Kit am Windows-Zugriff. Der frühere Handoff zu Schritt 116 ist historisch; PR #14
+  wurde in `main` gemergt. Der Branch ist für den PR gegen `main` vorbereitet.
 - Schritt 116: Branch `feat/strategy-a-migration-plan` auf `main` / `f806194`.
   Das Analyze-Gate für eine lesende, explizite Strategie-A-Dateiplanung ist freigegeben.
   Der Plan bindet Quelle, Ziel, Auswahl und Zustandsfingerabdrücke und ist nicht ausführbar;
@@ -64,8 +75,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Schritt 116 nach Abschluss der Prüfungen im PR menschlich prüfen; anschließend über
-Apply und Restore für Strategie A entscheiden.
+Die finale Fassung unter Linux und Windows prüfen und anschließend den PR menschlich prüfen.
 
 ## Risiken
 
