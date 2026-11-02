@@ -1,51 +1,36 @@
 # Projektübergabe
 
-Flüchtiger Arbeitsstand für den Wechsel zwischen Agenten und Umgebungen. Er ändert keine
-Architekturentscheidungen (diese stehen in [DV_KONZEPT.md](DV_KONZEPT.md) und den Specs). Keine
-Secrets, Tokens oder Zugangsdaten eintragen. Git hat bei Widersprüchen Vorrang.
+Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md) und
+[GENERATOR_CONTRACT.md](GENERATOR_CONTRACT.md). Git hat bei Widersprüchen Vorrang.
 
 ## Aktueller Stand
 
-- Stand: 2026-11-01
-- Branch: `feat/typescript-module-pr-a`, ausgehend von `main` / `f90951e`.
-- Aktive Aufgabe: PR #11 (TypeScript-Modul, PR A) im menschlichen Review-Gate; noch keine
-  öffentliche TypeScript-Modulauswahl oder schreibende TypeScript-Planung.
-- Erledigt:
-  - PR #10 für die t0003-Integration ist laut Git-Historie gemergt. Acht bestehende
-    Integrationstests bleiben erhalten; der kompatible t0003-Commit `6e8363a` ist
-    weiterhin kein offizielles neues Release.
-  - Architektur für `typescript@0.1.0` durch den Nutzer freigegeben: isolierter Ordner,
-    Node 24, strict/NodeNext, `node:test`, feste Abhängigkeiten und Lockfile, bestehende
-    Mehrdatei-Engine, sequenzielle Installation beider Module und Restore rückwärts.
-  - PR A dokumentiert den Modulvertrag und paketiert acht feste Starterdateien. Ein neuer
-    Integrationstest verwendet die installierten Paketdaten in einer temporären t0003-Kopie
-    und prüft `npm ci --ignore-scripts`, Build, zwei Node-Tests und das ausführbare Beispiel.
-  - Lokal unter Windows erfolgreich: Projektcheck, 16 Basistests, 138 Generator-Unit-Tests
-    (19 plattformbedingt übersprungen) und 9 Integrationstests. Für den bekannten
-    Spec-Kit-Basistest galt `RemoteSigned` nur im Process-Scope; danach wieder `Restricted`.
-  - PR #11 ist geöffnet. Die Linux-/Windows-CI auf dem Implementierungsstand `c5c9a13`
-    ist erfolgreich; ein anfänglicher Linux-Fehler im neuen Test wurde durch expliziten
-    Python-Quellpfad vor der Paketinstallation behoben.
-- Offen:
-  - Menschliches Review-Gate für PR #11 durchführen; nicht automatisch mergen.
-  - Öffentliche TypeScript-Planung, Apply, No-op und kombinierte Python-/TypeScript-Zustände
-    folgen erst in späteren freigegebenen PRs. `verify` und Releases bleiben offen.
-- Blocker: keiner für PR A; menschliches Review steht aus.
-- Synchronisierung: Feature-Branch zu origin gepusht, PR #11 offen; Merge ist nicht beauftragt.
+- Stand: 2026-11-02.
+- Branch: `feat/typescript-module-pr-b`, ausgehend von `main` / `34b1b33`.
+- PR A (#11) ist in `main` gemergt. Der alte Handoff war insoweit veraltet.
+- Freigegebene Architektur: TypeScript unter `typescript/`, Node 24, strict/NodeNext,
+  `node:test`, feste Abhängigkeiten und Lockfile; sequenzielle Python-/TypeScript-Installation
+  über die vorhandene Format-4-Engine und Restore in umgekehrter Reihenfolge.
+- PR B bindet TypeScript an CLI, Read-only-Plan, bestätigten Apply, Snapshot und Restore an.
+  Vier feste CI-Zustände und kanonische Modulmetadaten unterstützen beide Reihenfolgen.
+- t0003-Kompatibilität bleibt auf den geprüften Entwicklungsstand `6e8363a` beschränkt;
+  der ursprüngliche Release-Commit wird weiterhin abgelehnt. Der echte GitHub-Template-Test
+  mit p9999 war bereits erfolgreich; t0003 und p9999 werden hier nicht geändert.
+- PR #12 ist gegen `main` offen, Implementierungsstand `1e19973`.
+- Lokal erfolgreich: `python scripts/check.py`, 159 Generator-Tests (21 plattformbedingt
+  übersprungen) und 10 Integrationstests gegen die gepinnten t0003-Commits. Der lokale
+  Windows-Basistest `test_speckit` wird durch die PowerShell-Ausführungsrichtlinie blockiert;
+  die übrigen 15 Basistests sind grün. Die Integrationstests liefen hier über
+  `python -m project_generator`, weil die lokale Anwendungsrichtlinie erzeugte `.exe`
+  blockiert. Die reguläre CLI läuft in der CI.
+- Beide Linux- und beide Windows-CI-Läufe von PR #12 waren auf `1e19973` erfolgreich.
 
 ## Nächster Schritt
 
-Das menschliche Review-Gate für PR #11 durchführen.
+Menschliches Review-Gate für PR #12 durchführen; nicht automatisch mergen.
 
-## Entscheidungen und Quellen
+## Risiken
 
-Die Gate-A-Matrix und freigegebene TypeScript-Architektur stehen in
-[DV_KONZEPT.md](DV_KONZEPT.md). Der TypeScript-Modulvertrag und die Grenzen der vorhandenen
-Engine stehen in [GENERATOR_CONTRACT.md](GENERATOR_CONTRACT.md).
-
-## Probleme
-
-Apply und Restore setzen exklusiven Projektzugriff während des jeweiligen Aufrufs voraus.
-Nach abruptem Abbruch oder fehlgeschlagener Protokollierung kann ein Teilzustand manuelle
-Wiederherstellung erfordern. Die lesende Migrationsanalyse setzt ein während ihres Aufrufs
-unverändertes Quellprojekt voraus.
+Apply und Restore setzen während des Aufrufs exklusiven Projektzugriff voraus. Nach
+abruptem Abbruch oder fehlgeschlagener Protokollierung kann manuelle Wiederherstellung
+erforderlich sein. `verify` als eigener Generatorbefehl und Releases bleiben offen.

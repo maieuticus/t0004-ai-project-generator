@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import site
 import stat
 import subprocess
 import sys
@@ -50,8 +51,14 @@ class T0003Integration(unittest.TestCase):
                 raise AssertionError("Fetched t0003 commit does not match the pinned commit")
         executable = "t0004-generator.exe" if os.name == "nt" else "t0004-generator"
         cls.cli_path = Path(sysconfig.get_path("scripts")) / executable
-        if not cls.cli_path.is_file():
+        if not cls.cli_path.is_file() and site.USER_BASE:
+            user_scripts = Path(site.USER_BASE) / ("Scripts" if os.name == "nt" else "bin") / executable
+            if user_scripts.is_file():
+                cls.cli_path = user_scripts
+        if not cls.cli_path.is_file() and not os.environ.get("T0004_TEST_CLI_MODULE"):
             raise RuntimeError("Install the generator into the test Python environment first")
+        cls.cli_command = ([sys.executable, "-m", "project_generator"]
+                           if os.environ.get("T0004_TEST_CLI_MODULE") else [str(cls.cli_path)])
 
     @classmethod
     def git(cls, *args, cwd):
@@ -86,7 +93,7 @@ class T0003Integration(unittest.TestCase):
         return result
 
     def cli(self, *args, expected=0):
-        return self.run_command([str(self.cli_path), *args], expected=expected)
+        return self.run_command([*self.cli_command, *args], expected=expected)
 
     def files(self):
         return {p.relative_to(self.project).as_posix(): p.read_bytes()
@@ -296,7 +303,7 @@ class T0003Integration(unittest.TestCase):
         self.assertEqual(before, self.files())
 
     def test_packaged_typescript_starter_in_t0003_copy(self):
-        """Exercise installed package data without enabling a TypeScript apply path."""
+        """Exercise installed package data independently of the apply path."""
         source = resources.files("project_generator").joinpath("templates", "typescript")
         names = (
             ".gitignore", "package.json", "package-lock.json", "tsconfig.json",
@@ -322,6 +329,29 @@ class T0003Integration(unittest.TestCase):
         example = self.run_command([npm, "run", "start"], cwd=module, env=environment)
         self.assertIn("Hello from project-typescript-starter!", example.stdout)
         self.assertEqual({path: path.read_bytes() for path in copied}, copied)
+
+    def test_public_typescript_apply_and_project_check(self):
+        before = self.files()
+        result = self.cli("plan", "--module", "typescript", "--json")
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["format"], 4)
+        self.assertEqual(plan["module"], "typescript")
+        self.assertEqual(before, self.files())
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(plan)
+        self.snapshot(plan, before)
+        check_copy = self.case / "check-copy"
+        shutil.copytree(self.project, check_copy, ignore=shutil.ignore_patterns(".git"))
+        npm = "npm.cmd" if os.name == "nt" else "npm"
+        environment = dict(self.env, npm_config_cache=str(self.case / "npm-cache"))
+        node = self.run_command(["node", "--version"], cwd=check_copy, env=environment)
+        self.assertRegex(node.stdout.strip(), r"^v24\.")
+        self.run_command([npm, "ci", "--ignore-scripts", "--prefix", "typescript",
+                          "--no-audit", "--no-fund"], cwd=check_copy, env=environment)
+        checked = self.run_command([sys.executable, "scripts/check.py"], cwd=check_copy, env=environment)
+        self.assertIn("pass 2", checked.stdout)
+        self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(before, self.files())
 
 
 if __name__ == "__main__":

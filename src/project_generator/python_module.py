@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from importlib import resources
 
 from . import projectcfg
 from .config import ConfigurationError
@@ -12,6 +13,7 @@ from .plan import (
     assess, backup_store, file_attributes, metadata_result, multi_plan_target, read_target,
 )
 from .python_compat import PYTHON_CI_SHA256, VERIFIED_FILES, python_capabilities
+from .module_states import MODULES, CI_STATES, known_ci
 
 MODULE = "python@0.1.0"
 CHECK = ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]
@@ -85,13 +87,27 @@ The application uses a `src/` layout and only the Python standard library.
 }
 
 
-def _add_check(content: bytes) -> bytes:
+TS_VERIFY = ["npm", "run", "verify", "--prefix", "typescript"]
+TS_FILES = tuple("typescript/" + name for name in
+                 (".gitignore", "package.json", "package-lock.json", "tsconfig.json",
+                  "src/app.ts", "src/main.ts", "test/app.test.mjs")) + ("docs/TYPESCRIPT.md",)
+
+
+def _files_for(module: str) -> dict[str, bytes]:
+    if module == "python":
+        return FILES
+    root = resources.files("project_generator").joinpath("templates", "typescript")
+    return {name: root.joinpath(*name.removeprefix("typescript/").split("/")).read_bytes()
+            for name in TS_FILES}
+
+
+def _add_check(content: bytes, check: list[str] = CHECK) -> bytes:
     text = content.decode("utf-8")
-    if CHECK in projectcfg.checks(text):
+    if check in projectcfg.checks(text):
         return content
     lines = text.splitlines(keepends=True)
     newline = "\r\n" if "\r\n" in text else "\n"
-    command = "  - " + json.dumps(CHECK) + newline
+    command = "  - " + json.dumps(check) + newline
     for index, line in enumerate(lines):
         body = line.rstrip("\r\n")
         empty = re.fullmatch(r"(checks:)[ \t]*\[[ \t]*\]([ \t]*(?:#.*)?)", body)
@@ -106,6 +122,9 @@ def _add_check(content: bytes) -> bytes:
                     break
                 if re.fullmatch(r"  - \[.*\][ \t]*", entry):
                     last = entry_index
+                    if check == CHECK and entry.strip() == "- " + json.dumps(TS_VERIFY):
+                        lines.insert(entry_index, command)
+                        return "".join(lines).encode("utf-8")
             if not lines[last].endswith(("\n", "\r")):
                 lines[last] += newline
             lines.insert(last + 1, command)
@@ -113,7 +132,8 @@ def _add_check(content: bytes) -> bytes:
     raise ConfigurationError("config/project.yaml: checks kann nicht sicher geändert werden.")
 
 
-def _metadata_with_module(content: bytes, version: str, current_version: str | None) -> bytes:
+def _metadata_with_module(content: bytes, version: str, current_version: str | None,
+                          module: str = "python") -> bytes:
     if current_version is None:
         content = metadata_result(content, version)
     lines = content.decode("utf-8").splitlines(keepends=True)
@@ -126,34 +146,50 @@ def _metadata_with_module(content: bytes, version: str, current_version: str | N
         if in_generator and body and not body.startswith((" ", "#")):
             break
         if in_generator:
-            match = re.fullmatch(r"(  modules:)[ \t]*\[[ \t]*\]([ \t]*(?:#.*)?)", body)
+            match = re.fullmatch(r"(  modules:)[ \t]*(\[[^\]\r\n]*\])([ \t]*(?:#.*)?)", body)
             if match:
-                lines[index] = f'{match.group(1)} ["{MODULE}"]{match.group(2)}{line[len(body):]}'
-                return _add_check("".join(lines).encode("utf-8"))
+                current = json.loads(match.group(2))
+                wanted = [value for value in MODULES.values() if value in current or value == MODULES[module]]
+                lines[index] = f'{match.group(1)} {json.dumps(wanted)}{match.group(3)}{line[len(body):]}'
+                result = "".join(lines).encode("utf-8")
+                return _add_check(result) if module == "python" else _add_check(result, TS_VERIFY)
     raise ConfigurationError("config/project.yaml: generator.modules kann nicht sicher geändert werden.")
 
 
-def python_plan_target(target: str, version: str) -> tuple[dict[str, object], list[tuple[str, str, bytes]]]:
+def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str, object], list[tuple[str, str, bytes]]]:
+    if module not in MODULES:
+        raise ConfigurationError("Unbekanntes Technologiemodul.")
+    files = _files_for(module)
     content, missing = read_target(target)
     metadata, conflicts, warnings = assess(content, version, missing)
     capabilities = python_capabilities(target)
     conflicts.extend(capabilities["conflicts"])
     root = Path(target).expanduser().resolve(strict=True)
-    _directory_states(root, list(FILES))
-    for name in _portable_path_collisions(root, [*FILES, "config/project.yaml", CI_PATH]):
+    _directory_states(root, list(files))
+    for name in _portable_path_collisions(root, [*files, "config/project.yaml", CI_PATH]):
         conflicts.append(f"{name}: Pfad kollidiert auf anderen Plattformen.")
-    installed = metadata["modules"] == [MODULE]
+    installed = MODULES[module] in metadata["modules"]
+    other = "typescript" if module == "python" else "python"
+    other_installed = MODULES[other] in metadata["modules"]
     checks = projectcfg.checks(content.decode("utf-8"))
     ci, _ = _operation_state(root, CI_PATH)
-    ci_hash = hashlib.sha256(ci).hexdigest() if ci is not None else None
-    if installed and CHECK not in checks:
-        conflicts.append("config/project.yaml: Python-Projektprüfung fehlt oder wurde verändert.")
-    if installed and ci_hash != PYTHON_CI_SHA256:
-        conflicts.append(f"{CI_PATH}: Python-CI-Erweiterung fehlt oder wurde verändert.")
-    if not installed and ci_hash != VERIFIED_FILES[CI_PATH]:
-        conflicts.append(f"{CI_PATH}: erwartete t0003-CI-Basis ist nicht vorhanden.")
+    expected_modules = frozenset(name for name in MODULES if MODULES[name] in metadata["modules"])
+    check = CHECK if module == "python" else TS_VERIFY
+    if installed and check not in checks:
+        label = "Python" if module == "python" else "TypeScript"
+        conflicts.append(f"config/project.yaml: {label}-Projektprüfung fehlt oder wurde verändert.")
+    if other_installed and (CHECK if other == "python" else TS_VERIFY) not in checks:
+        conflicts.append(f"config/project.yaml: {other}-Projektprüfung fehlt oder wurde verändert.")
+    if ci != CI_STATES[expected_modules]:
+        label = "Python-CI-Erweiterung" if module == "python" and installed else "geprüfter CI-Zustand"
+        conflicts.append(f"{CI_PATH}: {label} fehlt oder wurde verändert.")
+    if other_installed:
+        for name, result in _files_for(other).items():
+            original, _ = _operation_state(root, name)
+            if original != result:
+                conflicts.append(f"{name}: vorhandenes {other}-Modul fehlt oder wurde verändert.")
     changes = []
-    for name, result in FILES.items():
+    for name, result in files.items():
         original, _ = _operation_state(root, name)
         if installed:
             if original != result:
@@ -168,14 +204,14 @@ def python_plan_target(target: str, version: str) -> tuple[dict[str, object], li
            for entry in root.iterdir()):
         conflicts.append("Altes Backup im Zielprojekt: vor Git-Operationen geschützt außerhalb sichern.")
     if not installed and not conflicts and ci is not None:
-        config_result = _metadata_with_module(content, version, metadata["generator_version"])
+        config_result = _metadata_with_module(content, version, metadata["generator_version"], module)
         changes.append(("config/project.yaml", "modify", config_result))
-        changes.append((CI_PATH, "modify", ci + CI_EXTENSION))
-        return multi_plan_target(target, version, changes, module="python"), changes
+        changes.append((CI_PATH, "modify", CI_STATES[expected_modules | {module}]))
+        return multi_plan_target(target, version, changes, module=module), changes
 
     identity = {
         "format": 4,
-        "module": "python",
+        "module": module,
         "generator_version": version,
         "source_sha256": hashlib.sha256(content).hexdigest(),
         "source_attributes": file_attributes(target),
@@ -189,3 +225,7 @@ def python_plan_target(target: str, version: str) -> tuple[dict[str, object], li
         "conflicts": conflicts,
     }
     return {**identity, "plan_id": _canonical_id(identity), "read_only": True}, []
+
+
+def python_plan_target(target: str, version: str) -> tuple[dict[str, object], list[tuple[str, str, bytes]]]:
+    return module_plan_target(target, version, "python")
