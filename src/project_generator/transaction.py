@@ -407,7 +407,7 @@ def apply(target: str, plan_file: str, confirmation: str, version: str, source: 
     if source is not None:
         raise TransactionError("--source ist nur für Migrationspläne zulässig.")
     if supplied.get("format") == 4:
-        if supplied.get("module") not in ("python", "typescript"):
+        if supplied.get("module") not in ("python", "typescript", "java"):
             raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
         from .python_module import module_plan_target
         try:
@@ -628,7 +628,7 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
         raise TransactionError("Mehrdatei-Plan im Backup ist ungültig.")
     if "module" in plan:
         conditions = plan["preconditions"]
-        if (plan["module"] not in ("python", "typescript") or plan["conflicts"] != [] or not isinstance(conditions, dict)
+        if (plan["module"] not in ("python", "typescript", "java") or plan["conflicts"] != [] or not isinstance(conditions, dict)
                 or set(conditions) != {"files", "directories"}
                 or not isinstance(conditions["files"], list)
                 or not isinstance(conditions["directories"], list)

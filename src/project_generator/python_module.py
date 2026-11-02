@@ -88,6 +88,24 @@ The application uses a `src/` layout and only the Python standard library.
 
 
 TS_VERIFY = ["npm", "run", "verify", "--prefix", "typescript"]
+JAVA_VERIFY = ["python", "scripts/check_java.py"]
+JAVA_FILES = tuple("java/" + name for name in (
+    ".gitignore", ".mvn/wrapper/maven-wrapper.properties", "mvnw", "mvnw.cmd", "pom.xml",
+    "src/main/java/org/example/app/App.java", "src/test/java/org/example/app/AppTest.java",
+)) + ("docs/JAVA.md",)
+JAVA_ADAPTER = b'''"""Run the fixed Java starter verification on supported platforms."""
+import os
+import subprocess
+from pathlib import Path
+
+root = Path(__file__).resolve().parents[1]
+if os.name == "nt":
+    command = [os.environ.get("COMSPEC", "cmd.exe"), "/d", "/c", "mvnw.cmd", "verify"]
+else:
+    command = ["sh", "mvnw", "verify"]
+raise SystemExit(subprocess.run(command, cwd=root / "java", check=False).returncode)
+'''
+CHECKS = {"python": CHECK, "typescript": TS_VERIFY, "java": JAVA_VERIFY}
 TS_FILES = tuple("typescript/" + name for name in
                  (".gitignore", "package.json", "package-lock.json", "tsconfig.json",
                   "src/app.ts", "src/main.ts", "test/app.test.mjs")) + ("docs/TYPESCRIPT.md",)
@@ -96,9 +114,13 @@ TS_FILES = tuple("typescript/" + name for name in
 def _files_for(module: str) -> dict[str, bytes]:
     if module == "python":
         return FILES
-    root = resources.files("project_generator").joinpath("templates", "typescript")
-    return {name: root.joinpath(*name.removeprefix("typescript/").split("/")).read_bytes()
-            for name in TS_FILES}
+    root = resources.files("project_generator").joinpath("templates", module)
+    names = TS_FILES if module == "typescript" else JAVA_FILES
+    files = {name: root.joinpath(*name.removeprefix(module + "/").split("/")).read_bytes()
+             for name in names}
+    if module == "java":
+        files["scripts/check_java.py"] = JAVA_ADAPTER
+    return files
 
 
 def _add_check(content: bytes, check: list[str] = CHECK) -> bytes:
@@ -122,7 +144,9 @@ def _add_check(content: bytes, check: list[str] = CHECK) -> bytes:
                     break
                 if re.fullmatch(r"  - \[.*\][ \t]*", entry):
                     last = entry_index
-                    if check == CHECK and entry.strip() == "- " + json.dumps(TS_VERIFY):
+                    if any(check == CHECKS[earlier] and entry.strip() == "- " + json.dumps(CHECKS[later])
+                           for earlier in CHECKS for later in CHECKS
+                           if list(CHECKS).index(earlier) < list(CHECKS).index(later)):
                         lines.insert(entry_index, command)
                         return "".join(lines).encode("utf-8")
             if not lines[last].endswith(("\n", "\r")):
@@ -152,7 +176,7 @@ def _metadata_with_module(content: bytes, version: str, current_version: str | N
                 wanted = [value for value in MODULES.values() if value in current or value == MODULES[module]]
                 lines[index] = f'{match.group(1)} {json.dumps(wanted)}{match.group(3)}{line[len(body):]}'
                 result = "".join(lines).encode("utf-8")
-                return _add_check(result) if module == "python" else _add_check(result, TS_VERIFY)
+                return _add_check(result) if module == "python" else _add_check(result, CHECKS[module])
     raise ConfigurationError("config/project.yaml: generator.modules kann nicht sicher geändert werden.")
 
 
@@ -169,25 +193,24 @@ def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str
     for name in _portable_path_collisions(root, [*files, "config/project.yaml", CI_PATH]):
         conflicts.append(f"{name}: Pfad kollidiert auf anderen Plattformen.")
     installed = MODULES[module] in metadata["modules"]
-    other = "typescript" if module == "python" else "python"
-    other_installed = MODULES[other] in metadata["modules"]
     checks = projectcfg.checks(content.decode("utf-8"))
     ci, _ = _operation_state(root, CI_PATH)
     expected_modules = frozenset(name for name in MODULES if MODULES[name] in metadata["modules"])
-    check = CHECK if module == "python" else TS_VERIFY
+    check = CHECKS[module]
     if installed and check not in checks:
-        label = "Python" if module == "python" else "TypeScript"
+        label = {"python": "Python", "typescript": "TypeScript", "java": "Java"}[module]
         conflicts.append(f"config/project.yaml: {label}-Projektprüfung fehlt oder wurde verändert.")
-    if other_installed and (CHECK if other == "python" else TS_VERIFY) not in checks:
-        conflicts.append(f"config/project.yaml: {other}-Projektprüfung fehlt oder wurde verändert.")
+    for other in MODULES:
+        if other != module and other in expected_modules:
+            if CHECKS[other] not in checks:
+                conflicts.append(f"config/project.yaml: {other}-Projektprüfung fehlt oder wurde verändert.")
+            for name, result in _files_for(other).items():
+                original, _ = _operation_state(root, name)
+                if original != result:
+                    conflicts.append(f"{name}: vorhandenes {other}-Modul fehlt oder wurde verändert.")
     if ci != CI_STATES[expected_modules]:
         label = "Python-CI-Erweiterung" if module == "python" and installed else "geprüfter CI-Zustand"
         conflicts.append(f"{CI_PATH}: {label} fehlt oder wurde verändert.")
-    if other_installed:
-        for name, result in _files_for(other).items():
-            original, _ = _operation_state(root, name)
-            if original != result:
-                conflicts.append(f"{name}: vorhandenes {other}-Modul fehlt oder wurde verändert.")
     changes = []
     for name, result in files.items():
         original, _ = _operation_state(root, name)

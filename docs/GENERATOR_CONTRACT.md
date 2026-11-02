@@ -37,7 +37,7 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
   `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID [--source QUELLE]` und
   `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
   `--json` liefert bei `check`, `plan`, `new` und `migrate` eine maschinenlesbare Darstellung.
-  `new` und `plan` akzeptieren optional `--module python` oder `--module typescript`.
+  `new` und `plan` akzeptieren optional `--module python`, `--module typescript` oder `--module java`.
 - Exitcodes: `0` erfolgreich, `1` bei Kompatibilitäts- oder Voraussetzungskonflikten,
   verweigerten Transaktionen oder Transaktionsfehlern, `2` bei ungültigen Argumenten,
   Pfaden oder Konfigurationen.
@@ -48,7 +48,7 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
   richtet das vorhandene kompatible Projekt optional ein; es erstellt kein Repository.
   Der Einstieg ist lesend und erzeugt denselben Plan wie `plan`. Ohne Modulauswahl wird
   ausschließlich `generator.version` geplant; mit `--module python` oder
-  `--module typescript` wird das jeweilige feste Modul einschließlich Projektchecks und CI
+  `--module typescript` oder `--module java` wird das jeweilige feste Modul einschließlich Projektchecks und CI
   geplant. Bei bereits korrekt eingerichtetem Zustand
   gibt es keine Operation und kein Backup. Andere Profile, SDD-Initialisierung und
   Generator-Upgrades sind nicht implementiert.
@@ -189,16 +189,16 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
   im `PATH`, ohne Projektprüfungen auszuführen. Die geprüfte Template-Version ist ausschließlich
   t0003 `0.1.0`; andere Versionen sind nicht als kompatibel nachgewiesen. Eine abweichende
   gespeicherte Generator-Version und unbekannte Modullisten sind Konflikte, keine Upgrades.
-  `check` erkennt die Metadaten beider Module, prüft aber weder Moduldateien noch
+  `check` erkennt die Metadaten aller drei Module, prüft aber weder Moduldateien noch
   die zusätzlichen Modulvoraussetzungen; dafür ist `plan --module python` oder
-  `plan --module typescript` erforderlich.
+  `plan --module typescript` oder `plan --module java` erforderlich.
   Eine SDD-Auswahl wird auf Konsistenz und Versionsformat geprüft; ihre Laufzeit- und
   Integrationskompatibilität bleibt ausdrücklich ungeprüft. `plan` und `new` benötigen Git nicht.
 
 ### Mehrdatei-Pläne und Python-Modul
 
 - Die bestehende Engine unterstützt Planformat 4 mit deterministisch sortierten
-  `create`- und `modify`-Operationen. Für beide Modulauswahlen wird es öffentlich von `new`
+  `create`- und `modify`-Operationen. Für alle drei Modulauswahlen wird es öffentlich von `new`
   und `plan` erzeugt und von `apply` akzeptiert. Ohne Modulauswahl bleibt Format 3 erhalten.
   Format 4 wird ausschließlich mit vertrauenswürdigem, intern bereitgestelltem Operationsinhalt
   erzeugt und angewendet; JSON-Planinhalte werden nicht als auszuführende Dateiinhalte übernommen.
@@ -269,15 +269,18 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
   Integritätsprüfungen, keine Authentisierung. Insbesondere sind fremde Zustände mit exakt
   denselben Bytes und Zugriffsmetadaten nicht von Generatorzuständen unterscheidbar.
 
-### Java-Startervorlage (PR A)
+### Java und drei feste Module
 
-Das Generatorpaket enthält eine feste Java-Startervorlage für das geplante interne
-`java@0.1.0`: Temurin 25, Maven 3.9.11 mit offiziellem Wrapper 3.3.4 und
-Distributions-SHA-256, JUnit Jupiter und ausführbares JAR. Die Vorlage ist noch
-kein öffentlich auswählbares Modul; es gibt weder Java-Planung noch Apply oder
-Restore. Plan und Apply führen keine Maven- oder sonstigen Projektbefehle aus.
-Die späteren Dateimodi und die Einbindung in den Projektcheck müssen in PR B
-mit der bestehenden Engine und den unveränderten Sicherheitsregeln geprüft werden.
+`--module java` plant `java@0.1.0` mit den Paketvorlagen und dem festen
+`scripts/check_java.py`-Adapter. Er startet unter Unix `sh mvnw verify` und unter
+Windows `mvnw.cmd verify` im Java-Verzeichnis. Der Check baut das ausführbare JAR
+und führt JUnit aus; erst dann können Maven und Abhängigkeiten heruntergeladen
+werden. Plan und Apply führen keine dieser Aktionen aus. Die bestehende CI erhält
+Temurin 25 vor dem Projektcheck. Acht feste Zustände erlauben alle Kombinationen;
+die bisherigen vier CI-Stände bleiben bytegleich. Modulchecks und Metadaten folgen
+der Reihenfolge Python, TypeScript, Java; fremde Checks behalten ihre relative
+Reihenfolge. Jedes Apply erhält einen Snapshot; Restore erfolgt rückwärts und
+löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
 
 ### `typescript@0.1.0` und kombinierte Modulzustände
 
@@ -294,12 +297,12 @@ mit der bestehenden Engine und den unveränderten Sicherheitsregeln geprüft wer
 - Die Planung setzt weiterhin `template.release: 0.1.0` und bytegenau nachgewiesene
   t0003-Fähigkeiten für `scripts/check.py`, `scripts/projectcfg.py` und die bestehende CI
   voraus. Der ursprüngliche Release-Commit ohne passende CI wird nicht still zugelassen.
-  Für die CI sind nur vier bytegenau geprüfte Basis-, Python-, TypeScript- und kombinierte
+  Für die CI sind nur acht feste, aus den Modulbeiträgen deterministisch erzeugte
   Dateistände zulässig. Das Modul ergänzt einen festen `verify`-Check, ohne bestehende
   Checks umzuordnen. Die bestehende CI erhält `npm ci --ignore-scripts` vor dem
   Projektcheck; Plan und Apply führen niemals npm oder andere Projektbefehle aus.
 - `generator.modules` erlaubt nur die bekannten Einträge
-  `python@0.1.0` und `typescript@0.1.0`, jeweils höchstens einmal. Unbekannte Versionen,
+  `python@0.1.0`, `typescript@0.1.0` und `java@0.1.0`, jeweils höchstens einmal. Unbekannte Versionen,
   doppelte Einträge und abweichende Moduldateien sind Konflikte. Die Module werden
   einzeln geplant und angewandt; beide Reihenfolgen müssen zum selben unterstützten
   Doppelmodul-Zustand führen. Es gibt keinen gemeinsamen Zwei-Modul-Apply.

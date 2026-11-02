@@ -89,10 +89,13 @@ Projekt-Schreibzugriff erneut geprüft.
 Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades
 und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
-Ein Java-25-/Maven-Starter ist für eine spätere Integration als Paketvorlage
-enthalten. Eine öffentliche Java-Modulauswahl und Java-Planung sind noch nicht verfügbar.
+`--module java` plant den Java-25-/Maven-Starter mit Format 4. Der feste
+Projektcheck-Adapter startet `mvnw.cmd` unter Windows und `sh mvnw` unter Unix;
+so ist kein transportiertes Unix-Ausführungsrecht erforderlich. Erst der Check
+kann Maven und Abhängigkeiten herunterladen und führt JUnit und den JAR-Build aus.
+Plan und Apply starten weder Build noch Download.
 
-`--module typescript` plant `typescript@0.1.0` im Ordner `typescript/`. Beide Module
+`--module typescript` plant `typescript@0.1.0` im Ordner `typescript/`. Alle drei Module
 lassen sich nacheinander in beliebiger Reihenfolge installieren. Jeder Apply erzeugt einen
 eigenen geschützten Snapshot; Restore erfolgt in umgekehrter Installationsreihenfolge.
 Die CI installiert mit Node 24 zuerst per `npm ci --ignore-scripts --prefix typescript`
@@ -171,8 +174,8 @@ t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <P
 t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 ```
 
-Für TypeScript `--module typescript` verwenden. Für beide Module nach dem ersten Apply
-einen neuen Plan für das zweite Modul erzeugen und bestätigen.
+Für TypeScript oder Java `--module typescript` beziehungsweise `--module java`
+verwenden und für jedes weitere Modul einen neuen Plan erzeugen und bestätigen.
 
 In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --module python --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`

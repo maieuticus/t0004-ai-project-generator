@@ -30,7 +30,7 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("target", nargs="?", default=".", help="Zielprojekt (Standard: aktuelles Verzeichnis)")
         command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbare Ausgabe")
         if name != "check":
-            command.add_argument("--module", choices=("python", "typescript"), help="Technologiemodul planen")
+            command.add_argument("--module", choices=("python", "typescript", "java"), help="Technologiemodul planen")
     command = commands.add_parser("migrate", help="bestehendes Projekt ausschließlich lesend analysieren")
     command.add_argument("target", nargs="?", default=".", help="Quellprojekt (Standard: aktuelles Verzeichnis)")
     command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbarer Analysebericht")
@@ -144,15 +144,15 @@ def main(argv: list[str] | None = None) -> int:
             _, conflicts, warnings = assess(content, version, missing)
             conflicts.extend(check_prerequisites())
             result = {"valid": not conflicts, "conflicts": conflicts, "warnings": warnings}
-        elif args.module in ("python", "typescript"):
+        elif args.module in ("python", "typescript", "java"):
             from .python_module import module_plan_target
             result, _ = module_plan_target(args.target, version, args.module)
         else:
             _, result = plan_target(args.target, version)
         _emit(result, args.as_json)
         if args.command == "new" and not args.as_json and not result.get("conflicts") and not result["operations"]:
-            if args.module in ("python", "typescript"):
-                label = "Python" if args.module == "python" else "TypeScript"
+            if args.module in ("python", "typescript", "java"):
+                label = {"python": "Python", "typescript": "TypeScript", "java": "Java"}[args.module]
                 print(f"Das {label}-Modul ist bereits korrekt eingerichtet.")
             else:
                 print("Die Generator-Version ist bereits aktuell.")

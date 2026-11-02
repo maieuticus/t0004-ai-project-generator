@@ -434,6 +434,27 @@ class T0003Integration(unittest.TestCase):
         self.assertEqual(example.stdout.strip(), "Hello from project-java-starter!")
         self.assertEqual({path: path.read_bytes() for path in copied}, copied)
 
+    def test_public_java_apply_and_project_check(self):
+        before = self.files()
+        index = (self.project / ".git/index").read_bytes()
+        result = self.cli("plan", "--module", "java", "--json")
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["format"], 4)
+        self.assertEqual(before, self.files())
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(plan)
+        self.snapshot(plan, before)
+        environment = dict(self.env, MAVEN_USER_HOME=str(self.case / "maven-home"))
+        checked = self.run_command([sys.executable, "scripts/check.py"], env=environment)
+        self.assertIn("BUILD SUCCESS", checked.stdout)
+        report = self.project / "java/target/surefire-reports/TEST-org.example.app.AppTest.xml"
+        self.assertIn('tests="1"', report.read_text(encoding="utf-8"))
+        example = self.run_command(["java", "-jar", "java/target/project-java-starter-0.1.0.jar"], env=environment)
+        self.assertEqual(example.stdout.strip(), "Hello from project-java-starter!")
+        self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertTrue(report.is_file())
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+
     def test_packaged_typescript_starter_in_t0003_copy(self):
         """Exercise installed package data independently of the apply path."""
         source = resources.files("project_generator").joinpath("templates", "typescript")

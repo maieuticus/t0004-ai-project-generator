@@ -113,8 +113,8 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
         conflicts.append("template.release: Kompatibilität ist für diese Version nicht nachgewiesen.")
     if metadata["generator_version"] not in (None, generator_version):
         conflicts.append("generator.version: abweichende Version; kein automatisches Upgrade.")
-    if metadata["modules"] not in ([], ["python@0.1.0"], ["typescript@0.1.0"],
-                                   ["python@0.1.0", "typescript@0.1.0"]):
+    from .module_states import MODULES
+    if metadata["modules"] != [value for value in MODULES.values() if value in metadata["modules"]]:
         conflicts.append("generator.modules: Modulversionen werden in dieser Etappe nicht unterstützt.")
     warnings = []
     if metadata["sdd_tool"] is not None:
@@ -490,7 +490,7 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         "warnings": warnings,
     }
     if module is not None:
-        if module not in ("python", "typescript"):
+        if module not in ("python", "typescript", "java"):
             raise PathSafetyError("Unbekanntes Technologiemodul.")
         if _portable_path_collisions(root, [name for name, _, _ in ordered]):
             raise PathSafetyError("Ein Modulpfad kollidiert auf anderen Plattformen.")
