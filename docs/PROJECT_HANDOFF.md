@@ -5,6 +5,43 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 124D auf `test/java-module-e2e`: Projektcheck, 16 Windows-Basistests,
+  191 Generator-Tests (24 plattformbedingt übersprungen) und alle 21 Paket-
+  Integrationstests erneut erfolgreich. Die lokale Ubuntu-Regression aus Schritt 124A
+  und die beiden GitHub-Praxistests aus Schritt 124C sind ebenfalls erfolgreich.
+  Der PR gegen `main` und seine finale Ubuntu-/Windows-CI stehen noch aus.
+
+- Schritt 124C: Beide GitHub-Praxistests gegen unverändertes p9999/main `bb19b76`
+  sind erfolgreich und ungemergt: Java allein [PR #4](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/4)
+  auf `6dfa9a70371d40cf61638c7918b5b4545344c08b`, alle drei Module
+  [PR #5](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/5)
+  auf `0eee0c9afcc00153b749501a9f21a540599dcb25`. Push- und PR-Workflows auf
+  Ubuntu und Windows erfolgreich. Lokale Projektchecks, Maven, JUnit, JAR und beim
+  Drei-Modul-Projekt Python und TypeScript bestanden; frische Checkouts ergaben
+  für jedes installierte Modul einen No-op. Die ursprünglichen temporären Testklone
+  mit vorgemerkten Dateien wurden nicht verändert. WSL-Unzip wurde gesondert mit
+  einem temporär entpackten Ubuntu-Paket geprüft. t0004/main bleibt `5ed1f5d`.
+
+- Schritt 124A auf `test/java-module-e2e`, ausgehend von `main` / `5ed1f5d`:
+  Git normalisierte den alten CRLF-Wrapper im Index auf LF; erst ein frischer Checkout
+  änderte die Arbeitsbaum-Bytes. Die neue Vorlage liefert LF und die Modulplanung
+  erkennt ausschließlich die exakt bekannte alte CRLF-Fassung zusätzlich. Restore
+  prüft alte Snapshots unverändert streng. Git-Checkout, No-op und Restore sind in
+  Integrationstests abgedeckt; den aktuellen Commitstand zeigt Git.
+- Windows: 191 Generator-Tests erfolgreich (24 übersprungen), 21 Paket-Integrationstests
+  erfolgreich, einschließlich Java-Matrix, sechs Reihenfolgen und Strategie A. Der
+  Windows-Wrapper mit LF bestand Maven verify und JUnit. In Schritt 124B bestanden alle
+  16 Windows-Basistests einschließlich `test_speckit` mit ausschließlich prozesslokalem
+  `RemoteSigned`; die dauerhaften Richtlinienbereiche blieben unverändert. Ubuntu/WSL:
+  191 Generator-Tests erfolgreich (7 übersprungen),
+  21 Integrations- und 16 Basistests erfolgreich. Der generierte Unix-Wrapper hat kein
+  Ausführungsbit; der dokumentierte `sh`-Aufruf funktioniert. Ohne `unzip` schlägt
+  der originale Wrapper wegen eines Hashkonflikts beim tar.gz-Fallback sicher fehl;
+  für den erfolgreichen Lauf wurde ein Ubuntu-unzip-Paket temporär entpackt.
+  Finale GitHub-CI steht aus. p9999/main auf GitHub und lokal `bb19b76`, Baum gleich
+  t0003 `6e8363a`; zwei temporäre Testklone enthalten vorgemerkte Dateien, keine
+  Commits oder Pushes. t0003 und bestehende p9999-PRs blieben unverändert.
+
 - Schritt 123 auf `feat/java-module-pr-b`, ausgehend von `main` / `da96c96`:
   Java ist über die bestehende Format-4-Engine integriert; drei feste Module und acht
   Zustände sind getestet. Windows: 188 Generator-Tests erfolgreich, 24 übersprungen;
@@ -101,7 +138,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Finalen Commit in Ubuntu-/Windows-CI prüfen und menschlich reviewen.
+PR C und seine finale Ubuntu-/Windows-CI prüfen; anschließend menschliches Review.
 
 ## Risiken
 

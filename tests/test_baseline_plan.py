@@ -101,6 +101,16 @@ class BaselinePlanTests(unittest.TestCase):
         check = subprocess.run([sys.executable, "-B", str(self.root / "scripts/check.py"), "--static-only"],
                                cwd=self.root, capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(check.returncode, 0, check.stderr)
+        before = {p.relative_to(self.root).as_posix(): p.read_bytes()
+                  for p in self.root.rglob("*") if p.is_file() and ".git" not in p.parts}
+        for module in ("python", "typescript", "java"):
+            planned = subprocess.run(cmd + ["plan", str(self.root), "--module", module, "--json"],
+                                     env=env, capture_output=True, text=True, encoding="utf-8")
+            self.assertEqual(planned.returncode, 1, planned.stderr + planned.stdout)
+            self.assertEqual(json.loads(planned.stdout)["operations"], [])
+        after = {p.relative_to(self.root).as_posix(): p.read_bytes()
+                 for p in self.root.rglob("*") if p.is_file() and ".git" not in p.parts}
+        self.assertEqual(before, after)
 
     def test_symlink_and_oversized_readme_are_refused(self):
         (self.root / "README.md").write_bytes(b"x" * (1024 * 1024 + 1))

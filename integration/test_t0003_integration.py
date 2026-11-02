@@ -1,6 +1,7 @@
 """Installed CLI integration against two immutable public t0003 commits."""
 
 import hashlib
+import itertools
 from importlib import resources
 import json
 import os
@@ -434,6 +435,136 @@ class T0003Integration(unittest.TestCase):
         self.assertEqual(example.stdout.strip(), "Hello from project-java-starter!")
         self.assertEqual({path: path.read_bytes() for path in copied}, copied)
 
+    def test_java_generated_wrapper_survives_git_normalization(self):
+        result = self.cli("plan", "--module", "java", "--json")
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(plan)
+        wrapper = self.project / "java/mvnw.cmd"
+        content = wrapper.read_bytes()
+        # Git's clean filter must not change bytes which future plans authenticate.
+        normalized = subprocess.run(["git", "hash-object", "--path=java/mvnw.cmd", "--stdin"],
+                                    input=content, cwd=self.project, env=self.git_env,
+                                    check=True, capture_output=True).stdout.strip()
+        raw = subprocess.run(["git", "hash-object", "--stdin"], input=content,
+                             cwd=self.project, env=self.git_env,
+                             check=True, capture_output=True).stdout.strip()
+        self.assertEqual(normalized, raw, "Git normalizes the generated Java wrapper")
+
+    def test_java_git_checkout_noop_and_restore(self):
+        foreign = self.project / "foreign-user-file.txt"
+        foreign.write_bytes(b"do not change\n")
+        before = self.files()
+        original_index = (self.project / ".git/index").read_bytes()
+        result = self.cli("plan", "--module", "java", "--json")
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(plan)
+        self.assertEqual(original_index, (self.project / ".git/index").read_bytes())
+        wrapper = self.project / "java/mvnw.cmd"
+        expected = wrapper.read_bytes()
+        self.assertNotIn(b"\r", expected)
+        self.git("config", "user.name", "Fixture", cwd=self.project)
+        self.git("config", "user.email", "fixture@example.invalid", cwd=self.project)
+        self.git("add", "--", ".github/workflows/ci.yml", "config/project.yaml", "docs/JAVA.md",
+                 "java", "scripts/check_java.py", cwd=self.project)
+        blob = subprocess.run(["git", "show", ":java/mvnw.cmd"], cwd=self.project,
+                              env=self.git_env, check=True, capture_output=True).stdout
+        self.assertEqual(hashlib.sha256(blob).digest(), hashlib.sha256(expected).digest())
+        self.git("commit", "--quiet", "-m", "generated fixture", cwd=self.project)
+        self.git("checkout", "--", "java/mvnw.cmd", cwd=self.project)
+        self.assertEqual(wrapper.read_bytes(), expected)
+        noop = json.loads(self.cli("plan", "--module", "java", "--json").stdout)
+        self.assertEqual(noop["operations"], [])
+        fresh = self.case / "fresh-checkout"
+        self.git("-c", "core.autocrlf=false", "clone", "--quiet", "--no-hardlinks",
+                 str(self.project), str(fresh), cwd=self.case)
+        self.assertEqual((fresh / "java/mvnw.cmd").read_bytes(), expected)
+        fresh_noop = json.loads(self.cli("plan", str(fresh), "--module", "java", "--json").stdout)
+        self.assertEqual(fresh_noop["operations"], [])
+        committed_index = (self.project / ".git/index").read_bytes()
+        self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(before, self.files())
+        self.assertEqual(committed_index, (self.project / ".git/index").read_bytes())
+
+    def test_java_module_installation_orders(self):
+        self.java_module_matrix(runtime_checks=False)
+
+    def test_java_module_runtime_matrix(self):
+        self.java_module_matrix(runtime_checks=True)
+
+    def java_module_matrix(self, *, runtime_checks):
+        # The installed distribution supplies both the CLI and its packaged resources.
+        orders = [("java",), ("python", "java"), ("typescript", "java")]
+        orders += list(itertools.permutations(("python", "typescript", "java")))
+        if runtime_checks:
+            orders = orders[:4]
+        states = {}
+        for number, modules in enumerate(orders):
+            with self.subTest(modules=modules):
+                if number:
+                    self.project = self.case / f"java-project-{number}"
+                    self.checkout(COMPATIBLE)
+                original = self.files()
+                index = (self.project / ".git/index").read_bytes()
+                plans = []
+                for module in modules:
+                    before = self.files()
+                    result = self.cli("plan", "--module", module, "--json")
+                    plan = json.loads(result.stdout)
+                    self.assertEqual(before, self.files())
+                    self.assertFalse(plan["conflicts"])
+                    self.plan_file.write_text(result.stdout, encoding="utf-8")
+                    self.apply(plan)
+                    self.snapshot(plan, before)
+                    for op in plan["operations"]:
+                        self.assertEqual(hashlib.sha256((self.project / op["path"]).read_bytes()).hexdigest(),
+                                         op["after_sha256"])
+                    plans.append(plan)
+                final = self.files()
+                key = frozenset(modules)
+                if key in states:
+                    self.assertEqual(states[key], final)
+                else:
+                    states[key] = final
+                for module in modules:
+                    noop = json.loads(self.cli("plan", "--module", module, "--json").stdout)
+                    self.assertEqual(noop["operations"], [])
+                    self.assertIsNone(noop["backup"])
+                # Runtime artifacts stay in a separate copy, so restore is byte-exact.
+                if runtime_checks:
+                    runtime = self.case / f"java-runtime-{number}"
+                    shutil.copytree(self.project, runtime, ignore=shutil.ignore_patterns(".git"))
+                    env = dict(self.env, MAVEN_USER_HOME=str(self.case / "maven-home"),
+                               npm_config_cache=str(self.case / "npm-cache"))
+                    if "typescript" in modules:
+                        npm = "npm.cmd" if os.name == "nt" else "npm"
+                        self.run_command([npm, "ci", "--ignore-scripts", "--prefix", "typescript",
+                                          "--no-audit", "--no-fund"], cwd=runtime, env=env)
+                        self.run_command([npm, "run", "build", "--prefix", "typescript"],
+                                         cwd=runtime, env=env)
+                        example = self.run_command([npm, "run", "start", "--prefix", "typescript"],
+                                                   cwd=runtime, env=env)
+                        self.assertIn("Hello from project-typescript-starter!", example.stdout)
+                    if "python" in modules:
+                        app = self.run_command([sys.executable, "-m", "project_app"], cwd=runtime,
+                                               env=dict(env, PYTHONPATH=str(runtime / "src")))
+                        self.assertEqual(app.stdout.strip(), "Hello from project_app!")
+                    checked = self.run_command([sys.executable, "scripts/check.py"], cwd=runtime, env=env)
+                    self.assertIn("BUILD SUCCESS", checked.stdout)
+                    report = runtime / "java/target/surefire-reports/TEST-org.example.app.AppTest.xml"
+                    self.assertIn('tests="1"', report.read_text(encoding="utf-8"))
+                    jar = self.run_command(["java", "-jar", "java/target/project-java-starter-0.1.0.jar"],
+                                           cwd=runtime, env=env)
+                    self.assertEqual(jar.stdout.strip(), "Hello from project-java-starter!")
+                if len(plans) > 1:
+                    self.cli("restore", "--backup", plans[0]["backup"]["id"], expected=1)
+                    self.assertEqual(final, self.files())
+                for plan in reversed(plans):
+                    self.cli("restore", "--backup", plan["backup"]["id"])
+                self.assertEqual(original, self.files())
+                self.assertEqual(index, (self.project / ".git/index").read_bytes())
+
     def test_public_java_apply_and_project_check(self):
         before = self.files()
         index = (self.project / ".git/index").read_bytes()
@@ -444,6 +575,9 @@ class T0003Integration(unittest.TestCase):
         self.plan_file.write_text(result.stdout, encoding="utf-8")
         self.apply(plan)
         self.snapshot(plan, before)
+        if os.name != "nt":
+            # Apply creates a regular non-executable file; the adapter invokes sh.
+            self.assertFalse(stat.S_IMODE((self.project / "java/mvnw").stat().st_mode) & 0o111)
         environment = dict(self.env, MAVEN_USER_HOME=str(self.case / "maven-home"))
         checked = self.run_command([sys.executable, "scripts/check.py"], env=environment)
         self.assertIn("BUILD SUCCESS", checked.stdout)

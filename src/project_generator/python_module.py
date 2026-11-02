@@ -123,6 +123,18 @@ def _files_for(module: str) -> dict[str, bytes]:
     return files
 
 
+# Only the exact wrapper shipped before Git-stable LF packaging is compatible.
+_LEGACY_JAVA_WRAPPER_SHA256 = "46eedb8419bd14fe70d5bb2916d7b6f51806e51b39d5b76a42610384ca929c1c"
+
+
+def _matches_module_file(module: str, name: str, original: bytes | None, expected: bytes) -> bool:
+    if original == expected:
+        return True
+    return (module == "java" and name == "java/mvnw.cmd" and original is not None
+            and hashlib.sha256(original).hexdigest() == _LEGACY_JAVA_WRAPPER_SHA256
+            and original == expected.replace(b"\n", b"\r\n"))
+
+
 def _add_check(content: bytes, check: list[str] = CHECK) -> bytes:
     text = content.decode("utf-8")
     if check in projectcfg.checks(text):
@@ -206,7 +218,7 @@ def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str
                 conflicts.append(f"config/project.yaml: {other}-Projektprüfung fehlt oder wurde verändert.")
             for name, result in _files_for(other).items():
                 original, _ = _operation_state(root, name)
-                if original != result:
+                if not _matches_module_file(other, name, original, result):
                     conflicts.append(f"{name}: vorhandenes {other}-Modul fehlt oder wurde verändert.")
     if ci != CI_STATES[expected_modules]:
         label = "Python-CI-Erweiterung" if module == "python" and installed else "geprüfter CI-Zustand"
@@ -215,7 +227,7 @@ def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str
     for name, result in files.items():
         original, _ = _operation_state(root, name)
         if installed:
-            if original != result:
+            if not _matches_module_file(module, name, original, result):
                 conflicts.append(f"{name}: Moduldatei fehlt oder wurde verändert.")
         elif original is not None:
             conflicts.append(f"{name}: vorhandene Datei wird nicht überschrieben.")

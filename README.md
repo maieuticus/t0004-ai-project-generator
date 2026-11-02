@@ -94,6 +94,15 @@ Projektcheck-Adapter startet `mvnw.cmd` unter Windows und `sh mvnw` unter Unix;
 so ist kein transportiertes Unix-Ausführungsrecht erforderlich. Erst der Check
 kann Maven und Abhängigkeiten herunterladen und führt JUnit und den JAR-Build aus.
 Plan und Apply starten weder Build noch Download.
+Unter Unix wird für den geprüften ZIP-Download `unzip` benötigt: Der originale
+Wrapper weicht ohne `unzip` auf ein anderes Archiv aus, dessen Hash nicht dem
+festgelegten ZIP-Hash entspricht; der Build wird dann sicher abgelehnt.
+
+Der Windows-Wrapper wird mit Git-stabilen LF-Zeilenenden erzeugt. Bei bereits
+installierten Java-Modulen erkennt die Planung auch die exakt bekannte frühere
+CRLF-Fassung; andere Änderungen bleiben Konflikte. Für alte Snapshots gelten die
+ursprünglich gespeicherten Dateihashes: Hat Git die Datei danach verändert, verweigert
+Restore die automatische Rücknahme weiterhin, bis der Zustand geprüft ist.
 
 `--module typescript` plant `typescript@0.1.0` im Ordner `typescript/`. Alle drei Module
 lassen sich nacheinander in beliebiger Reihenfolge installieren. Jeder Apply erzeugt einen
