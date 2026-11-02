@@ -89,6 +89,9 @@ Projekt-Schreibzugriff erneut geprüft.
 Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades
 und das vollständige technologieabhängige `verify` sind nicht verfügbar.
 
+Ein Java-25-/Maven-Starter ist für eine spätere Integration als Paketvorlage
+enthalten. Eine öffentliche Java-Modulauswahl und Java-Planung sind noch nicht verfügbar.
+
 `--module typescript` plant `typescript@0.1.0` im Ordner `typescript/`. Beide Module
 lassen sich nacheinander in beliebiger Reihenfolge installieren. Jeder Apply erzeugt einen
 eigenen geschützten Snapshot; Restore erfolgt in umgekehrter Installationsreihenfolge.

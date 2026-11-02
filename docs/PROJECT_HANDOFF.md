@@ -5,6 +5,14 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 121 auf `feat/java-module-pr-a`, ausgehend von `main` / `4c02d0c`:
+  Die freigegebene Java-25-Startervorlage ist als Paketressource vorbereitet;
+  eine öffentliche Modulauswahl und die Format-4-Integration gehören erst zu PR B.
+  Maven 3.9.11 und Wrapper 3.3.4 sind festgelegt; der SHA-256 der Maven-ZIP
+  wurde aus dem anhand des offiziellen SHA-512 geprüften Archiv berechnet.
+  Plattform- und CI-Ergebnisse sind am endgültigen PR-Commit zu prüfen.
+  Strategie A und B sowie der Forschungsbranch bleiben unverändert.
+
 - Schritt 118A.2 auf `feat/strategy-b-baseline-plan`: Architektur für eine additive,
   ausdrücklich gekennzeichnete Migrationsbasis ist freigegeben. Der lesende Plan und das
   feste Paket sind implementiert; Strategie-B-Apply und -Restore sind nicht enthalten.
@@ -86,7 +94,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Linux- und Windows-CI zum Strategie-B-PR prüfen und das menschliche Review-Gate durchführen.
+PR A nach erfolgreicher Ubuntu-/Windows-CI menschlich prüfen; danach Java-Modulplanung
+und Dateimodusbehandlung für PR B gesondert umsetzen.
 
 ## Risiken
 

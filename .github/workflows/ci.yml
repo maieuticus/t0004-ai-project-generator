@@ -22,6 +22,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
       - run: python scripts/check.py
       - run: python -m unittest discover -s .github/template-tests -v
       - run: python -m unittest discover -s tests -v
