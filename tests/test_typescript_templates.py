@@ -32,6 +32,11 @@ def asset(name: str) -> bytes:
 
 
 class TypeScriptTemplates(unittest.TestCase):
+    def test_documentation_describes_available_module(self):
+        documentation = asset("docs/TYPESCRIPT.md").decode("utf-8")
+        self.assertIn("supports `--module typescript`", documentation)
+        self.assertNotIn("Once the\nTypeScript module is publicly available", documentation)
+
     def test_assets_fit_existing_multi_file_engine(self):
         changes = [(name, "create", asset(name)) for name in FILES]
         self.assertEqual(len(_operation_paths(changes)), len(FILES))
