@@ -44,6 +44,31 @@ class T0003Integration(unittest.TestCase):
         self.assertEqual(target_index, (self.project / ".git/index").read_bytes())
         self.assertEqual((old / "src/example.py").read_text(encoding="utf-8"), "print('private fixture')\n")
 
+    def test_strategy_a_apply_restore_against_real_t0003(self):
+        old = self.case / "old-project"
+        (old / "src").mkdir(parents=True)
+        (old / "src/example.py").write_bytes(b"example\r\n")
+        self.git("init", "--quiet", str(old), cwd=self.case)
+        self.git("-C", str(old), "add", ".", cwd=self.case)
+        source_index = (old / ".git/index").read_bytes()
+        target_index = (self.project / ".git/index").read_bytes()
+        before = self.files()
+        result = self.cli("migrate", str(old), "--destination", str(self.project),
+                          "--file", "src/example.py", "--json")
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        applied = self.cli("apply", "--source", str(old), "--plan", str(self.plan_file),
+                           "--confirm", plan["plan_id"])
+        backup_id = applied.stdout.split("Backup-ID: ")[1].splitlines()[0]
+        self.assertEqual((self.project / "src/example.py").read_bytes(), b"example\r\n")
+        self.cli("apply", "--source", str(old), "--plan", str(self.plan_file),
+                 "--confirm", plan["plan_id"], expected=1)
+        self.cli("restore", "--backup", backup_id)
+        self.assertEqual(before, self.files())
+        self.assertEqual(source_index, (old / ".git/index").read_bytes())
+        self.assertEqual(target_index, (self.project / ".git/index").read_bytes())
+        self.assertEqual((old / "src/example.py").read_bytes(), b"example\r\n")
+
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory(prefix="t0004-integration-")

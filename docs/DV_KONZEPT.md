@@ -8,7 +8,8 @@ Verhaltensentscheidungen gelten erst nach Freigabe.
 Gate A freigegeben: Übernahmematrix, Schnittstellenvertrag und PR-Reihenfolge sind
 verbindlich. `new` nutzt den Safety-Core für eine einzelne Metadatenoperation oder das
 freigegebene Modul `python@0.1.0` mit der bestehenden Mehrdatei-Engine; `migrate` liefert
-eine begrenzte, lesende Bestandsanalyse ohne schreibende Migration.
+eine begrenzte, lesende Bestandsanalyse und einen lesenden Strategie-A-Auswahlplan. Ein
+gesonderter bestätigter Apply übernimmt ausgewählte Dateien über dieselbe Engine.
 Die TypeScript-Anbindung nutzt nach PR A die vorhandene Format-4-Engine für beide Module.
 Die abschließende `verify`-/Release-Etappe bleibt offen.
 
@@ -86,3 +87,4 @@ Template nur nach expliziter Auswahl eingerichtet.
 | 2026-10-31 | PR A erweitert die bestehende Engine um sichere interne Mehrdatei-Operationen; Technologieauswahl bleibt eine separate Etappe | Nutzer |
 | 2026-10-31 | `python@0.1.0` nutzt die bestehende Mehrdatei-Engine; `template.release: 0.1.0` bleibt erforderlich, zusätzlich werden nachgewiesene Check-/CI-Dateistände an den Plan gebunden und vor Apply geprüft. Kein t0003-Release oder t0003-Änderung. | Nutzer |
 | 2026-11-01 | `typescript@0.1.0` als festes Modul unter `typescript/` freigegeben: Node.js 24, TypeScript strict/NodeNext, `node:test`, exakt gepinnte Entwicklungsabhängigkeiten mit Lockfile. Bestehende Mehrdatei-Engine; Python und TypeScript später in beiden sequenziellen Reihenfolgen, Restore rückwärts. PR A enthält nur Vertrag und Startervorlagen, noch keine öffentliche Modulauswahl. | Nutzer |
+| 2026-11-02 | Strategie A übernimmt nach bestätigtem Plan ausschließlich ausgewählte Textdateien über die vorhandene Format-4-Engine mit Snapshot und Restore; keine Überschreibung oder Ausführung importierter Dateien. | Nutzer |

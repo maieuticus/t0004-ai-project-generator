@@ -366,10 +366,46 @@ def _record_partial(target: str, backup: Path, manifest: dict, original: bytes, 
     return True
 
 
-def apply(target: str, plan_file: str, confirmation: str, version: str) -> str:
+def apply(target: str, plan_file: str, confirmation: str, version: str, source: str | None = None) -> str:
     if not PLAN_PATTERN.fullmatch(confirmation):
         raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
     supplied = _json_object(_read_file(Path(plan_file), MAX_PLAN_BYTES))
+    if supplied.get("kind") == "strategy_a_migration_plan":
+        if source is None:
+            raise TransactionError("Für den Migrationsplan ist --source erforderlich.")
+        from .migration_plan import migration_plan, _state
+        from .migrate import _root
+        try:
+            operations = supplied.get("operations")
+            if not isinstance(operations, list) or not all(isinstance(op, dict) and isinstance(op.get("path"), str) for op in operations):
+                raise TransactionError("Ungültige Dateiauswahl im Migrationsplan.")
+            names = [op["path"] for op in operations]
+            def validate():
+                fresh = migration_plan(source, target, names, version)
+                if (fresh != supplied or fresh["conflicts"]
+                        or not hmac.compare_digest(confirmation, fresh["plan_id"])):
+                    raise TransactionError("Migrationsplan ist verändert, veraltet oder nicht bestätigt.")
+            validate()
+            root = _root(source)
+            store = backup_store(target)
+            if store == root or store.is_relative_to(root) or root.is_relative_to(store):
+                raise TransactionError("Backup-Speicher muss außerhalb des Quellprojekts liegen.")
+            changes = []
+            for op in operations:
+                captured = []
+                state = _state(root, op["path"], text_only=True, contents=captured)
+                if state != op["source"] or len(captured) != 1:
+                    raise TransactionError("Quelldatei wurde seit der Planung verändert.")
+                changes.append((op["path"], "create", captured[0]))
+            validate()
+            internal = multi_plan_target(target, version, changes)
+            return apply_multi(target, internal, internal["plan_id"], version, changes, preflight=validate)
+        except (PathSafetyError, ConfigurationError, OSError, TypeError, ValueError) as error:
+            if isinstance(error, TransactionError):
+                raise
+            raise TransactionError(f"Migrationsplan kann nicht geprüft werden: {_error_detail(error)}") from error
+    if source is not None:
+        raise TransactionError("--source ist nur für Migrationspläne zulässig.")
     if supplied.get("format") == 4:
         if supplied.get("module") not in ("python", "typescript"):
             raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
@@ -486,7 +522,7 @@ def _multi_create(path: Path, content: bytes, opened: list[bool]) -> None:
 
 
 def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
-                changes: list[tuple[str, str, bytes]], *, module: str | None = None) -> str:
+                changes: list[tuple[str, str, bytes]], *, module: str | None = None, preflight=None) -> str:
     """Apply a format-4 plan against operations supplied by trusted generator code."""
     if not isinstance(confirmation, str) or not PLAN_PATTERN.fullmatch(confirmation):
         raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
@@ -530,6 +566,8 @@ def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
         _sync_directory(store)
         if multi_plan_target(target, version, changes, backup_id, module=module) != expected:
             raise TransactionError("Projektzustand hat sich vor apply geändert.")
+        if preflight is not None:
+            preflight()
         for directory in expected["directories"]:
             if directory["before_attributes"] is not None:
                 continue

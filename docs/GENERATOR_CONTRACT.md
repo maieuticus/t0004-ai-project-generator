@@ -11,7 +11,7 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   `t0004-generator version`, `t0004-generator check [ZIELPROJEKT]` und
   `t0004-generator plan [ZIELPROJEKT]`, `t0004-generator new [ZIELPROJEKT]`,
   `t0004-generator migrate [QUELLPROJEKT]`,
-  `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID` und
+  `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID [--source QUELLE]` und
   `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
   `--json` liefert bei `check`, `plan`, `new` und `migrate` eine maschinenlesbare Darstellung.
   `new` und `plan` akzeptieren optional `--module python` oder `--module typescript`.
@@ -30,8 +30,8 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   gibt es keine Operation und kein Backup. Andere Profile, SDD-Initialisierung und
   Generator-Upgrades sind nicht implementiert.
 - `migrate` prüft ein bestehendes Projekt ausschließlich lesend, auch ohne
-  `config/project.yaml`. Es vergleicht Strategien, erzeugt aber keinen ausführbaren Plan,
-  Snapshot oder Projektdateien und führt keine Migration aus.
+  `config/project.yaml`. Es vergleicht Strategien oder erstellt einen lesenden Auswahlplan;
+  erst ein gesondertes bestätigtes `apply` kann ausgewählte Dateien übernehmen.
 - Für `migrate` sind zwei Strategien verbindlich vergleichbar auszuweisen:
   - neues t0003-Projekt mit selektivem Import, bevorzugt für kleine Altprojekte;
   - In-place-Update, oft geeignet für etablierte Projekte.
@@ -65,8 +65,22 @@ Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t00
   Authentisierung. Gleiche vollständige Eingaben und Zustände ergeben denselben Plan.
 - Der Plan enthält keine Dateiinhalte oder Konfigurationswerte. Pfade und Hashes können dennoch
   vertrauliche Informationen offenlegen; die Ausgabe vor Weitergabe prüfen. Eine Secret-Erkennung
-  der Dateiinhalte findet nicht statt. Der Plan ist kein ausführbarer Format-4-Plan und wird
-  von `apply` nicht akzeptiert. Es werden weder Snapshot noch Projektdateien geschrieben.
+  der Dateiinhalte findet nicht statt. Der lesende Plan enthält keine direkt ausführbaren
+  Schreiboperationen; `apply` benötigt ihn, `--source` und die ausdrücklich bestätigte
+  Plan-ID. Die Auswahl wird aus den Pfaden abgeleitet und der vollständige Plan einschließlich
+  Quelle, Ziel, Datei- und Verzeichniszuständen sowie t0003-Kompatibilität neu berechnet und
+  verglichen. Änderungen oder Konflikte verhindern den Import. JSON liefert keine Schreibbytes.
+- Apply liest die zulässigen Quelldateien erneut, prüft deren Identität, Metadaten und Hashes
+  und hält die geprüften Bytes im Speicher. Nach dem Snapshot wird der Migrationsplan vor
+  dem ersten Zielschreibzugriff nochmals geprüft. Die bestehende Format-4-Engine erstellt
+  ausschließlich neue Dateien; ihr geschütztes Manifestformat 3 unterstützt `restore`.
+  Der Backup-Speicher muss auch außerhalb des Quellprojekts liegen. Restore prüft sämtliche
+  Zielzustände vor der Rücknahme und entfernt neue Verzeichnisse nur, wenn sie leer sind.
+- Quelle und Ziel benötigen während Planung und Apply exklusiven Zugriff. Prüfungen und
+  Dateizugriffe sind nicht durchgehend descriptor-relativ oder atomar: Ein nicht kooperierender
+  Prozess kann Pfadkomponenten austauschen; Bind-Mounts sind nicht zuverlässig erkennbar.
+  Auch Restore benötigt exklusiven Zielzugriff. Nach abruptem Abbruch oder fehlgeschlagener
+  Protokollierung kann manuelle Wiederherstellung nötig sein.
 - Während der Planung dürfen Quelle und Ziel nicht verändert werden. Dateisysteme können
   Zugriffszeiten aktualisieren; Bytecode-Caches am Installationsort lassen sich durch
   `PYTHONDONTWRITEBYTECODE=1` vermeiden. Bind-Mounts und nicht kooperierende parallele

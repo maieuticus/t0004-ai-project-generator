@@ -16,7 +16,24 @@ CONFIG_NAMES = {"requirements.txt", "constraints.txt", "pipfile", "dockerfile",
                 "setup.py", "settings.py", "config.py", "conftest.py"}
 
 
-def _state(root: Path, name: str, *, text_only: bool = False) -> dict[str, object] | None:
+def _migration_directories(root: Path, names: list[str]) -> list[dict[str, object]]:
+    states = _directory_states(root, names)
+    for state in states:
+        if state["before_attributes"] is None:
+            state["identity"] = None
+            continue
+        path = root if state["path"] == "." else root.joinpath(*state["path"].split("/"))
+        info = path.lstat()
+        if not stat.S_ISDIR(info.st_mode) or path_attributes(path, directory=True) != state["before_attributes"]:
+            raise PathSafetyError("Verzeichnis wurde während der Planung verändert.")
+        state["identity"] = hashlib.sha256(
+            repr((info.st_dev, info.st_ino, info.st_mtime_ns,
+                  info.st_ctime_ns if os.name != "nt" else None)).encode("ascii")
+        ).hexdigest()
+    return states
+
+
+def _state(root: Path, name: str, *, text_only: bool = False, contents: list[bytes] | None = None) -> dict[str, object] | None:
     path = root.joinpath(*name.split("/"))
     try:
         before = path.lstat()
@@ -51,6 +68,8 @@ def _state(root: Path, name: str, *, text_only: bool = False) -> dict[str, objec
             raise PathSafetyError("Quelldatei ist kein unterstützter UTF-8-Text.")
     if path_attributes(path) != attributes:
         raise PathSafetyError("Dateizugriff wurde während der Planung verändert.")
+    if contents is not None:
+        contents.append(content)
     return {"sha256": hashlib.sha256(content).hexdigest(), "attributes": attributes, "size": len(content)}
 
 
@@ -72,8 +91,8 @@ def migration_plan(source: str, target: str, selected: list[str], version: str) 
     _, conflicts, warnings = assess(content, version, missing)
     capabilities = python_capabilities(str(target_root))
     conflicts.extend(capabilities["conflicts"])
-    source_dirs = _directory_states(source_root, names)
-    target_dirs = _directory_states(target_root, names)
+    source_dirs = _migration_directories(source_root, names)
+    target_dirs = _migration_directories(target_root, names)
     if len(source_dirs) > 64 or len(target_dirs) > 64:
         raise PathSafetyError("Dateiauswahl betrifft zu viele Verzeichnisse.")
     if _portable_path_collisions(source_root, names) or _portable_path_collisions(target_root, names):
@@ -94,8 +113,8 @@ def migration_plan(source: str, target: str, selected: list[str], version: str) 
     if (read_target(str(target_root)) != (content, missing)
             or path_attributes(target_root / "config" / "project.yaml") != config_attributes
             or python_capabilities(str(target_root)) != capabilities
-            or _directory_states(source_root, names) != source_dirs
-            or _directory_states(target_root, names) != target_dirs
+            or _migration_directories(source_root, names) != source_dirs
+            or _migration_directories(target_root, names) != target_dirs
             or any(_state(source_root, op["path"], text_only=True) != op["source"]
                    or _state(target_root, op["path"]) != op["target"] for op in operations)):
         raise PathSafetyError("Projektzustand wurde während der Planung verändert.")
@@ -109,7 +128,7 @@ def migration_plan(source: str, target: str, selected: list[str], version: str) 
         "source_directories": source_dirs, "target_directories": target_dirs,
         "target_preconditions": {"files": capabilities["files"], "directories": capabilities["directories"]},
         "operations": operations, "conflicts": conflicts,
-        "warnings": warnings + ["Nur lesend; keine Übernahme, kein Apply und kein Restore verfügbar.",
+        "warnings": warnings + ["Nur lesend; Apply erfordert erneute Prüfung und ausdrückliche Bestätigung.",
                                 "Auswahl und Inhalte manuell auf vertrauliche Daten prüfen."],
     }
     return {**identity, "plan_id": _canonical_id(identity)}

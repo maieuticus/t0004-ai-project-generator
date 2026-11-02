@@ -10,6 +10,8 @@ from unittest import mock
 import test_python_module
 from project_generator import migration_plan
 from project_generator.plan import PathSafetyError
+from project_generator.transaction import TransactionError, apply, restore
+from project_generator import transaction
 
 
 class MigrationPlan(unittest.TestCase):
@@ -140,3 +142,92 @@ class MigrationPlan(unittest.TestCase):
         before = [snapshot(root) for root in (self.source, self.project)]
         self.plan(["src/app.py", "docs/guide.md"])
         self.assertEqual(before, [snapshot(root) for root in (self.source, self.project)])
+
+    def test_apply_and_restore_selected_files(self):
+        for root in (self.source, self.project):
+            subprocess.run(["git", "init", "-q", str(root)], check=True, capture_output=True)
+            subprocess.run(["git", "-C", str(root), "add", "."], check=True, capture_output=True)
+        def snapshot(root):
+            return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+        source_before = snapshot(self.source)
+        index_before = (self.project / ".git/index").read_bytes()
+        plan = self.plan(["src/app.py", "docs/guide.md"])
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "backups")}):
+            backup = apply(str(self.project), str(self.plan_file), plan["plan_id"], "0.1.0", str(self.source))
+            for name in ("src/app.py", "docs/guide.md"):
+                self.assertEqual((self.project / name).read_bytes(), (self.source / name).read_bytes())
+            with self.assertRaises(TransactionError):
+                apply(str(self.project), str(self.plan_file), plan["plan_id"], "0.1.0", str(self.source))
+            restore(str(self.project), backup)
+        self.assertFalse((self.project / "src").exists())
+        self.assertFalse((self.project / "docs/guide.md").exists())
+        self.assertEqual(source_before, snapshot(self.source))
+        self.assertEqual(index_before, (self.project / ".git/index").read_bytes())
+
+    def test_apply_rejects_changed_or_manipulated_plan_without_writes(self):
+        plan = self.plan(["src/app.py"])
+        def attempt(candidate, confirmation=None):
+            self.plan_file.write_text(json.dumps(candidate), encoding="utf-8")
+            with self.assertRaises(TransactionError):
+                apply(str(self.project), str(self.plan_file), confirmation or plan["plan_id"], "0.1.0", str(self.source))
+            self.assertFalse((self.project / "src/app.py").exists())
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "backups")}):
+            attempt(plan, "0" * 64)
+            tampered = json.loads(json.dumps(plan))
+            tampered["operations"][0]["path"] = "other.py"
+            attempt(tampered)
+            (self.project / "src").mkdir()
+            attempt(plan)
+            (self.project / "src").rmdir()
+            self.write("src/app.py", "changed\n")
+            attempt(plan)
+
+    def test_apply_failure_and_foreign_edit_block_restore(self):
+        plan = self.plan(["src/app.py", "docs/guide.md"])
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        real_create = transaction._multi_create
+        calls = 0
+        def fail_second(path, content, opened):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("injected failure")
+            return real_create(path, content, opened)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "backups")}):
+            with mock.patch.object(transaction, "_multi_create", side_effect=fail_second):
+                with self.assertRaises(TransactionError) as failure:
+                    apply(str(self.project), str(self.plan_file), plan["plan_id"], "0.1.0", str(self.source))
+            backup = str(failure.exception).split("Backup-ID: ")[1].split(".")[0]
+            imported = self.project / "docs/guide.md"
+            original = imported.read_bytes()
+            imported.write_bytes(b"foreign")
+            with self.assertRaises(TransactionError):
+                restore(str(self.project), backup)
+            self.assertEqual(imported.read_bytes(), b"foreign")
+            imported.write_bytes(original)
+            restore(str(self.project), backup)
+            self.assertFalse(imported.exists())
+
+    def test_source_change_after_snapshot_does_not_write_target(self):
+        plan = self.plan(["src/app.py"])
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        original = transaction._multi_progress
+        def change_after_snapshot(*args):
+            original(*args)
+            self.write("src/app.py", "changed after snapshot\n")
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "backups")}):
+            with mock.patch.object(transaction, "_multi_progress", side_effect=change_after_snapshot):
+                with self.assertRaises(TransactionError):
+                    apply(str(self.project), str(self.plan_file), plan["plan_id"], "0.1.0", str(self.source))
+        self.assertFalse((self.project / "src").exists())
+
+    def test_existing_directory_change_rejects_plan(self):
+        (self.project / "src").mkdir()
+        plan = self.plan(["src/app.py"])
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        (self.project / "src/unrelated.txt").write_text("foreign", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "backups")}):
+            with self.assertRaises(TransactionError):
+                apply(str(self.project), str(self.plan_file), plan["plan_id"], "0.1.0", str(self.source))
+        self.assertFalse((self.project / "src/app.py").exists())
