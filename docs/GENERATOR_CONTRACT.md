@@ -27,6 +27,17 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
 
 ## CLI-Grundsätze
 
+Die Java-Vorlage `java/mvnw.cmd` wird mit LF-Bytes erzeugt, die dem Git-Attribut
+der geprüften t0003-Basis entsprechen. Bei der Prüfung eines bereits installierten
+Java-Moduls akzeptiert die Planung daneben ausschließlich die exakt bekannte frühere
+CRLF-Fassung (SHA-256 `46eedb8419bd14fe70d5bb2916d7b6f51806e51b39d5b76a42610384ca929c1c`).
+Andere Dateiänderungen bleiben Konflikte. Diese Kompatibilität ändert weder gespeicherte
+Snapshots noch deren strikte Restore-Prüfung: Eine nach dem alten Apply normalisierte
+Datei verhindert weiterhin die automatische Rücknahme des alten Snapshots.
+Für den Unix-Wrapper ist `unzip` erforderlich: Ohne dieses Werkzeug weicht der
+unveränderte Wrapper auf ein tar.gz-Archiv aus, dessen Hash vom festgelegten ZIP-Hash
+abweicht. Die Hashprüfung lehnt diesen Fall ab; sie darf nicht deaktiviert werden.
+
 - Die Referenzimplementierung ist eine Python-CLI.
 - Plattformziele: Linux, Windows, GitHub Codespaces.
 - Jeder Fehler liefert einen klaren Exitcode und eine verwertbare Meldung.
