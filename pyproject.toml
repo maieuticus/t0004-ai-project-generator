@@ -31,4 +31,12 @@ project_generator = [
   "templates/typescript/src/*.ts",
   "templates/typescript/test/*.mjs",
   "templates/typescript/docs/*.md",
+  "templates/java/.gitignore",
+  "templates/java/pom.xml",
+  "templates/java/mvnw",
+  "templates/java/mvnw.cmd",
+  "templates/java/.mvn/wrapper/*.properties",
+  "templates/java/src/main/java/org/example/app/*.java",
+  "templates/java/src/test/java/org/example/app/*.java",
+  "templates/java/docs/*.md",
 ]
