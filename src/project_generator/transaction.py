@@ -371,16 +371,16 @@ def apply(target: str, plan_file: str, confirmation: str, version: str) -> str:
         raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
     supplied = _json_object(_read_file(Path(plan_file), MAX_PLAN_BYTES))
     if supplied.get("format") == 4:
-        if supplied.get("module") != "python":
+        if supplied.get("module") not in ("python", "typescript"):
             raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
-        from .python_module import python_plan_target
+        from .python_module import module_plan_target
         try:
-            expected, changes = python_plan_target(target, version)
+            expected, changes = module_plan_target(target, version, supplied["module"])
         except (PathSafetyError, ConfigurationError, OSError) as error:
             raise TransactionError(f"Modulplan kann nicht geprüft werden: {_error_detail(error)}") from error
         if expected.get("conflicts") or not changes:
             raise TransactionError("Modulplan enthält Konflikte oder keine ausführbare Operation.")
-        return apply_multi(target, supplied, confirmation, version, changes, module="python")
+        return apply_multi(target, supplied, confirmation, version, changes, module=supplied["module"])
     content, expected = _current_plan(target, version)
     if expected["conflicts"]:
         raise TransactionError("Projektkonflikte verhindern apply.")
@@ -590,7 +590,7 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
         raise TransactionError("Mehrdatei-Plan im Backup ist ungültig.")
     if "module" in plan:
         conditions = plan["preconditions"]
-        if (plan["module"] != "python" or plan["conflicts"] != [] or not isinstance(conditions, dict)
+        if (plan["module"] not in ("python", "typescript") or plan["conflicts"] != [] or not isinstance(conditions, dict)
                 or set(conditions) != {"files", "directories"}
                 or not isinstance(conditions["files"], list)
                 or not isinstance(conditions["directories"], list)

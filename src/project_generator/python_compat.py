@@ -25,7 +25,12 @@ def python_capabilities(target: str) -> dict[str, object]:
         content, attributes = _operation_state(root, name)
         digest = hashlib.sha256(content).hexdigest() if content is not None else None
         states.append({"path": name, "sha256": digest, "attributes": attributes})
-        if digest != known_digest and not (name == ".github/workflows/ci.yml" and digest == PYTHON_CI_SHA256):
+        if name == ".github/workflows/ci.yml":
+            from .module_states import known_ci
+            accepted = known_ci(content) is not None or digest == known_digest
+        else:
+            accepted = digest == known_digest
+        if not accepted:
             conflicts.append(
                 f"{name}: benötigte t0003-Check-/CI-Fähigkeiten für python@0.1.0 "
                 "sind für diesen Dateistand nicht nachgewiesen."
