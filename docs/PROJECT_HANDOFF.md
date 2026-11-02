@@ -5,6 +5,13 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 123 auf `feat/java-module-pr-b`, ausgehend von `main` / `da96c96`:
+  Java ist über die bestehende Format-4-Engine integriert; drei feste Module und acht
+  Zustände sind getestet. Windows: 188 Generator-Tests erfolgreich, 24 übersprungen;
+  der ergänzte Java-Sicherheitstest und Projektcheck bestehen. Java-Build und Plattform-CI
+  bleiben offen; lokal ist kein JDK verfügbar.
+  PR A (#17) ist bereits gemergt; die folgende Angabe zu dessen offenem Review ist historisch.
+
 - Schritt 121 auf `feat/java-module-pr-a`, ausgehend von `main` / `4c02d0c`:
   Die freigegebene Java-25-Startervorlage ist als Paketressource vorbereitet;
   eine öffentliche Modulauswahl und die Format-4-Integration gehören erst zu PR B.
@@ -94,8 +101,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-PR A nach erfolgreicher Ubuntu-/Windows-CI menschlich prüfen; danach Java-Modulplanung
-und Dateimodusbehandlung für PR B gesondert umsetzen.
+Finalen Commit in Ubuntu-/Windows-CI prüfen und menschlich reviewen.
 
 ## Risiken
 

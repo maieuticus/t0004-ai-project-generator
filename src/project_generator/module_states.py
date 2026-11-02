@@ -1,6 +1,7 @@
-"""Exact, supported CI states for the two fixed starter modules."""
+"""Exact, supported CI states for the three fixed starter modules."""
 
 import hashlib
+from itertools import combinations
 
 from .python_compat import VERIFIED_FILES
 
@@ -35,11 +36,14 @@ jobs:
 PYTHON_STEPS = b"      - run: python -m pip install --no-deps .\n      - run: python -m project_app\n"
 NPM_STEP = b"      - run: npm ci --ignore-scripts --prefix typescript\n"
 PROJECT_CHECK = b"      - run: python scripts/check.py\n"
-MODULES = {"python": "python@0.1.0", "typescript": "typescript@0.1.0"}
+MODULES = {"python": "python@0.1.0", "typescript": "typescript@0.1.0", "java": "java@0.1.0"}
+JAVA_SETUP = b'      - uses: actions/setup-java@v4\n        with:\n          distribution: "temurin"\n          java-version: "25"\n'
 
 
 def ci_result(modules: frozenset[str]) -> bytes:
     result = BASE_CI
+    if "java" in modules:
+        result = result.replace(PROJECT_CHECK, JAVA_SETUP + PROJECT_CHECK, 1)
     if "typescript" in modules:
         result = result.replace(PROJECT_CHECK, NPM_STEP + PROJECT_CHECK, 1)
     if "python" in modules:
@@ -47,8 +51,8 @@ def ci_result(modules: frozenset[str]) -> bytes:
     return result
 
 
-CI_STATES = {frozenset(names): ci_result(frozenset(names)) for names in
-             ((), ("python",), ("typescript",), ("python", "typescript"))}
+CI_STATES = {frozenset(names): ci_result(frozenset(names))
+             for count in range(4) for names in combinations(MODULES, count)}
 CI_DIGESTS = {
     frozenset(): VERIFIED_FILES[".github/workflows/ci.yml"],
     frozenset({"python"}): "098dfdcb0c8981568a415e4a67c92b35f58b10b445589ec8bb856440fa412d79",
@@ -56,7 +60,7 @@ CI_DIGESTS = {
     frozenset({"python", "typescript"}): "81c5908fecf08773e3ba3e4d4be33b84cb168b0f24a1ca3e553253d1d7aaf0f5",
 }
 assert all(hashlib.sha256(content).hexdigest() == CI_DIGESTS[names]
-           for names, content in CI_STATES.items())
+           for names, content in CI_STATES.items() if names in CI_DIGESTS)
 
 
 def known_ci(content: bytes | None) -> frozenset[str] | None:
