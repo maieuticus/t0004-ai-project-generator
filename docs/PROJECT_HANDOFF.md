@@ -16,12 +16,18 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 - t0003-Kompatibilität bleibt auf den geprüften Entwicklungsstand `6e8363a` beschränkt;
   der ursprüngliche Release-Commit wird weiterhin abgelehnt. Der echte GitHub-Template-Test
   mit p9999 war bereits erfolgreich; t0003 und p9999 werden hier nicht geändert.
-- Die Projektchecks und die CI von t0004 laufen auf Linux und Windows. Die CI-Prüfung für
-  diesen Branch ist nach Veröffentlichung des PR abzuwarten.
+- PR #12 ist gegen `main` offen, Implementierungsstand `1e19973`.
+- Lokal erfolgreich: `python scripts/check.py`, 159 Generator-Tests (21 plattformbedingt
+  übersprungen) und 10 Integrationstests gegen die gepinnten t0003-Commits. Der lokale
+  Windows-Basistest `test_speckit` wird durch die PowerShell-Ausführungsrichtlinie blockiert;
+  die übrigen 15 Basistests sind grün. Die Integrationstests liefen hier über
+  `python -m project_generator`, weil die lokale Anwendungsrichtlinie erzeugte `.exe`
+  blockiert. Die reguläre CLI läuft in der CI.
+- Beide Linux- und beide Windows-CI-Läufe von PR #12 waren auf `1e19973` erfolgreich.
 
 ## Nächster Schritt
 
-PR B gegen `main` erstellen und die Linux-/Windows-CI vollständig prüfen; nicht mergen.
+Menschliches Review-Gate für PR #12 durchführen; nicht automatisch mergen.
 
 ## Risiken
 
