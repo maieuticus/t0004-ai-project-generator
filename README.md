@@ -96,6 +96,12 @@ Die CI installiert mit Node 24 zuerst per `npm ci --ignore-scripts --prefix type
 und führt danach den Projektcheck mit TypeScript-Build und `node:test` aus. Plan und Apply
 installieren keine Pakete. Der echte GitHub-Template-Test mit p9999 ist abgeschlossen.
 
+Bei Projekten, die mit der früheren TypeScript-Vorlage aus PR B erstellt wurden, enthält
+`docs/TYPESCRIPT.md` eine veraltete Aussage. Da Moduldateien bytegenau geprüft werden,
+meldet eine erneute Modulplanung mit der korrigierten Vorlage einen Konflikt, auch bei
+der anschließenden Planung des Python-Moduls. Die Datei muss vor der weiteren Planung
+bewusst an die korrigierte Vorlage angepasst werden; der Generator überschreibt sie nicht.
+
 `migrate` untersucht auch Projekte ohne t0003-Konfiguration und vergleicht selektive Übernahme
 mit schrittweiser Anpassung. Der Bericht ist **kein Apply-Plan** und verändert keine Projektdateien.
 Er enthält nur feste Kategorien und Zählwerte, keine individuellen Dateinamen, Inhalte oder

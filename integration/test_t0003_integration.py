@@ -226,6 +226,12 @@ class T0003Integration(unittest.TestCase):
         self.assertTrue(any("t0003" in item or "CI" in item for item in plan["conflicts"]))
         self.assertEqual(before, self.files())
         self.assertFalse(self.data.exists())
+        result = self.cli("plan", "--module", "typescript", "--json", expected=1)
+        plan = json.loads(result.stdout)
+        self.assertEqual(plan["operations"], [])
+        self.assertTrue(plan["conflicts"])
+        self.assertEqual(before, self.files())
+        self.assertFalse(self.data.exists())
 
     def test_changed_contract_is_rejected_before_and_after_planning(self):
         for name in (".github/workflows/ci.yml", "scripts/check.py", "scripts/projectcfg.py"):
@@ -352,6 +358,96 @@ class T0003Integration(unittest.TestCase):
         self.assertIn("pass 2", checked.stdout)
         self.cli("restore", "--backup", plan["backup"]["id"])
         self.assertEqual(before, self.files())
+
+    def test_typescript_module_orders_restore_and_conflicts(self):
+        combined = []
+        for number, modules in enumerate((("typescript",), ("python", "typescript"),
+                                          ("typescript", "python"))):
+            with self.subTest(modules=modules):
+                if number:
+                    self.project = self.case / f"project-{number}"
+                    self.checkout(COMPATIBLE)
+                original = self.files()
+                index = (self.project / ".git/index").read_bytes()
+                plans = []
+                for module in modules:
+                    before = self.files()
+                    self.cli("check", "--json")
+                    result = self.cli("plan", "--module", module, "--json")
+                    plan = json.loads(result.stdout)
+                    self.assertEqual(before, self.files())
+                    self.assertEqual(plan["conflicts"], [])
+                    self.plan_file.write_text(result.stdout, encoding="utf-8")
+                    self.apply(plan)
+                    self.snapshot(plan, before)
+                    for operation in plan["operations"]:
+                        content = (self.project / operation["path"]).read_bytes()
+                        self.assertEqual(hashlib.sha256(content).hexdigest(), operation["after_sha256"])
+                    plans.append(plan)
+                final = self.files()
+                check_copy = self.case / f"runtime-{number}"
+                shutil.copytree(self.project, check_copy, ignore=shutil.ignore_patterns(".git"))
+                environment = dict(self.env, npm_config_cache=str(self.case / "npm-cache"))
+                npm = "npm.cmd" if os.name == "nt" else "npm"
+                node = self.run_command(["node", "--version"], cwd=check_copy, env=environment)
+                self.assertRegex(node.stdout.strip(), r"^v24\.")
+                self.run_command([npm, "ci", "--ignore-scripts", "--prefix", "typescript",
+                                  "--no-audit", "--no-fund"], cwd=check_copy, env=environment)
+                if "python" in modules:
+                    self.run_command([sys.executable, "-m", "pip", "install", "--no-deps",
+                                      "--target", str(self.case / f"installed-{number}"), "."],
+                                     cwd=check_copy, env=environment)
+                self.run_command([npm, "run", "build", "--prefix", "typescript"],
+                                 cwd=check_copy, env=environment)
+                self.run_command([npm, "test", "--prefix", "typescript"],
+                                 cwd=check_copy, env=environment)
+                example = self.run_command([npm, "run", "start", "--prefix", "typescript"],
+                                           cwd=check_copy, env=environment)
+                self.assertIn("Hello from project-typescript-starter!", example.stdout)
+                self.run_command([sys.executable, "scripts/check.py"], cwd=check_copy, env=environment)
+                if len(modules) == 2:
+                    combined.append(final)
+                    self.cli("restore", "--backup", plans[0]["backup"]["id"], expected=1)
+                    self.assertEqual(final, self.files())
+                for module in modules:
+                    noop = json.loads(self.cli("plan", "--module", module, "--json").stdout)
+                    self.assertEqual(noop["operations"], [])
+                    self.assertIsNone(noop["backup"])
+                for plan in reversed(plans):
+                    self.cli("restore", "--backup", plan["backup"]["id"])
+                self.assertEqual(original, self.files())
+                self.assertEqual(index, (self.project / ".git/index").read_bytes())
+        self.assertEqual(combined[0], combined[1])
+
+    def test_typescript_stale_plan_and_damaged_snapshot_are_refused(self):
+        result = self.cli("plan", "--module", "typescript", "--json")
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        target = self.project / "scripts/check.py"
+        original = target.read_bytes()
+        target.write_bytes(original + b"\n# changed\n")
+        changed = self.files()
+        self.apply(plan, expected=1)
+        self.assertEqual(changed, self.files())
+        self.assertFalse(self.data.exists())
+        target.write_bytes(original)
+        result = self.cli("plan", "--module", "typescript", "--json")
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        before = self.files()
+        self.apply(plan)
+        backup = self.snapshot(plan, before)
+        after = self.files()
+        manifest = backup / "manifest.json"
+        manifest_bytes = manifest.read_bytes()
+        manifest.write_bytes(b"corrupt")
+        self.cli("restore", "--backup", plan["backup"]["id"], expected=1)
+        self.assertEqual(after, self.files())
+        manifest.write_bytes(manifest_bytes)
+        original_file = next(backup.glob("original-*"))
+        original_file.unlink()
+        self.cli("restore", "--backup", plan["backup"]["id"], expected=1)
+        self.assertEqual(after, self.files())
 
 
 if __name__ == "__main__":

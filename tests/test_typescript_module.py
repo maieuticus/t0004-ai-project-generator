@@ -99,6 +99,19 @@ class TypeScriptModule(unittest.TestCase):
         self.assertEqual(self.files(), before)
         self.assertFalse((self.base / "data").exists())
 
+    def test_modified_module_blocks_plan_and_restore_without_partial_changes(self):
+        plan = self.install("typescript")
+        module_file = self.project / "typescript/src/app.ts"
+        module_file.write_bytes(module_file.read_bytes() + b"\n// foreign change\n")
+        before = self.files()
+        code, conflict = self.select("typescript")
+        self.assertEqual(code, 1)
+        self.assertEqual(conflict["operations"], [])
+        self.assertEqual(before, self.files())
+        restored = self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(restored.returncode, 1, restored.stderr)
+        self.assertEqual(before, self.files())
+
 
 if __name__ == "__main__":
     unittest.main()
