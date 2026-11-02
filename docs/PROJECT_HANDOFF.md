@@ -5,6 +5,17 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 118A.2 auf `feat/strategy-b-baseline-plan`: Architektur für eine additive,
+  ausdrücklich gekennzeichnete Migrationsbasis ist freigegeben. Der lesende Plan und das
+  feste Paket sind implementiert; Strategie-B-Apply und -Restore sind nicht enthalten.
+  Windows: Generator-Regression 180 Tests erfolgreich, 24 übersprungen; der erweiterte
+  Basistest ist gesondert erfolgreich. Projektcheck erfolgreich. Template-Tests: 15 bestanden,
+  Spec-Kit durch lokale PowerShell-Ausführungsrichtlinie blockiert. Alle 15 Integrationstests
+  gegen gepinnte t0003-Stände erfolgreich; der Strategie-B-Test wurde nach der letzten
+  Planänderung mit erneut installiertem Paket wiederholt. CI siehe aktuellen PR-Stand;
+  kein Login oder Richtlinienwechsel vorgenommen.
+  Die folgenden älteren Branch- und PR-Angaben sind historisch; PR #15 ist in main gemergt.
+
 - Schritt 117 auf `feat/strategy-a-migration-apply`, ausgehend von `main` / `fad094f`:
   Strategie A bindet bestätigten Apply und Restore an die bestehende Format-4-Engine.
   Quelle und Ziel sowie der vollständige lesende Plan werden vor dem Import erneut geprüft;
@@ -75,7 +86,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Die finale Fassung unter Linux und Windows prüfen und anschließend den PR menschlich prüfen.
+Linux- und Windows-CI zum Strategie-B-PR prüfen und das menschliche Review-Gate durchführen.
 
 ## Risiken
 

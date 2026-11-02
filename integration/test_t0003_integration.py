@@ -22,6 +22,34 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class T0003Integration(unittest.TestCase):
+    def test_strategy_b_package_provenance_and_read_only_cli(self):
+        old = self.case / "old-baseline"
+        old.mkdir()
+        self.git("init", "--quiet", str(old), cwd=self.case)
+        self.git("config", "user.name", "Fixture", cwd=old)
+        self.git("config", "user.email", "fixture@example.invalid", cwd=old)
+        self.git("config", "core.autocrlf", "false", cwd=old)
+        (old / "README.md").write_bytes(b"# Existing\n")
+        self.git("add", "README.md", cwd=old)
+        self.git("commit", "--quiet", "-m", "initial", cwd=old)
+        index = (old / ".git/index").read_bytes()
+        preview = self.cli("migrate", str(old), "--baseline", "--json", expected=1)
+        first = json.loads(preview.stdout)
+        agents = next(op for op in first["operations"] if op["path"] == "AGENTS.md")
+        confirmed = self.cli("migrate", str(old), "--baseline", "--confirm-agents",
+                             agents["after_sha256"], "--json")
+        plan = json.loads(confirmed.stdout)
+        self.assertFalse(plan["conflicts"])
+        self.assertFalse(plan["executable"])
+        self.assertEqual(plan["base_commit"], COMPATIBLE)
+        for operation in plan["operations"]:
+            blob = subprocess.run(["git", "--git-dir", str(self.source), "show",
+                                   f"{COMPATIBLE}:{operation['path']}"], cwd=self.case,
+                                  env=self.git_env, check=True, capture_output=True).stdout
+            self.assertEqual(hashlib.sha256(blob).hexdigest(), operation["source_sha256"])
+        self.assertEqual((old / ".git/index").read_bytes(), index)
+        self.assertEqual(sorted(p.name for p in old.iterdir()), [".git", "README.md"])
+
     def test_strategy_a_read_only_plan_against_real_t0003(self):
         old = self.case / "old-project"
         (old / "src").mkdir(parents=True)

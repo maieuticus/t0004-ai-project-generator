@@ -13,6 +13,7 @@ SECTIONS = {
     "generator": {"version", "modules"},
 }
 TEMPLATE_SOURCE = "https://github.com/maieuticus/t0003-ai-project-template"
+MIGRATION_BASE = "6e8363a7ac7d99220d743eea077dcd5cefda9042"
 SCALAR = re.compile(r'''(?: "(?:[^"\\]|\\.)*" | '[^']*' | [^\[\]{}"'\r\n]* )\s*(?:\s\#.*)?''', re.VERBOSE)
 
 
@@ -48,7 +49,7 @@ def _validate_structure(text: str) -> None:
         entry = re.fullmatch(r"  ([a-z_]+):(.*)", line)
         if section in SECTIONS and entry:
             key = entry.group(1)
-            if key not in SECTIONS[section] or key in seen[section]:
+            if (key not in SECTIONS[section] and (section, key) != ("template", "origin")) or key in seen[section]:
                 raise ConfigurationError(f"config/project.yaml: ungültiger oder doppelter Schlüssel in {section}.")
             value = entry.group(2).strip()
             if (section, key) != ("generator", "modules") and (
@@ -73,7 +74,7 @@ def _validate_structure(text: str) -> None:
             raise ConfigurationError("config/project.yaml: ungültiges oder nicht unterstütztes Format.")
     if not schema_seen or not checks_seen or set(seen) != set(SECTIONS):
         raise ConfigurationError("config/project.yaml: Pflichtabschnitt oder schema_version fehlt.")
-    if any(seen[section] != keys for section, keys in SECTIONS.items()):
+    if any(not keys.issubset(seen[section]) for section, keys in SECTIONS.items()):
         raise ConfigurationError("config/project.yaml: erforderlicher Metadatenschlüssel fehlt.")
 
 
@@ -89,6 +90,9 @@ def load_metadata(content: bytes) -> dict[str, object]:
         name = get("project", "name")
         source = get("template", "source")
         release = get("template", "release")
+        origin_present = bool(re.search(r"^  origin:", text, re.MULTILINE))
+        origin = get("template", "origin") if origin_present else None
+        base_commit = get("template", "base_commit")
         tool = get("sdd", "tool")
         tool_version = get("sdd", "version")
         generator_version = get("generator", "version")
@@ -100,7 +104,10 @@ def load_metadata(content: bytes) -> dict[str, object]:
         raise ConfigurationError("config/project.yaml: project.name ist zu lang.")
     if source != TEMPLATE_SOURCE:
         raise ConfigurationError("config/project.yaml: template.source ist nicht die freigegebene t0003-Basis.")
-    if not release or not VERSION.fullmatch(release):
+    if origin == "migration":
+        if release is not None or base_commit != MIGRATION_BASE:
+            raise ConfigurationError("config/project.yaml: ungültige Migrationsherkunft.")
+    elif origin_present or not release or not VERSION.fullmatch(release):
         raise ConfigurationError("config/project.yaml: template.release muss MAJOR.MINOR.PATCH sein.")
     if tool not in {None, "speckit", "openspec"}:
         raise ConfigurationError("config/project.yaml: sdd.tool muss speckit, openspec oder null sein.")
@@ -114,6 +121,7 @@ def load_metadata(content: bytes) -> dict[str, object]:
         raise ConfigurationError("config/project.yaml: generator.modules muss eine JSON-Liste sein.")
     return {
         "template_release": release,
+        "template_origin": origin,
         "sdd_tool": tool,
         "sdd_version": tool_version,
         "generator_version": generator_version,

@@ -2,6 +2,29 @@
 
 Dieser Vertrag definiert die Mindestanforderungen für die Generator-CLI in `t0004`.
 
+## Strategie B: lesender Basisplan, Version 1
+
+`migrate ZIEL --baseline [--confirm-agents SHA256] [--json]` plant ausschließlich lesend
+acht feste neue Dateien. `AGENTS.md` ist gesondert anhand ihres Ergebnis-Hashes zu bestätigen;
+ohne passende Bestätigung ist der Plan konflikthaft. Plan-ID und Bestätigung binden den
+Paketstand, die Zielidentität, Git-Zustand, Pfadzustände und die unveränderte README. Paket- und
+Ergebnishashes sowie der gepinnte t0003-Quellcommit sind im Plan enthalten. Das Paket ist
+eine additive Teilbasis, kein Release und kein Kompatibilitätsnachweis für Module. Bestehende
+Zielpfade werden als Konflikte gemeldet; CI und andere Konfigurationen werden nicht verändert.
+Git muss verfügbar und nach den konservativen Git-Prüfungen sauber sein. Ignorierte Dateien
+werden durch Git-Status nicht erfasst; die Paketpfade werden separat geprüft. Eine vorhandene
+`.gitmodules`-Datei, Worktrees und unsichere Git-Metadaten werden abgelehnt; Gitlinks ohne
+`.gitmodules` werden nicht sicher erkannt. Nicht kooperierende Prozesse und
+Dateisystem-Races können die Planung beeinträchtigen. Es werden keine Projektchecks ausgeführt.
+
+Der Plan ist nicht ausführbar; Strategie B hat weder Apply noch Restore. Vor jedem späteren
+schreibenden Apply muss der Nutzer unabhängig vom Generator ein vollständiges, geschütztes
+Backup des gesamten Projekts einschließlich Git-Metadaten, ignorierter und nicht versionierter
+Dateien sowie relevanter externer Daten erstellen und dessen Wiederherstellbarkeit an einem
+separaten Ort prüfen. Speicherort, Umfang und Wiederherstellung liegen in seiner Verantwortung;
+ein späterer Generator-Snapshot ersetzt dieses Komplettbackup nicht. Der konkrete Plan und
+die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätigt werden.
+
 ## CLI-Grundsätze
 
 - Die Referenzimplementierung ist eine Python-CLI.

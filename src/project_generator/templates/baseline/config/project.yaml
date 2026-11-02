@@ -1,0 +1,16 @@
+schema_version: 1
+project:
+  name: null
+template:
+  source: https://github.com/maieuticus/t0003-ai-project-template
+  release: null
+  base_commit: 6e8363a7ac7d99220d743eea077dcd5cefda9042
+  last_update_check: null
+  origin: migration
+sdd:
+  tool: null
+  version: null
+generator:
+  version: null
+  modules: []
+checks: []
