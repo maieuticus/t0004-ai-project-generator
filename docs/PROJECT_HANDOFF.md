@@ -16,8 +16,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `python scripts/docker_ci.py` bestand im Codespace und hinterließ keine Ressourcen
   mit dem Präfix `t0004pg`. Projektcheck, `git diff --check`, 16 Template-Tests,
   229 Generator-Tests (7 übersprungen) und 29 t0003-Integrationstests bestanden.
-  Ausstehend sind Commit, Push, Draft-PR sowie Ubuntu-/Windows-GitHub-CI auf dem
-  finalen Commit; kein Merge ohne menschliches Review.
+  Draft-PR [#24](https://github.com/maieuticus/t0004-ai-project-generator/pull/24)
+  ist veröffentlicht. Die Ubuntu-/Windows-Basis- und Docker-Workflows auf
+  `40359fb` bestanden, einschließlich der Windows-Compose-Validierung; kein Merge
+  ohne menschliches Review.
 
 - Schritt 132B auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `c062723`: Die PostgreSQL-Sicherheitsmatrix verwendet reale Format-4-Projektionen
