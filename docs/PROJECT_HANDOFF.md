@@ -10,10 +10,17 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   generierten Images und Konsolenstarts sowie unter Windows die Sicherheitsregression
   und, sofern verfügbar, die Compose-Konfiguration. Die bestehende `ci.yml` richtet
   auf beiden Plattformen Temurin 25 ein und führt die vollständige Integration aus.
-  Lokal sind Docker und Java nicht verfügbar; deren Laufzeitprüfungen und die
-  Plattform-CI sind offen. Der geprüfte Konfigurationspfad von `scripts/docker_ci.py`
-  bestand lokal bis zum ausdrücklich übersprungenen Compose-Aufruf. Der Benutzer hat
-  einen Draft-PR für die CI-Abnahme ausdrücklich freigegeben; nicht eigenständig mergen.
+  Auf Commit `5d1928b09c26bd1a9f259036702b1c9f1a0f1458` bestanden im
+  [Draft-PR #21](https://github.com/maieuticus/t0004-ai-project-generator/pull/21)
+  [Ubuntu-/Windows-Basis- und Integrationstests](https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/41800787911)
+  mit Temurin 25 sowie die [Docker-Prüfungen](https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/41800787904).
+  Ubuntu baute alle drei Images und prüfte Ausgabe, nicht privilegierte Benutzer und
+  Exit-Codes; `docker compose config -q` bestand unter Ubuntu und Windows. Auch der
+  Push-Docker-Lauf `41800706510` war erfolgreich. Lokal sind Docker und Java nicht
+  verfügbar. Der geprüfte Konfigurationspfad von `scripts/docker_ci.py` bestand lokal
+  bis zum übersprungenen Compose-Aufruf; 216 Generator-Tests liefen mit 24 Übersprüngen
+  erfolgreich. Nach dieser Dokumentationsänderung die CI des neuen HEAD erneut prüfen;
+  den Draft-PR nicht eigenständig mergen.
 
 - Schritt 128B auf `feat/docker-infrastructure-pr-b`, ausgehend von `cc4f5a9`:
   Die öffentliche Auswahl `--infrastructure docker-compose` und die festen
