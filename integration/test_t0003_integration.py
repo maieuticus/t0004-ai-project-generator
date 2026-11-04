@@ -44,10 +44,10 @@ class T0003Integration(unittest.TestCase):
         return docker, plan
 
     def assert_docker_refused(self, *args):
-        before, index = self.files(), (self.project / ".git/index").read_bytes()
+        before, index = self.file_states(), (self.project / ".git/index").read_bytes()
         result = self.cli(*args, expected=1)
         self.assertIn("Konflikt:", result.stderr)
-        self.assertEqual(before, self.files())
+        self.assertEqual(before, self.file_states())
         self.assertEqual(index, (self.project / ".git/index").read_bytes())
         return result
 
@@ -67,10 +67,10 @@ class T0003Integration(unittest.TestCase):
         self.docker_install(("--module", "python"))
         compose = self.project / "compose.yaml"
         compose.write_bytes(b"foreign compose\n")
-        before, index = self.files(), (self.project / ".git/index").read_bytes()
+        before, index = self.file_states(), (self.project / ".git/index").read_bytes()
         result = self.cli("plan", "--infrastructure", "docker-compose", "--json", expected=1)
         self.assertTrue(any("compose.yaml" in item for item in json.loads(result.stdout)["conflicts"]))
-        self.assertEqual(before, self.files())
+        self.assertEqual(before, self.file_states())
         self.assertEqual(index, (self.project / ".git/index").read_bytes())
 
     def test_docker_security_stale_plan_and_attributes(self):
@@ -107,10 +107,10 @@ class T0003Integration(unittest.TestCase):
                          (b'"python@0.1.0"', b'"typescript@0.1.0"')):
             with self.subTest(metadata=old):
                 config.write_bytes(original.replace(old, new))
-                before, index = self.files(), (self.project / ".git/index").read_bytes()
+                before, index = self.file_states(), (self.project / ".git/index").read_bytes()
                 result = self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"], expected=1)
                 self.assertIn("Konflikt:", result.stderr)
-                self.assertEqual(before, self.files())
+                self.assertEqual(before, self.file_states())
                 self.assertEqual(index, (self.project / ".git/index").read_bytes())
         config.write_bytes(original)
 
@@ -118,7 +118,7 @@ class T0003Integration(unittest.TestCase):
         _, plan = self.docker_java_setup()
         from project_generator import transaction
         compose = self.project / "compose.yaml"
-        before, index = self.files(), (self.project / ".git/index").read_bytes()
+        before, index = self.file_states(), (self.project / ".git/index").read_bytes()
         real = transaction._multi_progress
 
         def inject(backup, progress):
@@ -127,8 +127,11 @@ class T0003Integration(unittest.TestCase):
 
         error = self.docker_inprocess_apply(plan, "_multi_progress", inject)
         self.assertIn("Ziel wurde nicht geschrieben", error)
-        before["compose.yaml"] = b"foreign after snapshot\n"
-        self.assertEqual(before, self.files())
+        self.assertEqual(compose.read_bytes(), b"foreign after snapshot\n")
+        del before["compose.yaml"]
+        after = self.file_states()
+        del after["compose.yaml"]
+        self.assertEqual(before, after)
         self.assertEqual(index, (self.project / ".git/index").read_bytes())
 
     def test_docker_security_restore_manifest_original_and_dependencies(self):
