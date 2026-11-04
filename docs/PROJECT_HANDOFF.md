@@ -5,6 +5,29 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 129 läuft auf `test/docker-infrastructure-pr-c`, ausgehend von `main`
+  `9f3a136`. Compose-Version und -Konfiguration sind in der Windows-Docker-CI
+  verpflichtend; neue Docker-Projekte erhalten einen eigenen Ubuntu-Workflow über
+  die geschützte Format-4-Projektion. Historische Docker-Projekte ohne Workflow
+  melden einen Konflikt. Frühere Snapshot-Projektionen bleiben für Restore gültig.
+  Die Matrix der sieben Sprachmengen und 33 Reihenfolgen sowie gezielte Workflow-
+  Konflikt- und Restore-Tests bestanden lokal. Projektcheck und `git diff --check`
+  bestanden vor dieser Übergabe. Außerhalb der Sandbox bestanden 218 Generator-Tests
+  mit 24 Übersprüngen. Die Integration mit isoliert installiertem aktuellem Paket
+  führte 22 Tests aus: fünf Fehlschläge und ein Fehler betreffen die lokale fehlende
+  Java-Laufzeit; der Docker-Integrationsfall bestand. Der
+  Sandbox-Gesamtlauf meldete 12 Fehler und 2 Fehlerzustände, darunter blockierten
+  Netz- und Dateizugriff; er ist kein erfolgreicher Gesamtnachweis. Lokal gibt es weder
+  unter Windows noch in WSL Docker. Isolierte p9999-Klone wurden eingerichtet und
+  Commits frisch ausgecheckt: Python-Docker [PR #6](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/6)
+  `c1b24ea` und drei Sprachen [PR #7](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/7)
+  `8af3b53`. Docker-No-ops bestanden, bei PR #7 zusätzlich Sprach-No-ops und der
+  unveränderte Git-Index während der Generatorläufe. PR #6 und #7: Ubuntu, Windows
+  und Docker-Workflows erfolgreich.
+  Lokale Container-Builds und CI-Abnahme auf PR C stehen aus. Die ersten Pushversuche
+  des t0004-Branches wurden durch GitHub-Serverfehler abgelehnt; Git zeigt den aktuellen Stand.
+  t0004/main und p9999/main waren zu Beginn `9f3a136` bzw. `bb19b763`.
+
 - Schritt 128C auf `feat/docker-infrastructure-pr-b`: Der separate Workflow
   `.github/workflows/docker-validation.yml` prüft unter Ubuntu 24.04 die echten
   generierten Images und Konsolenstarts sowie unter Windows die Sicherheitsregression
