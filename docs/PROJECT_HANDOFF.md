@@ -5,6 +5,35 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 133A auf `test/postgresql-infrastructure-pr-c`, ausgehend von `main` /
+  `6dac03c`: `scripts/docker_ci.py` verwendet weiterhin den bestehenden Docker-CI-Pfad
+  und den echten kompatiblen t0003-Commit `6e8363a`. Python, Docker Compose,
+  PostgreSQL, TypeScript und Java werden installiert; danach werden die Generator-
+  Änderungen lokal committed und in einem frischen Checkout Python, TypeScript,
+  Java und PostgreSQL auf No-op geprüft. Die Compose-Projektion enthält alle drei
+  Anwendungen und `db-postgres`; Git-Index und frischer Arbeitsbaum bleiben bei den
+  No-op-Plänen unverändert.
+  PostgreSQL 18.6 lief in einem zufällig benannten Compose-Projekt mit einem
+  ausschließlich dafür angelegten Volume, SCRAM-TCP, ohne Host-Port und mit
+  nicht privilegierter Containerkonfiguration. Healthcheck, gültige und ungültige
+  Zugangsdaten, SQL-Schreiben/-Lesen und Datenpersistenz nach Container-Neuerstellung
+  bestanden. Die Datei des zufälligen Testpassworts wird mit Modus 0600 in einem
+  ignorierten Verzeichnis mit Modus 0700 gehalten; das Passwort war weder in
+  versionierten Dateien, Logs noch im Backup enthalten.
+  `pg_dump` erzeugte ein Custom-Format-Backup außerhalb des Datenvolumes. `pg_restore`
+  prüfte das Archiv und stellte es in eine neue Datenbank wieder her; Tabellenstruktur,
+  Zeilenanzahl und konkrete Testwerte stimmten überein. Ungültiges Archiv und fehlende
+  Zugangsdaten wurden abgelehnt. Dies ist ein logisches Backup nur der Testdatenbank,
+  kein Cluster-Backup (globale Rollen/Konfiguration und PITR sind nicht enthalten).
+  Generator-Snapshots sichern Projektdateien, Docker-Volume-Persistenz übersteht eine
+  Container-Neuerstellung; beides ersetzt das logische Backup nicht.
+  `python scripts/docker_ci.py`, 229 Generator-Tests (7 übersprungen), 16 Template-
+  Tests, 36 gezielte Infrastruktur-/TypeScript-Tests, Projektcheck und Syntaxprüfung
+  bestanden. Zugehörige Container, Volume und Netzwerk wurden nach Labelprüfung
+  entfernt; kein `t0004pg`-Testressource blieb zurück. Kein Push, PR oder Merge.
+  Die konkreten Abnahmekriterien von 133B/133C stehen noch nicht in den kanonischen
+  Repository-Dokumenten.
+
 - Schritt 132C auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `f6b8cc2`: Die lokale Docker-Abnahme verwendet ein zufällig benanntes, temporäres
   Compose-Projekt und eine nur dort erzeugte, restriktiv geschützte Passwortdatei.
@@ -16,10 +45,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `python scripts/docker_ci.py` bestand im Codespace und hinterließ keine Ressourcen
   mit dem Präfix `t0004pg`. Projektcheck, `git diff --check`, 16 Template-Tests,
   229 Generator-Tests (7 übersprungen) und 29 t0003-Integrationstests bestanden.
-  Draft-PR [#24](https://github.com/maieuticus/t0004-ai-project-generator/pull/24)
-  ist veröffentlicht. Die Ubuntu-/Windows-Basis- und Docker-Workflows auf
-  `40359fb` bestanden, einschließlich der Windows-Compose-Validierung; kein Merge
-  ohne menschliches Review.
+  Die Ubuntu-/Windows-Basis- und Docker-Workflows auf `40359fb` bestanden,
+  einschließlich der Windows-Compose-Validierung. Der damalige Draft-PR
+  [#24](https://github.com/maieuticus/t0004-ai-project-generator/pull/24) ist mit
+  Merge-Commit `6dac03c` in `main` enthalten.
 
 - Schritt 132B auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `c062723`: Die PostgreSQL-Sicherheitsmatrix verwendet reale Format-4-Projektionen
@@ -35,8 +64,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   (7 übersprungen), `python -m unittest discover -s integration -v` mit 29 Tests;
   `python scripts/docker_ci.py --config-only`, Projektcheck und `git diff --check`
   bestanden. Es wurden keine Container, Datenbanken oder Volumes gestartet bzw.
-  verändert. Noch offen bleiben reale PostgreSQL-Compose-Laufzeit, Ubuntu-/Windows-CI
-  und menschliches PR-Review in 132C.
+  verändert. Reale PostgreSQL-Compose-Laufzeit und Ubuntu-/Windows-CI wurden im
+  anschließenden Schritt 132C abgeschlossen; der PR wurde mit `6dac03c` gemergt.
 
 - Schritt 132A auf `feat/postgresql-infrastructure-pr-b-clean`, ausgehend von `main`
   (`217e8b9`): Die öffentliche Auswahl `--infrastructure postgresql` nutzt die bestehende
@@ -309,8 +338,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-PostgreSQL in die bestehende Format-4-Projektion integrieren und die Zustands- und
-Sicherheitsmatrix ausführen.
+133B nach neuer Nutzerfreigabe beginnen. Umfang und Abnahmekriterien von 133B und
+133C müssen anhand der jeweiligen Schrittvorgabe festgelegt werden; sie sind im
+Repository bisher nicht dokumentiert.
 
 ## Risiken
 
