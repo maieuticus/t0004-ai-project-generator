@@ -106,7 +106,8 @@ def read_target(value: str) -> tuple[bytes, list[str]]:
         raise PathSafetyError("Zielprojekt oder config/project.yaml ist nicht lesbar.") from error
 
 
-def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[dict[str, object], list[str], list[str]]:
+def assess(content: bytes, generator_version: str, missing: list[str], *,
+           allow_postgresql: bool = False) -> tuple[dict[str, object], list[str], list[str]]:
     metadata = load_metadata(content)
     conflicts = [f"Pflichtdatei fehlt oder ist keine reguläre Datei: {name}" for name in missing]
     if metadata["template_release"] not in SUPPORTED_TEMPLATE_RELEASES:
@@ -119,7 +120,7 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
         conflicts.append("generator.modules: Modulversionen werden in dieser Etappe nicht unterstützt.")
     if not valid_infrastructure(metadata["infrastructure"], metadata["modules"]):
         conflicts.append("generator.infrastructure: ungültige Kennungen, Reihenfolge oder Abhängigkeiten.")
-    elif INFRASTRUCTURE[POSTGRESQL] in metadata["infrastructure"]:
+    elif INFRASTRUCTURE[POSTGRESQL] in metadata["infrastructure"] and not allow_postgresql:
         conflicts.append("generator.infrastructure: PostgreSQL-Projektion ist noch nicht implementiert.")
     warnings = []
     if metadata["sdd_tool"] is not None:
@@ -458,7 +459,12 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
     if not isinstance(generator_version, str) or not VERSION.fullmatch(generator_version):
         raise PathSafetyError("Ungültige Generatorversion.")
     content, missing = read_target(target)
-    metadata, conflicts, warnings = assess(content, generator_version, missing)
+    metadata, conflicts, warnings = assess(
+        content,
+        generator_version,
+        missing,
+        allow_postgresql=module is not None or infrastructure == "postgresql",
+    )
     if conflicts:
         raise PathSafetyError("Projektkonflikte verhindern die Planung.")
     ordered = _operation_paths(changes)
@@ -512,7 +518,7 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         identity["preconditions"] = {
             "files": capabilities["files"], "directories": capabilities["directories"],
         }
-        from .infrastructure_states import INFRASTRUCTURE, DOCKER_COMPOSE
+        from .infrastructure_states import INFRASTRUCTURE, DOCKER_COMPOSE, POSTGRESQL
         if INFRASTRUCTURE[DOCKER_COMPOSE] in metadata["infrastructure"]:
             from .infrastructure import _language_preconditions
             from .module_states import MODULES
@@ -525,7 +531,11 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
             dirs = {state["path"]: state for state in capabilities["directories"]}
             dirs.update({state["path"]: state for state in language["directories"]})
             from .docker_files import docker_files
-            docker = docker_files(modules)
+            postgresql = INFRASTRUCTURE[POSTGRESQL] in metadata["infrastructure"]
+            docker = docker_files(modules, postgresql=postgresql)
+            if postgresql:
+                from .postgresql_files import POSTGRES_GITIGNORES
+                docker[".gitignore"] = POSTGRES_GITIGNORES[-1]
             for name, wanted in docker.items():
                 current, attributes = _operation_state(root, name)
                 if current != wanted:
@@ -538,10 +548,16 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
                 "directories": sorted(dirs.values(), key=lambda state: (state["path"].count("/"), state["path"].lower())),
             }
     if infrastructure is not None:
-        from .infrastructure_states import DOCKER_COMPOSE, known_docker_projection
-        if (infrastructure != DOCKER_COMPOSE or not isinstance(preconditions, dict)
+        from .infrastructure_states import (
+            DOCKER_COMPOSE, POSTGRESQL, known_docker_projection, known_postgresql_projection,
+        )
+        if (infrastructure not in {DOCKER_COMPOSE, POSTGRESQL} or not isinstance(preconditions, dict)
                 or set(preconditions) != {"files", "directories"}
-                or not known_docker_projection(projection)):
+                or not (
+                    known_docker_projection(projection)
+                    if infrastructure == DOCKER_COMPOSE
+                    else known_postgresql_projection(projection)
+                )):
             raise PathSafetyError("Ungültige feste Infrastrukturprojektion.")
         identity["infrastructure"] = infrastructure
         identity["preconditions"] = preconditions

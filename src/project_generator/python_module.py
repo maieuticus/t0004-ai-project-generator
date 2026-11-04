@@ -198,7 +198,7 @@ def module_plan_target(target: str, version: str, module: str,
         raise ConfigurationError("Unbekanntes Technologiemodul.")
     files = _files_for(module)
     content, missing = read_target(target)
-    metadata, conflicts, warnings = assess(content, version, missing)
+    metadata, conflicts, warnings = assess(content, version, missing, allow_postgresql=True)
     capabilities = python_capabilities(target)
     conflicts.extend(capabilities["conflicts"])
     root = Path(target).expanduser().resolve(strict=True)
@@ -209,12 +209,17 @@ def module_plan_target(target: str, version: str, module: str,
     checks = projectcfg.checks(content.decode("utf-8"))
     ci, _ = _operation_state(root, CI_PATH)
     expected_modules = frozenset(name for name in MODULES if MODULES[name] in metadata["modules"])
-    from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE
+    from .infrastructure_states import DOCKER_COMPOSE, POSTGRESQL, INFRASTRUCTURE
     docker_changes = []
     if INFRASTRUCTURE[DOCKER_COMPOSE] in metadata["infrastructure"]:
         from .docker_files import docker_files
-        old_files = docker_files(expected_modules) if expected_modules else {}
-        new_files = docker_files(expected_modules | {module})
+        postgresql = INFRASTRUCTURE[POSTGRESQL] in metadata["infrastructure"]
+        old_files = docker_files(expected_modules, postgresql=postgresql) if expected_modules else {}
+        new_files = docker_files(expected_modules | {module}, postgresql=postgresql)
+        if postgresql:
+            from .postgresql_files import POSTGRES_GITIGNORES
+            old_files[".gitignore"] = POSTGRES_GITIGNORES[-1]
+            new_files[".gitignore"] = POSTGRES_GITIGNORES[-1]
         for name in _portable_path_collisions(root, list(new_files)):
             conflicts.append(f"{name}: Pfad kollidiert auf anderen Plattformen.")
         for name, expected in old_files.items():

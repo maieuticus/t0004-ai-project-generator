@@ -5,6 +5,55 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 132C auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
+  `f6b8cc2`: Die lokale Docker-Abnahme verwendet ein zufällig benanntes, temporäres
+  Compose-Projekt und eine nur dort erzeugte, restriktiv geschützte Passwortdatei.
+  Sie prüft PostgreSQL-Healthcheck, SCRAM-TCP-Authentifizierung und Passwortablehnung,
+  Schreib-/Lesezugriff, Datenpersistenz nach `--force-recreate`, fehlende Host-
+  Portfreigabe, nicht privilegierte Konsolenstarter, Secret-Abwesenheit in Logs und
+  Projektdateien sowie projektgebundenes Cleanup. Neue Datenverzeichnisse erhalten
+  `--auth-host=scram-sha-256`; bestehende Volumes werden nicht verändert. Der Lauf
+  `python scripts/docker_ci.py` bestand im Codespace und hinterließ keine Ressourcen
+  mit dem Präfix `t0004pg`. Projektcheck, `git diff --check`, 16 Template-Tests,
+  229 Generator-Tests (7 übersprungen) und 29 t0003-Integrationstests bestanden.
+  Draft-PR [#24](https://github.com/maieuticus/t0004-ai-project-generator/pull/24)
+  ist veröffentlicht. Die Ubuntu-/Windows-Basis- und Docker-Workflows auf
+  `40359fb` bestanden, einschließlich der Windows-Compose-Validierung; kein Merge
+  ohne menschliches Review.
+
+- Schritt 132B auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
+  `c062723`: Die PostgreSQL-Sicherheitsmatrix verwendet reale Format-4-Projektionen
+  und öffentliche CLI-Pfade. Sie deckt fehlendes Docker, fremde Compose-/Workflow-/
+  Dokumentationspfade, falsche oder umgeordnete Infrastrukturmetadaten, manipulierte
+  Plan-IDs und Zielhashes, Dateiattribute, Änderung nach Snapshot, beschädigte
+  Manifeste und Originale, Fremdänderungen vor Restore, falsche Restore-Reihenfolge
+  sowie kontrollierte Teiltransaktionen mit Recovery ab. Die sieben Sprachmengen und
+  zulässigen Installationsreihenfolgen konvergieren mit PostgreSQL; nachträgliche
+  TypeScript- und Java-Installation erhält die Projektion. Git-Index, No-op,
+  Secret-Abwesenheit, `.gitignore`-/`.dockerignore`-Schutz und ein Docker-Sentinel
+  sind geprüft. `python -m unittest discover -s tests -v` bestand mit 229 Tests
+  (7 übersprungen), `python -m unittest discover -s integration -v` mit 29 Tests;
+  `python scripts/docker_ci.py --config-only`, Projektcheck und `git diff --check`
+  bestanden. Es wurden keine Container, Datenbanken oder Volumes gestartet bzw.
+  verändert. Noch offen bleiben reale PostgreSQL-Compose-Laufzeit, Ubuntu-/Windows-CI
+  und menschliches PR-Review in 132C.
+
+- Schritt 132A auf `feat/postgresql-infrastructure-pr-b-clean`, ausgehend von `main`
+  (`217e8b9`): Die öffentliche Auswahl `--infrastructure postgresql` nutzt die bestehende
+  Format-4-Engine. Sie setzt einen bytegenau geprüften Docker- und Sprachzustand voraus,
+  ergänzt `db-postgres`, Volume, Healthcheck, lokale Compose-Secret-Referenz und
+  `docs/POSTGRESQL.md`, und erweitert ausschließlich die exakt bekannte t0003-`.gitignore`
+  um `/.secrets/postgres_password`. Passwortdateien werden nicht erzeugt. Eine spätere
+  Java-Installation erhält die PostgreSQL-Projektion; Reverse-Restore verweigert falsche
+  Reihenfolgen oder Fremdänderungen. Historische Docker-Projektionen und die acht
+  Sprach-CI-Zustände bleiben unverändert. Der Registry-Index von `postgres:18.6` wurde am
+  2026-11-04 erneut als `sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81`
+  bestätigt. `python scripts/check.py`, die Infrastruktursuite (32 Tests), die gesamte
+  Generatorsuite (225 Tests, 7 übersprungen) sowie ein installierter CLI-E2E-Test gegen
+  einen temporären echten t0003-Checkout bestanden im Codespace. Es wurden keine Container,
+  Datenbanken oder Volumes gestartet bzw. verändert. Ein PR, Push und Compose-/Datenbank-
+  Laufzeitabnahme stehen aus; Sicherheitsmatrix und CI-Härtung folgen in 132B/132C.
+
 - Schritt 131 auf `feat/postgresql-infrastructure-pr-a`, ausgehend von `main` auf
   Merge-Commit `35352a4`: PostgreSQL wird als fester interner Infrastrukturzustand und
   Sicherheitsvertrag vorbereitet. Öffentliche Auswahl, Dateien und Laufzeit folgen erst
@@ -260,8 +309,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Den PostgreSQL-PR A und seine Ubuntu-/Windows-CI auf dem finalen Commit prüfen;
-erst nach erfolgreicher Abnahme die Mergefähigkeit beurteilen.
+PostgreSQL in die bestehende Format-4-Projektion integrieren und die Zustands- und
+Sicherheitsmatrix ausführen.
 
 ## Risiken
 

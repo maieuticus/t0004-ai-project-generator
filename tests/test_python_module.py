@@ -14,6 +14,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import installed_version, python_compat, python_module, transaction
+from project_generator.postgresql_files import TEMPLATE_GITIGNORE
 
 CI = b'''name: Template-Pr\xc3\xbcfung
 on:
@@ -70,6 +71,7 @@ class PythonModule(unittest.TestCase):
                               ".github/workflows/ci.yml": CI}.items():
             self.assertEqual(hashlib.sha256(content).hexdigest(), python_compat.VERIFIED_FILES[name])
             (self.project / name).write_bytes(content)
+        (self.project / ".gitignore").write_bytes(TEMPLATE_GITIGNORE)
         self.env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1",
                         T0004_BACKUP_HOME=str(self.base / "data"))
         self.plan_file = self.base / "plan.json"
