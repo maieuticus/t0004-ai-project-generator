@@ -5,19 +5,35 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
-- Schritt 133B auf `test/postgresql-infrastructure-pr-c`, ausgehend von `7d2465d`:
-  blockiert vor dem Zugriff auf p9999. `gh auth status` bestätigt eine aktive
-  GitHub-Anmeldung, aber `gh api repos/maieuticus/p9999-ai-project-template-test-repo`
-  liefert 404; `git ls-remote` auf dasselbe Repository liefert HTTP 403
-  („Write access to repository not granted“). Damit sind weder `p9999/main` noch
-  vorhandene PRs #1–#7 lesbar/verifizierbar und es konnten keine neuen Klone,
-  Branches oder Test-PRs sicher angelegt werden. Es wurde nichts an p9999 oder
-  älteren Testklonen verändert. Der Remote-Stand `t0004/main` wurde separat als
-  `6dac03c` bestätigt; der lokale Feature-Branch wurde nicht gepusht.
-  Unabhängig davon bestanden `python -m unittest discover -s integration -v`
-  (29 Tests), `python scripts/check.py`, `python scripts/docker_ci.py --config-only`
-  und `git diff --check`. Keine Generatoränderung. Fortsetzung erfordert bestätigten
-  Lese- und Schreibzugriff auf p9999 (oder einen vom Nutzer freigegebenen Ersatz).
+- Schritt 133B.1 auf `test/postgresql-infrastructure-pr-c`, ausgehend von
+  `b958661`: Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` ist
+  bestätigt. `p9999/main` steht unverändert auf `bb19b76`; PRs #1–#7 wurden gelesen.
+  Für p9999-Git-Zugriffe wurde ausschließlich pro Befehl der GitHub-CLI-Credential-
+  Helper mit dem bereitgestellten Token verwendet; globale Git-Konfiguration und
+  Remote-URLs blieben unverändert. `t0004/main` bleibt auf `6dac03c`.
+  Zwei frische Klone erzeugten isolierte Projekte: Python + Docker + PostgreSQL
+  (PR #9, initial `ece9d9b`, aktueller Head `519af61`) und Python + Docker +
+  PostgreSQL + TypeScript + Java (PR #8, initial `0afe928`, aktueller Head
+  `abeae6e`). Beide PRs sind offen und ungemergt. Frische Checkouts ergaben bei
+  allen installierten Modulen und PostgreSQL No-op-Pläne; Git-Index und Arbeitsbaum
+  blieben unverändert. PostgreSQL 18.6 bestand lokal Healthcheck, SCRAM-Anmeldung,
+  Ablehnung falscher Passwörter, SQL-Lesen/Schreiben und Persistenz nach
+  Container-Neuerstellung. Beide Compose-Stacks bauten und ihre Anwendungen liefen.
+  Secrets lagen nur temporär unter `.secrets`, wurden entfernt und sind nicht
+  versioniert; nach den Tests blieben keine passenden Container, Volumes oder
+  Netzwerke zurück.
+  Das Ausführen der generierten PostgreSQL-CI entdeckte einen fehlerhaft
+  gequoteten SQL-String. Die Template-Korrektur samt Regressionstest ist lokal
+  als `19364f9` festgehalten; beide p9999-Testzweige enthalten die korrigierte
+  Projektion. Die generierten Ubuntu-Laufzeitworkflows bestanden lokal für beide
+  Projektvarianten. Die GitHub-Actions auf den aktuellen PR-Heads sind jedoch
+  noch `queued`: PR #9 Template-Prüfung `41865511191`, Docker Compose
+  `41865511172`; PR #8 Template-Prüfung `41865515513`, Docker Compose
+  `41865515644`. Daher ist deren Ubuntu-/Windows-CI noch nicht bestätigt.
+  `python -m unittest discover -s tests -v` bestand mit 229 Tests (7 übersprungen),
+  außerdem Projektcheck, Python-/TypeScript-/Java-Anwendungsprüfungen und
+  `git diff --check`. Keine PR wurde gemergt; weder `p9999/main` noch `t0004/main`
+  wurde verändert.
 
 - Schritt 133A auf `test/postgresql-infrastructure-pr-c`, ausgehend von `main` /
   `6dac03c`: `scripts/docker_ci.py` verwendet weiterhin den bestehenden Docker-CI-Pfad
@@ -350,9 +366,11 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` herstellen und danach
-133B mit zwei isolierten Testklonen fortsetzen. Erst nach erfolgreichem 133B ist
-133C zur abschließenden PostgreSQL-PR-C-Konvergenz sinnvoll.
+Die ausstehenden GitHub-Actions für PR #8 und #9 abwarten und deren Ubuntu- sowie
+Windows-Ergebnisse verifizieren. Danach erst nach Nutzer-LOS Schritt 133C zur
+abschließenden PostgreSQL-PR-C-Konvergenz beginnen. Empfehlung dafür: starkes
+Modell, Reasoning-Stufe hoch. Der Gesamtfortschritt bleibt bis zum erfolgreichen
+PostgreSQL-PR-C-Merge bei 76 %.
 
 ## Risiken
 
