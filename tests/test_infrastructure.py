@@ -452,15 +452,16 @@ class DockerInfrastructure(unittest.TestCase):
             self.assertEqual(config.read_bytes(), altered)
         config.write_bytes(original_config)
 
-        dockerfile = self.project / "Dockerfile.python"
-        mode = stat.S_IMODE(dockerfile.stat().st_mode)
-        try:
-            dockerfile.chmod(mode & ~stat.S_IWRITE)
-            refused = self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
-            self.assertEqual(refused.returncode, 1)
-            self.assertEqual((self.project / ".git/index").read_bytes(), index)
-        finally:
-            dockerfile.chmod(mode)
+        if os.name != "nt":
+            dockerfile = self.project / "Dockerfile.python"
+            mode = stat.S_IMODE(dockerfile.stat().st_mode)
+            try:
+                dockerfile.chmod(mode & ~stat.S_IWRITE)
+                refused = self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+                self.assertEqual(refused.returncode, 1)
+                self.assertEqual((self.project / ".git/index").read_bytes(), index)
+            finally:
+                dockerfile.chmod(mode)
 
         guard = self.base / "docker-guard"
         guard.mkdir()
