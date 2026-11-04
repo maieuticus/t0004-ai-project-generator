@@ -5,6 +5,22 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 132: Der Arbeitsbranch `feat/postgresql-infrastructure-pr-b` enthält im
+  Commit `d7acac5` vier Gitlinks auf die vom Auftrag ausgeschlossenen `.work-p9999-*`-
+  Testklone. Diese Fremdänderung wurde nicht verändert. Für die Vorbereitung wurde
+  `feat/postgresql-infrastructure-pr-b-clean` als separater Arbeitsbaum ab `main`
+  (`217e8b9`) angelegt. Eine noch nicht öffentlich verwendete Compose- und Workflow-
+  Variante, Dokumentationsvorlage und geschlossene Projektionskennung sind begonnen;
+  öffentliche Auswahl und Transaktionsbindung fehlen noch.
+  Es gibt keinen PR und keine neue CI-Abnahme. Dieser gesonderte Arbeitsbranch enthält
+  keine Testklone und dient der Fortsetzung im Codespace; er ist nicht mergefähig.
+  Der am 2026-11-04 direkt bei der Registry abgefragte Index für `postgres:18.6`
+  war `sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81`
+  und wurde am selben Tag erneut bestätigt. Die t0003-`.gitignore` an Commit `6e8363a` enthält
+  keine explizite Regel für `.secrets/postgres_password`. Projektcheck, der gezielte
+  bestehende Docker-Auswahltest und zwei einfache Projektionstests bestanden; die
+  PostgreSQL-Variante ist weder mit Compose noch als Transaktion geprüft.
+
 - Schritt 131 auf `feat/postgresql-infrastructure-pr-a`, ausgehend von `main` auf
   Merge-Commit `35352a4`: PostgreSQL wird als fester interner Infrastrukturzustand und
   Sicherheitsvertrag vorbereitet. Öffentliche Auswahl, Dateien und Laufzeit folgen erst
@@ -260,8 +276,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Den PostgreSQL-PR A und seine Ubuntu-/Windows-CI auf dem finalen Commit prüfen;
-erst nach erfolgreicher Abnahme die Mergefähigkeit beurteilen.
+PostgreSQL in die bestehende Format-4-Projektion integrieren und die Zustands- und
+Sicherheitsmatrix ausführen.
 
 ## Risiken
 

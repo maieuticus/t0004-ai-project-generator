@@ -19,9 +19,14 @@ def valid_infrastructure(values: object, modules: object) -> bool:
                 or (INFRASTRUCTURE[DOCKER_COMPOSE] in values and not modules))
 
 
-# Future transaction paths; no PostgreSQL snapshot or public operation exists in PR A.
+# A distinct projection keeps historical Docker snapshot path lists unchanged.
 POSTGRESQL_PROJECTION = ("config/project.yaml", "compose.yaml", ".github/workflows/docker.yml",
                          "docs/DOCKER.md", "docs/POSTGRESQL.md", ".gitignore")
+
+
+def known_postgresql_projection(paths: object) -> bool:
+    """Accept only the fixed PostgreSQL projection, in its canonical order."""
+    return isinstance(paths, list) and tuple(paths) == POSTGRESQL_PROJECTION
 
 
 def docker_projection(modules: frozenset[str]) -> tuple[str, ...]:

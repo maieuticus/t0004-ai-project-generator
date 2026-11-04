@@ -6,6 +6,8 @@ PYTHON_IMAGE = "python:3.13.13-slim-bookworm@sha256:355bfa66770995d7e9a0da4b3473
 NODE_IMAGE = "node:24.11.1-bookworm-slim@sha256:48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57"
 JDK_IMAGE = "eclipse-temurin:25.0.2_10-jdk-noble@sha256:b866059783e3dd2dd183937b713e77d0fd94d87ce7bdd4ed4a77d79e97a276cd"
 JRE_IMAGE = "eclipse-temurin:25.0.2_10-jre-noble@sha256:a051234f864d7ab78bf0188c3c540ac06c711a3b566f00f246be37073cc99dce"
+# Docker Registry manifest index, verified 2026-11-04 for library/postgres:18.6.
+POSTGRES_IMAGE = "postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81"
 
 DOCKERFILES = {
     "python": f'''FROM {PYTHON_IMAGE}
@@ -92,8 +94,47 @@ jobs:
           done < <(docker compose config --services)
 '''
 
+POSTGRES_WORKFLOW = b'''name: Docker Compose
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compose:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Compose with isolated test secret
+        shell: bash
+        run: |
+          set -eu
+          testdir="$(mktemp -d)"
+          cp compose.yaml "$testdir/compose.yaml"
+          mkdir "$testdir/.secrets"
+          printf 'ci-only-test-value' > "$testdir/.secrets/postgres_password"
+          docker compose version
+          docker compose -f "$testdir/compose.yaml" config -q
+          rm -rf "$testdir"
+      - name: Build and run console services
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -eu
+          docker compose build
+          for service in app-python app-typescript app-java; do
+            if docker compose config --services | grep -Fxq "$service"; then
+              docker compose run --rm --no-deps "$service"
+            fi
+          done
+'''
 
-def docker_files(modules: frozenset[str]) -> dict[str, bytes]:
+
+def docker_files(modules: frozenset[str], postgresql: bool = False) -> dict[str, bytes]:
     """Return the complete trusted projection in canonical module order."""
     if not modules or not modules.issubset(MODULES):
         raise ValueError("Docker Compose benötigt mindestens ein bekanntes Sprachmodul.")
@@ -130,6 +171,35 @@ Projekt anzupassen. PostgreSQL ist nicht implementiert.
 Images sind auf Version und Mehrplattform-Digest festgelegt. Für ein Update offizielle
 Docker-Hub-Tags und Digests prüfen, die Vorlagen ändern und alle Builds und Tests wiederholen.
 '''
-    return {".dockerignore": IGNORE, "compose.yaml": compose.encode("utf-8"),
+    if postgresql:
+        compose += f'''  db-postgres:
+    image: {POSTGRES_IMAGE}
+    environment:
+      POSTGRES_USER: project_admin
+      POSTGRES_DB: project_db
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U project_admin -d project_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  postgres_data:
+secrets:
+  postgres_password:
+    file: .secrets/postgres_password
+'''
+        doc = doc.replace("Die Container erhalten keine Volumes, Host-Mounts, Docker-Sockets oder privilegierten Rechte.\n", "Die Konsolenstarter erhalten keine Volumes, Host-Mounts, Docker-Sockets oder privilegierten Rechte.\n")
+        doc = doc.replace("PostgreSQL ist nicht implementiert.", "Für PostgreSQL siehe docs/POSTGRESQL.md.")
+    result = {".dockerignore": IGNORE, "compose.yaml": compose.encode("utf-8"),
             **{f"Dockerfile.{name}": DOCKERFILES[name] for name in MODULES if name in modules},
             "docs/DOCKER.md": doc.encode("utf-8"), ".github/workflows/docker.yml": WORKFLOW}
+    if postgresql:
+        from .postgresql_files import POSTGRESQL_DOC
+        result[".github/workflows/docker.yml"] = POSTGRES_WORKFLOW
+        result["docs/POSTGRESQL.md"] = POSTGRESQL_DOC
+    return result
