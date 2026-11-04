@@ -7,14 +7,17 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 - Schritt 133B.1 auf `test/postgresql-infrastructure-pr-c`, ausgehend von
   `b958661`: Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` ist
-  bestätigt. `p9999/main` steht unverändert auf `bb19b76`; PRs #1–#7 wurden gelesen.
+  bestätigt. `p9999/main` steht unverändert auf `bb19b76`; die bestehenden
+  `maieuticus/p9999-ai-project-template-test-repo#1` bis
+  `maieuticus/p9999-ai-project-template-test-repo#7` wurden gelesen.
   Für p9999-Git-Zugriffe wurde ausschließlich pro Befehl der GitHub-CLI-Credential-
   Helper mit dem bereitgestellten Token verwendet; globale Git-Konfiguration und
   Remote-URLs blieben unverändert. `t0004/main` bleibt auf `6dac03c`.
   Zwei frische Klone erzeugten isolierte Projekte: Python + Docker + PostgreSQL
-  (PR #9, initial `ece9d9b`, aktueller Head `519af61`) und Python + Docker +
-  PostgreSQL + TypeScript + Java (PR #8, initial `0afe928`, aktueller Head
-  `abeae6e`). Beide PRs sind offen und ungemergt. Frische Checkouts ergaben bei
+  (`maieuticus/p9999-ai-project-template-test-repo#9`, initial `ece9d9b`,
+  aktueller Head `519af61`) und Python + Docker + PostgreSQL + TypeScript + Java
+  (`maieuticus/p9999-ai-project-template-test-repo#8`, initial `0afe928`,
+  aktueller Head `abeae6e`). Beide PRs sind offen und ungemergt. Frische Checkouts ergaben bei
   allen installierten Modulen und PostgreSQL No-op-Pläne; Git-Index und Arbeitsbaum
   blieben unverändert. PostgreSQL 18.6 bestand lokal Healthcheck, SCRAM-Anmeldung,
   Ablehnung falscher Passwörter, SQL-Lesen/Schreiben und Persistenz nach
@@ -26,10 +29,13 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   gequoteten SQL-String. Die Template-Korrektur samt Regressionstest ist lokal
   als `19364f9` festgehalten; beide p9999-Testzweige enthalten die korrigierte
   Projektion. Die generierten Ubuntu-Laufzeitworkflows bestanden lokal für beide
-  Projektvarianten. Die GitHub-Actions auf den aktuellen PR-Heads sind jedoch
-  noch `queued`: PR #9 Template-Prüfung `41865511191`, Docker Compose
-  `41865511172`; PR #8 Template-Prüfung `41865515513`, Docker Compose
-  `41865515644`. Daher ist deren Ubuntu-/Windows-CI noch nicht bestätigt.
+  Projektvarianten. Auch die GitHub-Actions auf den aktuellen PR-Heads bestanden:
+  `maieuticus/p9999-ai-project-template-test-repo#9` Template-Prüfung
+  `41865511191` und Docker Compose `41865511172`, jeweils Ubuntu und Windows;
+  `maieuticus/p9999-ai-project-template-test-repo#8` Template-Prüfung
+  `41865515513` und Docker Compose `41865515644`, jeweils Ubuntu und Windows. Auf Ubuntu umfasste Docker Compose
+  den PostgreSQL-Laufzeittest; Windows prüfte Compose-Konfiguration und Secret,
+  während der Linux-only-Laufzeitschritt wie vorgesehen übersprungen wurde.
   `python -m unittest discover -s tests -v` bestand mit 229 Tests (7 übersprungen),
   außerdem Projektcheck, Python-/TypeScript-/Java-Anwendungsprüfungen und
   `git diff --check`. Keine PR wurde gemergt; weder `p9999/main` noch `t0004/main`
@@ -366,11 +372,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Die ausstehenden GitHub-Actions für PR #8 und #9 abwarten und deren Ubuntu- sowie
-Windows-Ergebnisse verifizieren. Danach erst nach Nutzer-LOS Schritt 133C zur
-abschließenden PostgreSQL-PR-C-Konvergenz beginnen. Empfehlung dafür: starkes
-Modell, Reasoning-Stufe hoch. Der Gesamtfortschritt bleibt bis zum erfolgreichen
-PostgreSQL-PR-C-Merge bei 76 %.
+Nach Nutzer-LOS Schritt 133C zur abschließenden PostgreSQL-PR-C-Konvergenz
+beginnen. Empfehlung dafür: starkes Modell, Reasoning-Stufe hoch. Der
+Gesamtfortschritt bleibt bis zum erfolgreichen PostgreSQL-PR-C-Merge bei 76 %.
 
 ## Risiken
 
