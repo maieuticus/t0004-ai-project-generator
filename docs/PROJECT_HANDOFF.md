@@ -40,8 +40,14 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   Generator-Plan und Apply starten weder Docker noch Datenbankbefehle; Secrets
   und Archive wurden nicht versioniert, keine Host-Ports oder fremden Volumes
   verwendet. CI-Bereinigung war auf eindeutig eigene Testressourcen begrenzt.
-  Noch ausstehend: aktuelle Dokumentationsänderungen committen, Branch pushen,
-  t0004-Draft-PR C erstellen und dessen finale Ubuntu-/Windows-CI abwarten.
+  t0004-Draft-PR C ist [#25](https://github.com/maieuticus/t0004-ai-project-generator/pull/25)
+  gegen `main`; Commit `20021bba7ed6e20d72aed0b304615905d8877b34` besteht beide
+  Basis- und Docker-Workflows auf Ubuntu und Windows. Die vier Runs
+  `41871532914`, `41871571088`, `41871532874` und `41871570873` sind erfolgreich;
+  die Docker-Workflows enthalten den PostgreSQL-Laufzeittest auf Ubuntu und
+  Compose-Prüfung auf Windows. Dieser Handoff-Nachtrag ändert nur die Übergabe;
+  seine neuen CI-Läufe auf dem nachfolgenden Commit müssen ebenfalls erfolgreich
+  abschließen. PR C bleibt Draft und ungemergt.
 
 - Schritt 133B.1 auf `test/postgresql-infrastructure-pr-c`, ausgehend von
   `b958661`: Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` ist
