@@ -17,5 +17,14 @@ Container-Neuerstellung, fehlende Host-Portbindung und Geheimnisabwesenheit. Pla
 Restore führen keine Docker- oder Datenbankbefehle aus und verändern keine Volumes.
 
 Ein Generator-Snapshot sichert ausschließlich Projektdateien. Er ist kein PostgreSQL-Backup und
-stellt keine Datenbankdaten wieder her. `pg_dump`/`pg_restore` und weitergehende Recovery-
-Nachweise gehören zu PostgreSQL PR C.
+stellt keine Datenbankdaten wieder her. Die Ubuntu-Docker-CI führt `pg_dump --format=custom`
+aus und stellt das Archiv mit `pg_restore` in eine separate Testdatenbank wieder her. Sie
+vergleicht Tabellenstruktur, Zeilenzahl und eindeutige Testwerte und erwartet die Ablehnung
+eines ungültigen Archivs sowie fehlender Zugangsdaten. Das Testarchiv liegt außerhalb des
+Projektverzeichnisses; das zufällige Testpasswort liegt nur in der ignorierten Secret-Datei
+und wird nicht protokolliert. Fehler im Backup-/Restore-Pfad schlagen den Docker-CI-Job fehl.
+
+Dieser Test ist kein Backupdienst für Projekte. Ein logisches `pg_dump` enthält nicht alle
+clusterweiten Rollen oder Serverkonfiguration und ersetzt keine vollständige Cluster-Sicherung
+oder Point-in-Time-Recovery (PITR). Produktionssicherungen, Aufbewahrung, externe Speicherung
+und Wiederherstellungsverfahren müssen separat geplant und regelmäßig geprobt werden.

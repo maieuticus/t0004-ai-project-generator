@@ -5,6 +5,114 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
+  (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
+  PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
+  Sie besteht lokal einschließlich isoliertem Compose-Projekt und eigenem Volume,
+  zufälligem Secret, SCRAM-Anmeldung, Custom-Format-`pg_dump`, `pg_restore` in
+  eine separate Testdatenbank, Schema-/Zeilen-/Wertvergleich, Ablehnung ungültiger
+  Archive und fehlender Zugangsdaten, Anwendungs-Smoke-Tests sowie Reverse-Restore.
+  Das vollständige `scripts/docker_ci.py`-Ergebnis ist erfolgreich; zusätzlich
+  bestanden der aktuelle Compose-Konfigurationslauf mit Fresh-Checkout-No-op
+  für Python, TypeScript, Java und PostgreSQL, unverändertem Git-Index und
+  Reverse-Restore, `python scripts/check.py`, 16 Template-Basistests,
+  229 Generator-Tests (7 übersprungen), 29 Integrationstests,
+  PostgreSQL-Projektionstest und `git diff --check`. Die Generator-Suite umfasst
+  die PostgreSQL-Sicherheits-/Konflikt-/Restore-Fälle, sieben Sprachmengen und
+  15 unterstützte PostgreSQL-Installationsreihenfolgen. Der SQL-Quoting-Fix
+  `19364f9` ist unverändert enthalten.
+  Die Dokumentation in README, Vertrag, `docs/POSTGRESQL.md` und der erzeugten
+  PostgreSQL-Doku beschreibt die tatsächlich geprüfte Sicherungsstrecke und
+  stellt klar, dass logische Dumps weder vollständige Cluster-Backups noch PITR
+  ersetzen.
+  Die p9999-Test-PRs bleiben offen und ungemergt: [#9](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/9),
+  finaler Head `519af61c2f4cb12fa609d21c72fb3da07c70bfe6`, und
+  [#8](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/8),
+  finaler Head `abeae6e6a0905ed0ccd64f4082d7f6db655d3ac6`.
+  Ihre finalen Template-/Docker-Workflows waren zuvor auf Ubuntu und Windows
+  erfolgreich verifiziert (PR #9: `41865511191`, `41865511172`; PR #8:
+  `41865515513`, `41865515644`); Ubuntu umfasste den PostgreSQL-Laufzeittest,
+  Windows Compose-Konfiguration und Secret. In dieser Sitzung waren PR-Heads,
+  Offenstatus und `p9999/main` (`bb19b7637bf8a4e21e864543b66ef2ca630cdad8`)
+  lesend bestätigt; die erneute Abfrage der Check-Läufe wurde vom Token mit
+  HTTP 403 abgewiesen (fehlende Checks-Leseberechtigung). Es gab keine Änderung
+  an p9999/main oder t0004/main. Keine Produktiv-/NAS-Datenbank wurde kontaktiert;
+  Generator-Plan und Apply starten weder Docker noch Datenbankbefehle; Secrets
+  und Archive wurden nicht versioniert, keine Host-Ports oder fremden Volumes
+  verwendet. CI-Bereinigung war auf eindeutig eigene Testressourcen begrenzt.
+  t0004-Draft-PR C ist [#25](https://github.com/maieuticus/t0004-ai-project-generator/pull/25)
+  gegen `main`; Commit `20021bba7ed6e20d72aed0b304615905d8877b34` besteht beide
+  Basis- und Docker-Workflows auf Ubuntu und Windows. Die vier Runs
+  `41871532914`, `41871571088`, `41871532874` und `41871570873` sind erfolgreich;
+  die Docker-Workflows enthalten den PostgreSQL-Laufzeittest auf Ubuntu und
+  Compose-Prüfung auf Windows. Auch der nachfolgende Handoff-Commit `fb5fce2`
+  bestand die finalen Basis- und Docker-Workflows auf Ubuntu und Windows
+  (`41873593887`, `41873595507`, `41873593911`, `41873595411`). PR C bleibt
+  Draft und ungemergt.
+
+- Schritt 133B.1 auf `test/postgresql-infrastructure-pr-c`, ausgehend von
+  `b958661`: Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` ist
+  bestätigt. `p9999/main` steht unverändert auf `bb19b76`; die bestehenden
+  `maieuticus/p9999-ai-project-template-test-repo#1` bis
+  `maieuticus/p9999-ai-project-template-test-repo#7` wurden gelesen.
+  Für p9999-Git-Zugriffe wurde ausschließlich pro Befehl der GitHub-CLI-Credential-
+  Helper mit dem bereitgestellten Token verwendet; globale Git-Konfiguration und
+  Remote-URLs blieben unverändert. `t0004/main` bleibt auf `6dac03c`.
+  Zwei frische Klone erzeugten isolierte Projekte: Python + Docker + PostgreSQL
+  (`maieuticus/p9999-ai-project-template-test-repo#9`, initial `ece9d9b`,
+  aktueller Head `519af61`) und Python + Docker + PostgreSQL + TypeScript + Java
+  (`maieuticus/p9999-ai-project-template-test-repo#8`, initial `0afe928`,
+  aktueller Head `abeae6e`). Beide PRs sind offen und ungemergt. Frische Checkouts ergaben bei
+  allen installierten Modulen und PostgreSQL No-op-Pläne; Git-Index und Arbeitsbaum
+  blieben unverändert. PostgreSQL 18.6 bestand lokal Healthcheck, SCRAM-Anmeldung,
+  Ablehnung falscher Passwörter, SQL-Lesen/Schreiben und Persistenz nach
+  Container-Neuerstellung. Beide Compose-Stacks bauten und ihre Anwendungen liefen.
+  Secrets lagen nur temporär unter `.secrets`, wurden entfernt und sind nicht
+  versioniert; nach den Tests blieben keine passenden Container, Volumes oder
+  Netzwerke zurück.
+  Das Ausführen der generierten PostgreSQL-CI entdeckte einen fehlerhaft
+  gequoteten SQL-String. Die Template-Korrektur samt Regressionstest ist lokal
+  als `19364f9` festgehalten; beide p9999-Testzweige enthalten die korrigierte
+  Projektion. Die generierten Ubuntu-Laufzeitworkflows bestanden lokal für beide
+  Projektvarianten. Auch die GitHub-Actions auf den aktuellen PR-Heads bestanden:
+  `maieuticus/p9999-ai-project-template-test-repo#9` Template-Prüfung
+  `41865511191` und Docker Compose `41865511172`, jeweils Ubuntu und Windows;
+  `maieuticus/p9999-ai-project-template-test-repo#8` Template-Prüfung
+  `41865515513` und Docker Compose `41865515644`, jeweils Ubuntu und Windows. Auf Ubuntu umfasste Docker Compose
+  den PostgreSQL-Laufzeittest; Windows prüfte Compose-Konfiguration und Secret,
+  während der Linux-only-Laufzeitschritt wie vorgesehen übersprungen wurde.
+  `python -m unittest discover -s tests -v` bestand mit 229 Tests (7 übersprungen),
+  außerdem Projektcheck, Python-/TypeScript-/Java-Anwendungsprüfungen und
+  `git diff --check`. Keine PR wurde gemergt; weder `p9999/main` noch `t0004/main`
+  wurde verändert.
+
+- Schritt 133A auf `test/postgresql-infrastructure-pr-c`, ausgehend von `main` /
+  `6dac03c`: `scripts/docker_ci.py` verwendet weiterhin den bestehenden Docker-CI-Pfad
+  und den echten kompatiblen t0003-Commit `6e8363a`. Python, Docker Compose,
+  PostgreSQL, TypeScript und Java werden installiert; danach werden die Generator-
+  Änderungen lokal committed und in einem frischen Checkout Python, TypeScript,
+  Java und PostgreSQL auf No-op geprüft. Die Compose-Projektion enthält alle drei
+  Anwendungen und `db-postgres`; Git-Index und frischer Arbeitsbaum bleiben bei den
+  No-op-Plänen unverändert.
+  PostgreSQL 18.6 lief in einem zufällig benannten Compose-Projekt mit einem
+  ausschließlich dafür angelegten Volume, SCRAM-TCP, ohne Host-Port und mit
+  nicht privilegierter Containerkonfiguration. Healthcheck, gültige und ungültige
+  Zugangsdaten, SQL-Schreiben/-Lesen und Datenpersistenz nach Container-Neuerstellung
+  bestanden. Die Datei des zufälligen Testpassworts wird mit Modus 0600 in einem
+  ignorierten Verzeichnis mit Modus 0700 gehalten; das Passwort war weder in
+  versionierten Dateien, Logs noch im Backup enthalten.
+  `pg_dump` erzeugte ein Custom-Format-Backup außerhalb des Datenvolumes. `pg_restore`
+  prüfte das Archiv und stellte es in eine neue Datenbank wieder her; Tabellenstruktur,
+  Zeilenanzahl und konkrete Testwerte stimmten überein. Ungültiges Archiv und fehlende
+  Zugangsdaten wurden abgelehnt. Dies ist ein logisches Backup nur der Testdatenbank,
+  kein Cluster-Backup (globale Rollen/Konfiguration und PITR sind nicht enthalten).
+  Generator-Snapshots sichern Projektdateien, Docker-Volume-Persistenz übersteht eine
+  Container-Neuerstellung; beides ersetzt das logische Backup nicht.
+  `python scripts/docker_ci.py`, 229 Generator-Tests (7 übersprungen), 16 Template-
+  Tests, 36 gezielte Infrastruktur-/TypeScript-Tests, Projektcheck und Syntaxprüfung
+  bestanden. Zugehörige Container, Volume und Netzwerk wurden nach Labelprüfung
+  entfernt; keine `t0004pg`-Testressource blieb zurück. Kein Push, PR oder Merge.
+
 - Schritt 132C auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `f6b8cc2`: Die lokale Docker-Abnahme verwendet ein zufällig benanntes, temporäres
   Compose-Projekt und eine nur dort erzeugte, restriktiv geschützte Passwortdatei.
@@ -16,10 +124,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `python scripts/docker_ci.py` bestand im Codespace und hinterließ keine Ressourcen
   mit dem Präfix `t0004pg`. Projektcheck, `git diff --check`, 16 Template-Tests,
   229 Generator-Tests (7 übersprungen) und 29 t0003-Integrationstests bestanden.
-  Draft-PR [#24](https://github.com/maieuticus/t0004-ai-project-generator/pull/24)
-  ist veröffentlicht. Die Ubuntu-/Windows-Basis- und Docker-Workflows auf
-  `40359fb` bestanden, einschließlich der Windows-Compose-Validierung; kein Merge
-  ohne menschliches Review.
+  Die Ubuntu-/Windows-Basis- und Docker-Workflows auf `40359fb` bestanden,
+  einschließlich der Windows-Compose-Validierung. Der damalige Draft-PR
+  [#24](https://github.com/maieuticus/t0004-ai-project-generator/pull/24) ist mit
+  Merge-Commit `6dac03c` in `main` enthalten.
 
 - Schritt 132B auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `c062723`: Die PostgreSQL-Sicherheitsmatrix verwendet reale Format-4-Projektionen
@@ -35,8 +143,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   (7 übersprungen), `python -m unittest discover -s integration -v` mit 29 Tests;
   `python scripts/docker_ci.py --config-only`, Projektcheck und `git diff --check`
   bestanden. Es wurden keine Container, Datenbanken oder Volumes gestartet bzw.
-  verändert. Noch offen bleiben reale PostgreSQL-Compose-Laufzeit, Ubuntu-/Windows-CI
-  und menschliches PR-Review in 132C.
+  verändert. Reale PostgreSQL-Compose-Laufzeit und Ubuntu-/Windows-CI wurden im
+  anschließenden Schritt 132C abgeschlossen; der PR wurde mit `6dac03c` gemergt.
 
 - Schritt 132A auf `feat/postgresql-infrastructure-pr-b-clean`, ausgehend von `main`
   (`217e8b9`): Die öffentliche Auswahl `--infrastructure postgresql` nutzt die bestehende
@@ -309,8 +417,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-PostgreSQL in die bestehende Format-4-Projektion integrieren und die Zustands- und
-Sicherheitsmatrix ausführen.
+Nach Nutzer-LOS Schritt 133C zur abschließenden PostgreSQL-PR-C-Konvergenz
+beginnen. Empfehlung dafür: starkes Modell, Reasoning-Stufe hoch. Der
+Gesamtfortschritt bleibt bis zum erfolgreichen PostgreSQL-PR-C-Merge bei 76 %.
 
 ## Risiken
 

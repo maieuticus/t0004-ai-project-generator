@@ -104,8 +104,16 @@ nicht ohne unabhängig geprüftes Backup.
 Generator-Restore nimmt nur generierte Projektdateien zurück. Es startet oder stoppt
 keine Container und ändert oder löscht weder Volumes noch Datenbankdaten. Ein
 Generator-Snapshot ist **kein Datenbankbackup** und stellt keine Datenbank wieder her.
-Manuelles `pg_dump` und `pg_restore` sind als später in PR C zu prüfender Ablauf
-vorgesehen; eine erfolgreiche Sicherung oder Wiederherstellung wird nicht behauptet.
+Die Ubuntu-Docker-CI führt `pg_dump` im Custom-Format aus und stellt das Archiv mit
+`pg_restore` in einer separaten Testdatenbank wieder her. Sie vergleicht Schema,
+Datensatzanzahl und eindeutige Testwerte und erwartet die Ablehnung eines ungültigen
+Archivs sowie fehlender Zugangsdaten. Der Test schlägt fehl, wenn Sicherung oder
+Wiederherstellung scheitert. Er verwendet nur ein zufälliges Testpasswort und
+temporäre Compose-Ressourcen; Passwort und Archivinhalt werden nicht protokolliert.
+
+Dieser Test ist kein Backupdienst und sichert nur eine logische Testdatenbank. Er ersetzt
+weder ein vollständiges Cluster-Backup (globale Rollen und Serverkonfiguration) noch
+Point-in-Time-Recovery (PITR); beides wird damit nicht eingerichtet oder geprüft.
 
 Das offizielle Docker-Image ist auf Version und Registry-Index-Digest festgelegt.
 Für Updates die offizielle Registry, Plattformen und den Digest erneut prüfen und
