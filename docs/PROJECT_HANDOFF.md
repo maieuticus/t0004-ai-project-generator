@@ -21,7 +21,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   besteht außerhalb der Java-Laufzeit: 15 von 21 Tests sind erfolgreich; fünf
   Java-Runtime-Fälle und der Java-Startertest scheitern, weil kein JDK bzw. kein
   `java` im lokalen `PATH` vorhanden ist. Keine Richtlinien- oder Systemänderung
-  vorgenommen. Commit, Push, PR und GitHub-CI stehen noch aus.
+  vorgenommen. Commit `bb59598` und [PR #20](https://github.com/maieuticus/t0004-ai-project-generator/pull/20)
+  sind veröffentlicht. Die GitHub-Actions für Push und PR bestanden jeweils auf
+  Ubuntu und Windows. Der PR bleibt für menschliches Review offen und wird nicht
+  selbst gemergt.
 
 - Schritt 124D auf `test/java-module-e2e`: Projektcheck, 16 Windows-Basistests,
   191 Generator-Tests (24 plattformbedingt übersprungen) und alle 21 Paket-
@@ -156,8 +159,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Vollständige Generator- und Basisregression für Docker PR A ausführen; anschließend
-Commit, Push, PR und Ubuntu-/Windows-CI prüfen.
+Menschliches Review von PR #20; anschließend entscheiden, ob Docker PR B mit
+öffentlicher Auswahl und den fest gerenderten Dateien freigegeben wird.
 
 ## Risiken
 
