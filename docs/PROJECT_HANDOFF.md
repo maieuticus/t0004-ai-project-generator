@@ -5,6 +5,22 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 129A ergänzt sechs Sicherheitsintegrationstests im echten, temporären
+  t0003-Checkout. Sie prüfen fremde Compose-Dateien, veraltete Pläne und Attribute,
+  manipulierte Plan-IDs, Zielhashes und Metadaten, Snapshot-Manipulation und Restore,
+  sowie deterministisch injizierte Eingriffe nach Snapshot und während Apply. Bei den
+  Injektionsfällen wird der öffentliche CLI-Einstieg im Prozess aufgerufen; sonst die
+  installierte CLI in einem Unterprozess. Projektdateien und Git-Index werden bei
+  Ablehnungen verglichen. Die sechs Tests bestanden lokal unter Windows. Die vorhandene
+  `scripts/docker_ci.py` prüft zusätzlich mit einem Docker-Sentinel, dass Generator-Plan
+  und -Apply Docker nicht starten. Laufende Regression und finale PR-CI auf dem neuen
+  Head sind vor der Freigabe zu prüfen; ohne deren Erfolg keine Mergefreigabe.
+  Lokal bestanden 15 von 16 Basistests; `test_speckit` scheiterte an der bestehenden
+  PowerShell-Ausführungsrichtlinie, die nicht geändert wurde. Projektcheck und
+  `git diff --check` bestanden. Lokal sind weder Docker noch ein JDK verfügbar.
+  Die vier vorhandenen `.work-p9999-*`-
+  Testklone sind unversioniert und dürfen nicht bereinigt oder überschrieben werden.
+
 - Schritt 129 läuft auf `test/docker-infrastructure-pr-c`, ausgehend von `main`
   `9f3a136`. Compose-Version und -Konfiguration sind in der Windows-Docker-CI
   verpflichtend; neue Docker-Projekte erhalten einen eigenen Ubuntu-Workflow über
