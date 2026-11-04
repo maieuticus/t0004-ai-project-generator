@@ -522,13 +522,17 @@ def _multi_create(path: Path, content: bytes, opened: list[bool]) -> None:
 
 
 def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
-                changes: list[tuple[str, str, bytes]], *, module: str | None = None, preflight=None) -> str:
+                changes: list[tuple[str, str, bytes]], *, module: str | None = None,
+                infrastructure: str | None = None, preconditions: dict | None = None,
+                projection: list[str] | None = None, preflight=None) -> str:
     """Apply a format-4 plan against operations supplied by trusted generator code."""
     if not isinstance(confirmation, str) or not PLAN_PATTERN.fullmatch(confirmation):
         raise TransactionError("Eine gültige bestätigte Plan-ID ist erforderlich.")
     try:
         ordered = _operation_paths(changes)
-        expected = multi_plan_target(target, version, changes, module=module)
+        expected = multi_plan_target(target, version, changes, module=module,
+                                     infrastructure=infrastructure, preconditions=preconditions,
+                                     projection=projection)
         canonical = lambda plan: json.dumps(plan, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
         if (not hmac.compare_digest(confirmation, expected["plan_id"])
                 or canonical(supplied) != canonical(expected)):
@@ -564,7 +568,9 @@ def apply_multi(target: str, supplied: dict, confirmation: str, version: str,
         _multi_progress(backup, progress)
         _sync_directory(backup)
         _sync_directory(store)
-        if multi_plan_target(target, version, changes, backup_id, module=module) != expected:
+        if multi_plan_target(target, version, changes, backup_id, module=module,
+                             infrastructure=infrastructure, preconditions=preconditions,
+                             projection=projection) != expected:
             raise TransactionError("Projektzustand hat sich vor apply geändert.")
         if preflight is not None:
             preflight()
@@ -624,11 +630,17 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
               "warnings", "backup", "plan_id", "read_only"}
     if isinstance(plan, dict) and "module" in plan:
         fields |= {"module", "preconditions", "conflicts"}
+    if isinstance(plan, dict) and "infrastructure" in plan:
+        fields |= {"infrastructure", "preconditions", "projection", "conflicts"}
     if not isinstance(plan, dict) or set(plan) != fields:
         raise TransactionError("Mehrdatei-Plan im Backup ist ungültig.")
-    if "module" in plan:
+    if "module" in plan and "infrastructure" in plan:
+        raise TransactionError("Mehrdatei-Plan vermischt Modul und Infrastruktur.")
+    if "module" in plan or "infrastructure" in plan:
         conditions = plan["preconditions"]
-        if (plan["module"] not in ("python", "typescript", "java") or plan["conflicts"] != [] or not isinstance(conditions, dict)
+        if ((("module" in plan and plan["module"] not in ("python", "typescript", "java"))
+             or ("infrastructure" in plan and plan["infrastructure"] != "docker-compose"))
+                or plan["conflicts"] != [] or not isinstance(conditions, dict)
                 or set(conditions) != {"files", "directories"}
                 or not isinstance(conditions["files"], list)
                 or not isinstance(conditions["directories"], list)
@@ -642,6 +654,10 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
                        or not PLAN_PATTERN.fullmatch(state["before_attributes"])
                        for state in conditions["directories"])):
             raise TransactionError("Modulvoraussetzungen im Backup sind ungültig.")
+    if "infrastructure" in plan:
+        from .infrastructure_states import known_docker_projection
+        if not known_docker_projection(plan["projection"]):
+            raise TransactionError("Infrastrukturprojektion im Backup ist ungültig.")
     identity = {key: value for key, value in plan.items() if key not in {"plan_id", "read_only"}}
     if (type(plan["format"]) is not int or plan["format"] != 4 or plan["read_only"] is not True
             or not isinstance(plan["generator_version"], str)

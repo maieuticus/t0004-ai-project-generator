@@ -114,8 +114,13 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
     if metadata["generator_version"] not in (None, generator_version):
         conflicts.append("generator.version: abweichende Version; kein automatisches Upgrade.")
     from .module_states import MODULES
+    from .infrastructure_states import INFRASTRUCTURE
     if metadata["modules"] != [value for value in MODULES.values() if value in metadata["modules"]]:
         conflicts.append("generator.modules: Modulversionen werden in dieser Etappe nicht unterstützt.")
+    if metadata["infrastructure"] != [
+        value for value in INFRASTRUCTURE.values() if value in metadata["infrastructure"]
+    ]:
+        conflicts.append("generator.infrastructure: Infrastrukturversionen werden in dieser Etappe nicht unterstützt.")
     warnings = []
     if metadata["sdd_tool"] is not None:
         warnings.append("sdd.version: Format geprüft; Laufzeit- und Integrationskompatibilität nicht geprüft.")
@@ -446,7 +451,9 @@ def _canonical_id(identity: dict[str, object]) -> str:
 
 
 def multi_plan_target(target: str, generator_version: str, changes: list[tuple[str, str, bytes]],
-                      backup_id: str | None = None, *, module: str | None = None) -> dict[str, object]:
+                      backup_id: str | None = None, *, module: str | None = None,
+                      infrastructure: str | None = None, preconditions: dict | None = None,
+                      projection: list[str] | None = None) -> dict[str, object]:
     """Build an internal format-4 plan from trusted, already-rendered operations."""
     if not isinstance(generator_version, str) or not VERSION.fullmatch(generator_version):
         raise PathSafetyError("Ungültige Generatorversion.")
@@ -489,6 +496,8 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         "directories": directories,
         "warnings": warnings,
     }
+    if module is not None and infrastructure is not None:
+        raise PathSafetyError("Eine Mehrdatei-Operation kann nicht zugleich Modul und Infrastruktur sein.")
     if module is not None:
         if module not in ("python", "typescript", "java"):
             raise PathSafetyError("Unbekanntes Technologiemodul.")
@@ -503,6 +512,16 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         identity["preconditions"] = {
             "files": capabilities["files"], "directories": capabilities["directories"],
         }
+    if infrastructure is not None:
+        from .infrastructure_states import DOCKER_COMPOSE, known_docker_projection
+        if (infrastructure != DOCKER_COMPOSE or not isinstance(preconditions, dict)
+                or set(preconditions) != {"files", "directories"}
+                or not known_docker_projection(projection)):
+            raise PathSafetyError("Ungültige feste Infrastrukturprojektion.")
+        identity["infrastructure"] = infrastructure
+        identity["preconditions"] = preconditions
+        identity["projection"] = projection
+        identity["conflicts"] = []
     if backup_id is None:
         for counter in range(1024):
             candidate = _canonical_id({"identity": identity, "counter": counter})[:32]
