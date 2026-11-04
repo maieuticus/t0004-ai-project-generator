@@ -26,6 +26,7 @@ class PostgreSQLProjection(unittest.TestCase):
         self.assertIn(b"openssl rand -hex 32", generated[".github/workflows/docker.yml"])
         self.assertIn(b"docker compose up -d db-postgres", generated[".github/workflows/docker.yml"])
         self.assertIn(b"--force-recreate db-postgres", generated[".github/workflows/docker.yml"])
+        self.assertIn(b"VALUES (\\$\\$persisted\\$\\$);", generated[".github/workflows/docker.yml"])
 
     def test_projection_is_closed(self):
         self.assertTrue(known_postgresql_projection(list(POSTGRESQL_PROJECTION)))

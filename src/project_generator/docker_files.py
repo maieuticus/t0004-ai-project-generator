@@ -142,7 +142,7 @@ jobs:
           docker compose exec -T db-postgres sh -ec '
             PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")"; export PGPASSWORD
             psql -h 127.0.0.1 -U project_admin -d project_db -v ON_ERROR_STOP=1 \
-              -c "CREATE TABLE runtime_probe (value text NOT NULL); INSERT INTO runtime_probe VALUES ('\''persisted'\'');"
+              -c "CREATE TABLE runtime_probe (value text NOT NULL); INSERT INTO runtime_probe VALUES (\\$\\$persisted\\$\\$);"
             test "$(psql -h 127.0.0.1 -U project_admin -d project_db -Atc "SELECT value FROM runtime_probe;")" = persisted
             if PGPASSWORD=wrong-password psql -h 127.0.0.1 -U project_admin -d project_db -c "SELECT 1"; then
               exit 1
