@@ -114,13 +114,13 @@ def assess(content: bytes, generator_version: str, missing: list[str]) -> tuple[
     if metadata["generator_version"] not in (None, generator_version):
         conflicts.append("generator.version: abweichende Version; kein automatisches Upgrade.")
     from .module_states import MODULES
-    from .infrastructure_states import INFRASTRUCTURE
+    from .infrastructure_states import INFRASTRUCTURE, POSTGRESQL, valid_infrastructure
     if metadata["modules"] != [value for value in MODULES.values() if value in metadata["modules"]]:
         conflicts.append("generator.modules: Modulversionen werden in dieser Etappe nicht unterstützt.")
-    if metadata["infrastructure"] != [
-        value for value in INFRASTRUCTURE.values() if value in metadata["infrastructure"]
-    ]:
-        conflicts.append("generator.infrastructure: Infrastrukturversionen werden in dieser Etappe nicht unterstützt.")
+    if not valid_infrastructure(metadata["infrastructure"], metadata["modules"]):
+        conflicts.append("generator.infrastructure: ungültige Kennungen, Reihenfolge oder Abhängigkeiten.")
+    elif INFRASTRUCTURE[POSTGRESQL] in metadata["infrastructure"]:
+        conflicts.append("generator.infrastructure: PostgreSQL-Projektion ist noch nicht implementiert.")
     warnings = []
     if metadata["sdd_tool"] is not None:
         warnings.append("sdd.version: Format geprüft; Laufzeit- und Integrationskompatibilität nicht geprüft.")

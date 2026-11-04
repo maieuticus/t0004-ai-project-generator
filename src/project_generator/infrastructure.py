@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import projectcfg
 from .config import ConfigurationError
-from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE, docker_projection_with_ci
+from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE, docker_projection_with_ci, valid_infrastructure
 from .docker_files import docker_files
 from .module_states import CI_STATES, MODULES
 from .plan import (
@@ -44,7 +44,16 @@ def _metadata_with_infrastructure(content: bytes, infrastructure: str) -> bytes:
             infrastructure_index = index
     if module_index is None:
         raise ConfigurationError("config/project.yaml: generator.infrastructure kann nicht sicher geändert werden.")
-    value = json.dumps([INFRASTRUCTURE[infrastructure]])
+    from .config import load_metadata
+    metadata = load_metadata(content)
+    existing = metadata["infrastructure"]
+    if infrastructure not in INFRASTRUCTURE or not valid_infrastructure(existing, metadata["modules"]):
+        raise ConfigurationError("config/project.yaml: ungültiger Infrastrukturzustand.")
+    selected = [value for value in INFRASTRUCTURE.values()
+                if value in existing or value == INFRASTRUCTURE[infrastructure]]
+    if not valid_infrastructure(selected, metadata["modules"]):
+        raise ConfigurationError("config/project.yaml: Infrastrukturabhängigkeit fehlt.")
+    value = json.dumps(selected)
     if infrastructure_index is not None:
         line = lines[infrastructure_index]
         body = line.rstrip("\r\n")
@@ -56,7 +65,6 @@ def _metadata_with_infrastructure(content: bytes, infrastructure: str) -> bytes:
         newline = "\r\n" if "\r\n" in content.decode("utf-8") else "\n"
         lines.insert(module_index + 1, f"  infrastructure: {value}{newline}")
     result = "".join(lines).encode("utf-8")
-    from .config import load_metadata
     load_metadata(result)
     return result
 

@@ -5,6 +5,19 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 131 auf `feat/postgresql-infrastructure-pr-a`, ausgehend von `main` auf
+  Merge-Commit `35352a4`: PostgreSQL wird als fester interner Infrastrukturzustand und
+  Sicherheitsvertrag vorbereitet. Öffentliche Auswahl, Dateien und Laufzeit folgen erst
+  in späteren PRs. Der frühere nächste Schritt zum Docker-Draft-PR ist historisch.
+  Die vier unversionierten `.work-p9999-*`-Verzeichnisse bleiben unangetastet.
+  Projektcheck und 221 Generator-Tests bestanden unter Windows, davon 24 übersprungen;
+  die gezielte Infrastruktursuite bestand mit 30 Tests. Die Integration mit isoliert
+  installiertem aktuellem Paket führte 28 Tests aus: Docker-Sicherheitsfälle und Strategie A
+  bestanden; fünf Java-Laufzeitfälle und ein Java-Startertest scheiterten am fehlenden JDK.
+  Von 16 Template-Tests bestanden 15; Spec Kit scheiterte an der bestehenden PowerShell-
+  Ausführungsrichtlinie. Diese wurde nicht geändert.
+  Ubuntu-/Windows-CI ist vor der Reviewentscheidung anhand des finalen Stands zu prüfen.
+
 - Schritt 129A ergänzt sechs Sicherheitsintegrationstests im echten, temporären
   t0003-Checkout. Sie prüfen fremde Compose-Dateien, veraltete Pläne und Attribute,
   manipulierte Plan-IDs, Zielhashes und Metadaten, Snapshot-Manipulation und Restore,
@@ -247,7 +260,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Den Draft-PR mit den vollständigen Ubuntu-/Windows- und Docker-CI-Läufen prüfen;
+Den PostgreSQL-PR A und seine Ubuntu-/Windows-CI auf dem finalen Commit prüfen;
 erst nach erfolgreicher Abnahme die Mergefähigkeit beurteilen.
 
 ## Risiken

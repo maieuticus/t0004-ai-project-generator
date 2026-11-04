@@ -27,6 +27,45 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
 
 ## CLI-Grundsätze
 
+### PostgreSQL: interner Zustand und Sicherheitsvertrag für PR B
+
+PR A registriert ausschließlich die feste Kennung `postgresql@0.1.0`; sie ist kein
+Sprachmodul und besitzt noch keine öffentliche Auswahl, keinen ausführbaren Plan und
+keine PostgreSQL-Projektion. Die einzige kanonische Infrastrukturreihenfolge ist leer,
+`["docker-compose@0.1.0"]` oder `["docker-compose@0.1.0", "postgresql@0.1.0"]`.
+Docker setzt mindestens ein Sprachmodul voraus; PostgreSQL setzt Docker voraus. Unbekannte,
+doppelte, falsch sortierte und widersprüchliche Kennungen sind Konflikte. Da PR A die
+PostgreSQL-Dateien nicht prüfen kann, blockiert eine eingetragene PostgreSQL-Kennung alle
+öffentlichen Pläne auch dann, wenn ihre strukturelle Reihenfolge gültig ist. Sie beweist
+keine Installation. Bestehende Docker-Projekte und historische Projektionen bleiben unverändert.
+
+PR B muss vor PostgreSQL-Apply den vollständig installierten und unveränderten Docker- und
+Sprachzustand anhand bekannter Bytes und Attribute prüfen. Der feste voraussichtliche Dateisatz
+umfasst `config/project.yaml`, `compose.yaml`, `.github/workflows/docker.yml`,
+`docs/DOCKER.md`, `docs/POSTGRESQL.md` und eine falls nötig eng begrenzte `.gitignore`-Regel.
+Die konkrete sichere Bearbeitung bestehender `.gitignore`-Dateien ist in PR B zu prüfen;
+fremde Dateien dürfen nicht still überschrieben werden. Alte Snapshot-Projektionen behalten
+ihre ursprüngliche Bedeutung. Die Folge Python → Docker → PostgreSQL → Java muss die
+PostgreSQL-Projektion erhalten; Restore erfolgt umgekehrt und verweigert Fremdänderungen.
+Dies ist in PR A noch kein implementierter PostgreSQL-Restore. Die vorhandene Format-4-Engine
+bleibt allein zuständig; vollständige Dateisystem-Atomarität wird nicht behauptet.
+
+Für PR B gilt: PostgreSQL 18.6, Registry-Mehrplattform-Digest vor Festlegung erneut prüfen;
+benanntes Volume auf `/var/lib/postgresql`, Service `db-postgres`, keine Host-Portfreigabe,
+kein privileged, Docker-Socket oder Host-Netzwerk. Ein lokales, nicht versioniertes
+`.secrets/postgres_password` wird als Compose-Secret und über `POSTGRES_PASSWORD_FILE`
+eingebunden; keine produktiven Standardpasswörter oder generierten echten Secrets. Initialen
+Administrationsbenutzer und Datenbanknamen dokumentieren; Passwortdateiänderungen rotieren
+kein bestehendes Passwort automatisch. Keine automatischen Major-Upgrades oder Volume-Löschungen.
+Plan, Apply und Restore starten oder stoppen keine Container, führen keine Datenbankoperationen
+aus und kontaktieren weder NAS noch externe Datenbanken. Ein Generator-Snapshot enthält nur
+Projektdateien und ist kein Datenbankbackup; auch Restore löscht keine Volumes.
+
+Künftige Docker-CI muss kurzlebige `app-python`, `app-typescript`, `app-java` getrennt vom
+langlebigen `db-postgres` behandeln. Ein Healthcheck ersetzt keine authentifizierte Verbindung.
+Die acht bestehenden Sprach-CI-Zustände bleiben bytegleich. PR A implementiert weder den
+Service noch Secrets, Containerlauf, Backupautomatisierung oder PostgreSQL-CI.
+
 Neue Docker-Installationen enthalten den festen Workflow `.github/workflows/docker.yml`.
 Er prüft Compose auf Ubuntu, baut alle Images und startet alle konfigurierten Services;
 die bestehende Sprach-CI bleibt bytegleich. Der Workflow ist Teil der geschützten
