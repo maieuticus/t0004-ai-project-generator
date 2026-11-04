@@ -122,6 +122,20 @@ installierte Module) gestartet werden. Neue Sprachmodule erweitern die bekannten
 innerhalb ihrer geschützten Transaktion. Fremdänderungen sind Konflikte; Restore erfolgt
 in umgekehrter Apply-Reihenfolge. Weitere Hinweise stehen in der erzeugten Docker-Doku.
 
+Neue Docker-Projekte erhalten außerdem `.github/workflows/docker.yml`: Ubuntu prüft
+Compose, baut die Images und startet die vorhandenen Konsolen-Services. Die bisherige
+Sprach-CI bleibt unverändert. Bestehende Docker-Projekte ohne diesen Workflow melden
+bei erneuter Planung einen Konflikt; der Generator ergänzt ihn nicht ungefragt.
+Die t0004-Docker-CI verlangt unter Windows Compose und `docker compose config -q`;
+Linux-Image-Builds erfolgen auf Ubuntu. Sie benötigt Docker Engine und Compose; Plan
+und Apply benötigen Docker nicht. Die Images verwenden gepinnte Basis-Digests, aber
+Paketquellen und Build-Werkzeuge können sich ändern: bitgenau reproduzierbare Builds
+werden nicht zugesichert. Die konkreten Digestwerte stehen in `docker_files.py`.
+Das GitHub-Runner-Image Windows Server 2025 dokumentiert aktuell Docker 29.7.2 und
+Compose 2.40.3; Runner-Images sind veränderlich, maßgeblich ist die Versionsausgabe
+im jeweiligen CI-Lauf. Container-Builds benötigen Linux-Container; die Windows-CI
+validiert die Compose-Konfiguration, ohne solche Builds zu erzwingen.
+
 Bei Projekten, die mit der früheren TypeScript-Vorlage aus PR B erstellt wurden, enthält
 `docs/TYPESCRIPT.md` eine veraltete Aussage. Da Moduldateien bytegenau geprüft werden,
 meldet eine erneute Modulplanung mit der korrigierten Vorlage einen Konflikt, auch bei

@@ -27,6 +27,21 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
 
 ## CLI-Grundsätze
 
+Neue Docker-Installationen enthalten den festen Workflow `.github/workflows/docker.yml`.
+Er prüft Compose auf Ubuntu, baut alle Images und startet alle konfigurierten Services;
+die bestehende Sprach-CI bleibt bytegleich. Der Workflow ist Teil der geschützten
+Format-4-Projektion und wird bei Konflikten nicht überschrieben. Ältere Installationen
+ohne diesen Workflow melden einen Konflikt und werden nicht automatisch migriert;
+ältere Snapshot-Projektionen bleiben für Restore bekannt. Restore verlangt unveränderte
+Zieldateien und die umgekehrte Apply-Reihenfolge. Docker wird bei Plan und Apply nicht
+gestartet. Die t0004-CI prüft Compose unter Windows verbindlich; Builds und Containerläufe
+erfolgen unter Linux. Gepinnte Image-Digests allein garantieren keine reproduzierbaren
+Builds, da insbesondere Paketquellen und Build-Umgebungen veränderlich sind.
+Die Vorlagen verwenden Python 3.13.13 (`sha256:355bfa66770995d7e9a0da4b3473b44d0cb451f6b56f5615ad9c39e3c4eca03f`),
+Node 24.11.1 (`sha256:48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57`),
+Temurin JDK 25.0.2_10 (`sha256:b866059783e3dd2dd183937b713e77d0fd94d87ce7bdd4ed4a77d79e97a276cd`)
+und Temurin JRE 25.0.2_10 (`sha256:a051234f864d7ab78bf0188c3c540ac06c711a3b566f00f246be37073cc99dce`).
+
 Die Java-Vorlage `java/mvnw.cmd` wird mit LF-Bytes erzeugt, die dem Git-Attribut
 der geprüften t0003-Basis entsprechen. Bei der Prüfung eines bereits installierten
 Java-Moduls akzeptiert die Planung daneben ausschließlich die exakt bekannte frühere

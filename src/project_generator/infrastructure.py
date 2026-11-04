@@ -8,7 +8,7 @@ from pathlib import Path
 
 from . import projectcfg
 from .config import ConfigurationError
-from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE, docker_projection_with_docs
+from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE, docker_projection_with_ci
 from .docker_files import docker_files
 from .module_states import CI_STATES, MODULES
 from .plan import (
@@ -128,7 +128,7 @@ def infrastructure_plan_target(target: str, version: str, infrastructure: str = 
     metadata, conflicts, warnings = assess(content, version, missing)
     root = Path(target).expanduser().resolve(strict=True)
     modules = frozenset(name for name, value in MODULES.items() if value in metadata["modules"])
-    projection = list(docker_projection_with_docs(modules)) if modules else []
+    projection = list(docker_projection_with_ci(modules)) if modules else []
     if not modules:
         conflicts.append("docker-compose@0.1.0 benötigt mindestens ein installiertes Sprachmodul.")
         return _empty_plan(target, version, content, warnings, conflicts, {"files": [], "directories": []},
