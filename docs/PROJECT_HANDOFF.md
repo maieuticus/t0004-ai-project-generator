@@ -5,6 +5,20 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 132C auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
+  `f6b8cc2`: Die lokale Docker-Abnahme verwendet ein zufällig benanntes, temporäres
+  Compose-Projekt und eine nur dort erzeugte, restriktiv geschützte Passwortdatei.
+  Sie prüft PostgreSQL-Healthcheck, SCRAM-TCP-Authentifizierung und Passwortablehnung,
+  Schreib-/Lesezugriff, Datenpersistenz nach `--force-recreate`, fehlende Host-
+  Portfreigabe, nicht privilegierte Konsolenstarter, Secret-Abwesenheit in Logs und
+  Projektdateien sowie projektgebundenes Cleanup. Neue Datenverzeichnisse erhalten
+  `--auth-host=scram-sha-256`; bestehende Volumes werden nicht verändert. Der Lauf
+  `python scripts/docker_ci.py` bestand im Codespace und hinterließ keine Ressourcen
+  mit dem Präfix `t0004pg`. Projektcheck, `git diff --check`, 16 Template-Tests,
+  229 Generator-Tests (7 übersprungen) und 29 t0003-Integrationstests bestanden.
+  Ausstehend sind Commit, Push, Draft-PR sowie Ubuntu-/Windows-GitHub-CI auf dem
+  finalen Commit; kein Merge ohne menschliches Review.
+
 - Schritt 132B auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `c062723`: Die PostgreSQL-Sicherheitsmatrix verwendet reale Format-4-Projektionen
   und öffentliche CLI-Pfade. Sie deckt fehlendes Docker, fremde Compose-/Workflow-/

@@ -136,6 +136,15 @@ Compose 2.40.3; Runner-Images sind veränderlich, maßgeblich ist die Versionsau
 im jeweiligen CI-Lauf. Container-Builds benötigen Linux-Container; die Windows-CI
 validiert die Compose-Konfiguration, ohne solche Builds zu erzwingen.
 
+Die feste Erweiterung `--infrastructure postgresql` setzt Docker Compose und mindestens
+ein Sprachmodul voraus. Sie erzeugt `db-postgres` mit PostgreSQL 18.6 am gepinnten
+Registry-Digest, einem benannten Datenvolume, einem Compose-Secret und SCRAM-TCP-
+Authentifizierung für neu initialisierte Datenverzeichnisse. Vor dem Containerstart muss
+der Benutzer eine lokale, ignorierte `.secrets/postgres_password` anlegen; der Generator
+erzeugt, protokolliert oder versioniert keine Passwörter. Plan, Apply und Restore starten
+keine Container und verändern weder Datenbankdaten noch Volumes. Details stehen in
+[docs/POSTGRESQL.md](docs/POSTGRESQL.md).
+
 Bei Projekten, die mit der früheren TypeScript-Vorlage aus PR B erstellt wurden, enthält
 `docs/TYPESCRIPT.md` eine veraltete Aussage. Da Moduldateien bytegenau geprüft werden,
 meldet eine erneute Modulplanung mit der korrigierten Vorlage einen Konflikt, auch bei

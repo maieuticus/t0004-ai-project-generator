@@ -90,8 +90,10 @@ docker compose stop db-postgres
 
 Andere Dienste im Compose-Netz erreichen PostgreSQL über `db-postgres:5432`. Es
 gibt keine standardmäßige Host-Portfreigabe. Ein Healthcheck belegt keine erfolgreiche
-Authentifizierung. Der tatsächliche Containerbetrieb, Authentifizierung und
-Persistenz sind in PR C zu prüfen und werden hier nicht als erfolgreich behauptet.
+Authentifizierung. Die Generatorregression prüft deshalb zusätzlich in einem isolierten
+Compose-Projekt Healthcheck, authentifizierte TCP-Verbindung, Passwortablehnung und
+Persistenz nach Container-Neuerstellung. Diese Prüfung betrifft ausschließlich temporäre
+Testressourcen, nicht eine bestehende Projekt- oder Produktionsdatenbank.
 
 Das projektbezogene benannte Volume `postgres_data` wird nach `/var/lib/postgresql`
 eingehängt. PostgreSQL 18 verwendet standardmäßig das versionsbezogene

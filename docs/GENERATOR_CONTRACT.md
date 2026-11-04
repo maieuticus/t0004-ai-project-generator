@@ -54,12 +54,14 @@ Für PR B gilt: PostgreSQL 18.6, Registry-Mehrplattform-Digest vor Festlegung er
 benanntes Volume auf `/var/lib/postgresql`, Service `db-postgres`, keine Host-Portfreigabe,
 kein privileged, Docker-Socket oder Host-Netzwerk. Ein lokales, nicht versioniertes
 `.secrets/postgres_password` wird als Compose-Secret und über `POSTGRES_PASSWORD_FILE`
-eingebunden; keine produktiven Standardpasswörter oder generierten echten Secrets. Initialen
-Administrationsbenutzer und Datenbanknamen dokumentieren; Passwortdateiänderungen rotieren
-kein bestehendes Passwort automatisch. Keine automatischen Major-Upgrades oder Volume-Löschungen.
-Plan, Apply und Restore starten oder stoppen keine Container, führen keine Datenbankoperationen
-aus und kontaktieren weder NAS noch externe Datenbanken. Ein Generator-Snapshot enthält nur
-Projektdateien und ist kein Datenbankbackup; auch Restore löscht keine Volumes.
+eingebunden; keine produktiven Standardpasswörter oder generierten echten Secrets. Neue
+Datenverzeichnisse werden mit `POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256` initialisiert;
+bestehende Volumes werden nicht geändert. Initialen Administrationsbenutzer und Datenbanknamen
+dokumentieren; Passwortdateiänderungen rotieren kein bestehendes Passwort automatisch. Keine
+automatischen Major-Upgrades oder Volume-Löschungen. Plan, Apply und Restore starten oder
+stoppen keine Container, führen keine Datenbankoperationen aus und kontaktieren weder NAS noch
+externe Datenbanken. Ein Generator-Snapshot enthält nur Projektdateien und ist kein
+Datenbankbackup; auch Restore löscht keine Volumes.
 
 Künftige Docker-CI muss kurzlebige `app-python`, `app-typescript`, `app-java` getrennt vom
 langlebigen `db-postgres` behandeln. Ein Healthcheck ersetzt keine authentifizierte Verbindung.

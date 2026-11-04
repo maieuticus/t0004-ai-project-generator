@@ -19,9 +19,13 @@ class PostgreSQLProjection(unittest.TestCase):
         self.assertIn(POSTGRES_IMAGE.encode(), generated["compose.yaml"])
         self.assertIn(b"postgres_data:/var/lib/postgresql", generated["compose.yaml"])
         self.assertIn(b"file: .secrets/postgres_password", generated["compose.yaml"])
+        self.assertIn(b"POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256", generated["compose.yaml"])
         self.assertNotIn(b"ports:", generated["compose.yaml"])
         self.assertEqual(old[".dockerignore"], generated[".dockerignore"])
         self.assertIn(b"kein Datenbankbackup", generated["docs/POSTGRESQL.md"])
+        self.assertIn(b"openssl rand -hex 32", generated[".github/workflows/docker.yml"])
+        self.assertIn(b"docker compose up -d db-postgres", generated[".github/workflows/docker.yml"])
+        self.assertIn(b"--force-recreate db-postgres", generated[".github/workflows/docker.yml"])
 
     def test_projection_is_closed(self):
         self.assertTrue(known_postgresql_projection(list(POSTGRESQL_PROJECTION)))

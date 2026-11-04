@@ -113,19 +113,57 @@ jobs:
         shell: bash
         run: |
           set -eu
-          testdir="$(mktemp -d)"
-          cp compose.yaml "$testdir/compose.yaml"
-          mkdir "$testdir/.secrets"
-          printf 'ci-only-test-value' > "$testdir/.secrets/postgres_password"
+          umask 077
+          mkdir .secrets
+          openssl rand -hex 32 > .secrets/postgres_password
+          trap 'docker compose down --volumes --remove-orphans || true; rm -rf .secrets' EXIT
           docker compose version
-          docker compose -f "$testdir/compose.yaml" config -q
-          rm -rf "$testdir"
+          docker compose config -q
       - name: Build and run console services
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -eu
+          umask 077
+          mkdir .secrets
+          openssl rand -hex 32 > .secrets/postgres_password
+          trap 'docker compose down --volumes --remove-orphans || true; rm -rf .secrets' EXIT
           docker compose build
+          docker compose up -d db-postgres
+          container="$(docker compose ps -q db-postgres)"
+          test -n "$container"
+          for attempt in $(seq 1 90); do
+            if [ "$(docker inspect -f '{{.State.Health.Status}}' "$container")" = healthy ]; then
+              break
+            fi
+            sleep 1
+          done
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$container")" = healthy
+          docker compose exec -T db-postgres sh -ec '
+            PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")"; export PGPASSWORD
+            psql -h 127.0.0.1 -U project_admin -d project_db -v ON_ERROR_STOP=1 \
+              -c "CREATE TABLE runtime_probe (value text NOT NULL); INSERT INTO runtime_probe VALUES ('\''persisted'\'');"
+            test "$(psql -h 127.0.0.1 -U project_admin -d project_db -Atc "SELECT value FROM runtime_probe;")" = persisted
+            if PGPASSWORD=wrong-password psql -h 127.0.0.1 -U project_admin -d project_db -c "SELECT 1"; then
+              exit 1
+            fi
+          '
+          docker compose up -d --force-recreate db-postgres
+          container="$(docker compose ps -q db-postgres)"
+          for attempt in $(seq 1 90); do
+            if [ "$(docker inspect -f '{{.State.Health.Status}}' "$container")" = healthy ]; then
+              break
+            fi
+            sleep 1
+          done
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$container")" = healthy
+          docker compose exec -T db-postgres sh -ec '
+            PGPASSWORD="$(cat "$POSTGRES_PASSWORD_FILE")"; export PGPASSWORD
+            test "$(psql -h 127.0.0.1 -U project_admin -d project_db -Atc "SELECT value FROM runtime_probe;")" = persisted
+          '
+          if [ "$(docker inspect -f '{{with index .NetworkSettings.Ports "5432/tcp"}}mapped{{end}}' "$container")" = mapped ]; then
+            exit 1
+          fi
           for service in app-python app-typescript app-java; do
             if docker compose config --services | grep -Fxq "$service"; then
               docker compose run --rm --no-deps "$service"
@@ -178,6 +216,7 @@ Docker-Hub-Tags und Digests prüfen, die Vorlagen ändern und alle Builds und Te
       POSTGRES_USER: project_admin
       POSTGRES_DB: project_db
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
     secrets:
       - postgres_password
     volumes:
