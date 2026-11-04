@@ -17,8 +17,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import infrastructure, installed_version, python_module, transaction
 from project_generator.infrastructure_states import (
-    DOCKER_COMPOSE, docker_projection, docker_projection_with_docs, docker_projection_with_ci, known_docker_projection,
+    DOCKER_COMPOSE, POSTGRESQL, INFRASTRUCTURE, POSTGRESQL_PROJECTION, valid_infrastructure,
+    docker_projection, docker_projection_with_docs, docker_projection_with_ci, known_docker_projection,
 )
+from project_generator.config import ConfigurationError, load_metadata
 from project_generator.module_states import CI_STATES
 from project_generator.docker_files import docker_files
 
@@ -29,6 +31,44 @@ class DockerInfrastructure(unittest.TestCase):
     select = TypeScriptModule.select
     install = TypeScriptModule.install
     files = TypeScriptModule.files
+
+    def test_closed_infrastructure_states_and_dependencies(self):
+        docker, postgres = INFRASTRUCTURE.values()
+        for state in ([], [docker], [docker, postgres]):
+            self.assertTrue(valid_infrastructure(state, ["python@0.1.0"]))
+        for state, modules in (([postgres], ["python@0.1.0"]), ([docker], []),
+                               ([docker, postgres], []), ([docker, docker], ["python"]),
+                               ([docker, "unknown@0.1.0"], ["python"]),
+                               ([postgres, docker], ["python"])):
+            self.assertFalse(valid_infrastructure(state, modules))
+        self.assertEqual(set(POSTGRESQL_PROJECTION), {"config/project.yaml", "compose.yaml",
+            ".github/workflows/docker.yml", "docs/DOCKER.md", "docs/POSTGRESQL.md", ".gitignore"})
+
+    def test_metadata_addition_preserves_state_and_rejects_invalid_input(self):
+        self.install("python")
+        content = (self.project / "config/project.yaml").read_bytes()
+        with self.assertRaises(ConfigurationError):
+            infrastructure._metadata_with_infrastructure(content, POSTGRESQL)
+        docker = infrastructure._metadata_with_infrastructure(content, DOCKER_COMPOSE)
+        both = infrastructure._metadata_with_infrastructure(docker, POSTGRESQL)
+        self.assertEqual(load_metadata(both)["infrastructure"], list(INFRASTRUCTURE.values()))
+        self.assertEqual(infrastructure._metadata_with_infrastructure(both, DOCKER_COMPOSE), both)
+        malformed = docker.replace(b'"docker-compose@0.1.0"', b'"docker-compose@0.1.0", "unknown"')
+        with self.assertRaises(ConfigurationError):
+            infrastructure._metadata_with_infrastructure(malformed, POSTGRESQL)
+
+    def test_unimplemented_postgresql_metadata_blocks_all_plans(self):
+        self.install("python")
+        self.install_docker()
+        config = self.project / "config/project.yaml"
+        config.write_bytes(infrastructure._metadata_with_infrastructure(config.read_bytes(), POSTGRESQL))
+        before = self.files()
+        for args in (("plan", "--json"), ("plan", "--module", "java", "--json"),
+                     ("plan", "--infrastructure", "docker-compose", "--json")):
+            result = self.cli(*args)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertTrue(json.loads(result.stdout)["conflicts"])
+        self.assertEqual(self.files(), before)
 
     def test_public_docker_selection_apply_and_noop(self):
         self.install("python")
