@@ -19,6 +19,7 @@ generator:
   # In this repository, implementation starts with version null.
   version: null
   modules: []
+  infrastructure: []
 # Project checks run by `python scripts/check.py`, one JSON list per line.
 # Example:  - ["python", "-m", "unittest", "discover"]
 checks: []

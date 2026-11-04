@@ -10,6 +10,12 @@ SECTIONS = {
     "project": {"name"},
     "template": {"source", "release", "base_commit", "last_update_check"},
     "sdd": {"tool", "version"},
+    "generator": {"version", "modules", "infrastructure"},
+}
+REQUIRED_SECTIONS = {
+    "project": {"name"},
+    "template": {"source", "release", "base_commit", "last_update_check"},
+    "sdd": {"tool", "version"},
     "generator": {"version", "modules"},
 }
 TEMPLATE_SOURCE = "https://github.com/maieuticus/t0003-ai-project-template"
@@ -52,11 +58,11 @@ def _validate_structure(text: str) -> None:
             if (key not in SECTIONS[section] and (section, key) != ("template", "origin")) or key in seen[section]:
                 raise ConfigurationError(f"config/project.yaml: ungültiger oder doppelter Schlüssel in {section}.")
             value = entry.group(2).strip()
-            if (section, key) != ("generator", "modules") and (
+            if (section, key) not in {("generator", "modules"), ("generator", "infrastructure")} and (
                 not SCALAR.fullmatch(value) or (not value.startswith(("'", '"')) and re.search(r":\s", value))
             ):
                 raise ConfigurationError(f"config/project.yaml: ungültiger Skalar in {section}.")
-            if (section, key) != ("generator", "modules") and value.startswith('"'):
+            if (section, key) not in {("generator", "modules"), ("generator", "infrastructure")} and value.startswith('"'):
                 quoted = re.match(r'^("(?:[^"\\]|\\.)*")', value)
                 try:
                     json.loads(quoted.group(1))
@@ -74,7 +80,7 @@ def _validate_structure(text: str) -> None:
             raise ConfigurationError("config/project.yaml: ungültiges oder nicht unterstütztes Format.")
     if not schema_seen or not checks_seen or set(seen) != set(SECTIONS):
         raise ConfigurationError("config/project.yaml: Pflichtabschnitt oder schema_version fehlt.")
-    if any(not keys.issubset(seen[section]) for section, keys in SECTIONS.items()):
+    if any(not keys.issubset(seen[section]) for section, keys in REQUIRED_SECTIONS.items()):
         raise ConfigurationError("config/project.yaml: erforderlicher Metadatenschlüssel fehlt.")
 
 
@@ -97,6 +103,8 @@ def load_metadata(content: bytes) -> dict[str, object]:
         tool_version = get("sdd", "version")
         generator_version = get("generator", "version")
         modules = json.loads(get("generator", "modules") or "null")
+        infrastructure_present = bool(re.search(r"^  infrastructure:", text, re.MULTILINE))
+        infrastructure = json.loads(get("generator", "infrastructure") or "null") if infrastructure_present else []
     except (ValueError, TypeError) as error:
         raise ConfigurationError("config/project.yaml enthält ungültige Werte oder Prüfungen.") from error
 
@@ -119,6 +127,8 @@ def load_metadata(content: bytes) -> dict[str, object]:
         raise ConfigurationError("config/project.yaml: generator.version muss null oder MAJOR.MINOR.PATCH sein.")
     if not isinstance(modules, list):
         raise ConfigurationError("config/project.yaml: generator.modules muss eine JSON-Liste sein.")
+    if not isinstance(infrastructure, list):
+        raise ConfigurationError("config/project.yaml: generator.infrastructure muss eine JSON-Liste sein.")
     return {
         "template_release": release,
         "template_origin": origin,
@@ -127,4 +137,6 @@ def load_metadata(content: bytes) -> dict[str, object]:
         "generator_version": generator_version,
         "has_modules": bool(modules),
         "modules": modules,
+        "has_infrastructure": bool(infrastructure),
+        "infrastructure": infrastructure,
     }

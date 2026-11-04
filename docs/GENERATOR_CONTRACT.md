@@ -293,6 +293,40 @@ der Reihenfolge Python, TypeScript, Java; fremde Checks behalten ihre relative
 Reihenfolge. Jedes Apply erhält einen Snapshot; Restore erfolgt rückwärts und
 löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
 
+### Docker Compose als feste Infrastruktur-Erweiterung, PR A
+
+- `docker-compose@0.1.0` ist eine feste Infrastrukturkennung, kein viertes
+  Sprachmodul. Sie steht getrennt in der optionalen JSON-Liste
+  `generator.infrastructure`; `generator.modules` enthält weiterhin ausschließlich
+  Python, TypeScript und Java in dieser festen Reihenfolge. Es gibt keine dynamische
+  Registrierung, keine zweite Schreib-Engine und keine öffentliche CLI-Auswahl in PR A.
+- Die interne Planung erlaubt Docker Compose nur bei mindestens einem vollständig
+  eingerichteten Sprachmodul. Sie bindet die komplette bekannte Sprachprojektion an
+  den Format-4-Plan: Moduldateien, Projektchecks, den exakten der acht Sprach-CI-Zustände
+  sowie die künftigen Docker-Pfade `.dockerignore`, `compose.yaml` und genau einen
+  `Dockerfile.<sprache>` je installiertem Sprachmodul. Vorhandene Dateien auf diesen
+  Pfaden sind Konflikte und werden nie überschrieben.
+- PR A registriert ausschließlich den Infrastrukturzustand in `config/project.yaml`;
+  es erzeugt weder Dockerfiles noch Compose-Dateien und bietet keine Container-, Build-
+  oder Compose-Ausführung. Die Projektion ist dennoch deterministisch und wird bei
+  nachträglichen Sprachmodulen aus dem gesamten bekannten Sprachzustand neu berechnet.
+  PR B liefert erst die fest gerenderten Datei-Bytes und die öffentliche Auswahl.
+- Die Registrierung nutzt unverändert die vorhandene Format-4-Engine mit einem
+  geschützten Snapshot und Restore. Ein weiterer Sprach- oder Infrastrukturzustand
+  verhindert die Rücknahme eines älteren Snapshots; die Rücknahme erfolgt daher in
+  umgekehrter Apply-Reihenfolge. Änderungen an Sprachdateien, CI, Projektchecks,
+  Konfiguration oder reservierten Docker-Pfaden verhindern die interne Planung bzw.
+  die erneute Prüfung nach dem Snapshot vor dem ersten Projektschreibzugriff.
+- Das Java-Kompatibilitätsfenster bleibt unverändert: Der exakt bekannte frühere
+  CRLF-Zustand von `java/mvnw.cmd` wird für die Infrastrukturvoraussetzungen akzeptiert;
+  fremde Änderungen bleiben Konflikte und Restore prüft weiterhin streng die gesicherten
+  Originalbytes und Zugriffsmetadaten.
+- PR B muss versions- und digestgebundene Basisimages, nicht privilegierte
+  Runtime-Benutzer und sprachspezifische Multi-stage-Builds verwenden. V0.1.0 hat
+  keine Ports, Healthchecks, Volumes, Host-Mounts, `.env.example`, Secrets,
+  privilegierten Container oder Docker-Socket-Freigaben. PostgreSQL bleibt ein
+  separates Folgepaket.
+
 ### `typescript@0.1.0` und kombinierte Modulzustände
 
 - Das Modul ist fest im Generator vorgesehen. Es verwendet ausschließlich die vorhandene

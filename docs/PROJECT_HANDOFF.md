@@ -5,6 +5,27 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 127 auf `feat/docker-infrastructure-pr-a`, ausgehend von `main` / `67cb088`:
+  Docker Compose ist als feste interne Infrastrukturkennung `docker-compose@0.1.0`
+  vorbereitet, getrennt von den drei Sprachmodulen. Der Format-4-Kern bindet die
+  vollständige Sprachprojektion, die reservierten künftigen Docker-Pfade und den
+  Infrastrukturzustand an Plan, Snapshot und Restore. PR A erzeugt keine Dockerfiles
+  oder `compose.yaml`, bietet keine öffentliche CLI-Auswahl, verändert die acht
+  Sprach-CI-Zustände nicht und führt keine Container oder Builds aus. Die gezielte
+  Zustandsmatrix einschließlich Python→Docker→Java, Java→Docker→TypeScript,
+  Python→TypeScript→Docker, Fremdprojektion nach Snapshot, Reverse Restore,
+  Git-Index und Java-CRLF-Kompatibilität ist lokal erfolgreich. Projektcheck und
+  201 Generator-Tests (24 plattformbedingt übersprungen) sind erfolgreich.
+  Die Template-Basistests liefern 15 Erfolge; `test_speckit` wird nur durch die
+  lokale PowerShell-Ausführungsrichtlinie blockiert. Die Installationsintegration
+  besteht außerhalb der Java-Laufzeit: 15 von 21 Tests sind erfolgreich; fünf
+  Java-Runtime-Fälle und der Java-Startertest scheitern, weil kein JDK bzw. kein
+  `java` im lokalen `PATH` vorhanden ist. Keine Richtlinien- oder Systemänderung
+  vorgenommen. Commit `bb59598` und [PR #20](https://github.com/maieuticus/t0004-ai-project-generator/pull/20)
+  sind veröffentlicht. Die GitHub-Actions für Push und PR bestanden jeweils auf
+  Ubuntu und Windows. Der PR bleibt für menschliches Review offen und wird nicht
+  selbst gemergt.
+
 - Schritt 124D auf `test/java-module-e2e`: Projektcheck, 16 Windows-Basistests,
   191 Generator-Tests (24 plattformbedingt übersprungen) und alle 21 Paket-
   Integrationstests erneut erfolgreich. Die lokale Ubuntu-Regression aus Schritt 124A
@@ -138,7 +159,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-PR C und seine finale Ubuntu-/Windows-CI prüfen; anschließend menschliches Review.
+Menschliches Review von PR #20; anschließend entscheiden, ob Docker PR B mit
+öffentlicher Auswahl und den fest gerenderten Dateien freigegeben wird.
 
 ## Risiken
 
