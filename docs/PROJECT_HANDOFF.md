@@ -5,6 +5,20 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 133B auf `test/postgresql-infrastructure-pr-c`, ausgehend von `7d2465d`:
+  blockiert vor dem Zugriff auf p9999. `gh auth status` bestätigt eine aktive
+  GitHub-Anmeldung, aber `gh api repos/maieuticus/p9999-ai-project-template-test-repo`
+  liefert 404; `git ls-remote` auf dasselbe Repository liefert HTTP 403
+  („Write access to repository not granted“). Damit sind weder `p9999/main` noch
+  vorhandene PRs #1–#7 lesbar/verifizierbar und es konnten keine neuen Klone,
+  Branches oder Test-PRs sicher angelegt werden. Es wurde nichts an p9999 oder
+  älteren Testklonen verändert. Der Remote-Stand `t0004/main` wurde separat als
+  `6dac03c` bestätigt; der lokale Feature-Branch wurde nicht gepusht.
+  Unabhängig davon bestanden `python -m unittest discover -s integration -v`
+  (29 Tests), `python scripts/check.py`, `python scripts/docker_ci.py --config-only`
+  und `git diff --check`. Keine Generatoränderung. Fortsetzung erfordert bestätigten
+  Lese- und Schreibzugriff auf p9999 (oder einen vom Nutzer freigegebenen Ersatz).
+
 - Schritt 133A auf `test/postgresql-infrastructure-pr-c`, ausgehend von `main` /
   `6dac03c`: `scripts/docker_ci.py` verwendet weiterhin den bestehenden Docker-CI-Pfad
   und den echten kompatiblen t0003-Commit `6e8363a`. Python, Docker Compose,
@@ -30,9 +44,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `python scripts/docker_ci.py`, 229 Generator-Tests (7 übersprungen), 16 Template-
   Tests, 36 gezielte Infrastruktur-/TypeScript-Tests, Projektcheck und Syntaxprüfung
   bestanden. Zugehörige Container, Volume und Netzwerk wurden nach Labelprüfung
-  entfernt; kein `t0004pg`-Testressource blieb zurück. Kein Push, PR oder Merge.
-  Die konkreten Abnahmekriterien von 133B/133C stehen noch nicht in den kanonischen
-  Repository-Dokumenten.
+  entfernt; keine `t0004pg`-Testressource blieb zurück. Kein Push, PR oder Merge.
 
 - Schritt 132C auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
   `f6b8cc2`: Die lokale Docker-Abnahme verwendet ein zufällig benanntes, temporäres
@@ -338,9 +350,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-133B nach neuer Nutzerfreigabe beginnen. Umfang und Abnahmekriterien von 133B und
-133C müssen anhand der jeweiligen Schrittvorgabe festgelegt werden; sie sind im
-Repository bisher nicht dokumentiert.
+Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` herstellen und danach
+133B mit zwei isolierten Testklonen fortsetzen. Erst nach erfolgreichem 133B ist
+133C zur abschließenden PostgreSQL-PR-C-Konvergenz sinnvoll.
 
 ## Risiken
 
