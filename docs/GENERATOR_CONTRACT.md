@@ -27,46 +27,42 @@ die AGENTS-Fassung müssen erneut geprüft und ein Apply ausdrücklich bestätig
 
 ## CLI-Grundsätze
 
-### PostgreSQL: interner Zustand und Sicherheitsvertrag für PR B
+### PostgreSQL: feste Infrastruktur und Laufzeitprüfung
 
-PR A registriert ausschließlich die feste Kennung `postgresql@0.1.0`; sie ist kein
-Sprachmodul und besitzt noch keine öffentliche Auswahl, keinen ausführbaren Plan und
-keine PostgreSQL-Projektion. Die einzige kanonische Infrastrukturreihenfolge ist leer,
-`["docker-compose@0.1.0"]` oder `["docker-compose@0.1.0", "postgresql@0.1.0"]`.
-Docker setzt mindestens ein Sprachmodul voraus; PostgreSQL setzt Docker voraus. Unbekannte,
-doppelte, falsch sortierte und widersprüchliche Kennungen sind Konflikte. Da PR A die
-PostgreSQL-Dateien nicht prüfen kann, blockiert eine eingetragene PostgreSQL-Kennung alle
-öffentlichen Pläne auch dann, wenn ihre strukturelle Reihenfolge gültig ist. Sie beweist
-keine Installation. Bestehende Docker-Projekte und historische Projektionen bleiben unverändert.
+`postgresql@0.1.0` ist eine feste Infrastrukturkennung, kein Sprachmodul. Die kanonische
+Reihenfolge ist leer, `["docker-compose@0.1.0"]` oder
+`["docker-compose@0.1.0", "postgresql@0.1.0"]`. Docker setzt mindestens ein vollständig
+installiertes Sprachmodul voraus; PostgreSQL setzt Docker voraus. Unbekannte, doppelte,
+falsch sortierte und widersprüchliche Kennungen sind Konflikte. Der Generator prüft die
+geschützte, bekannte Docker- und Sprachprojektion bytegenau; fremde Änderungen werden nicht
+überschrieben. Die vorhandene Format-4-Engine verwaltet Apply, Snapshot und Restore.
+Historische Docker-Projektionen und Snapshots behalten ihre ursprüngliche Bedeutung.
 
-PR B muss vor PostgreSQL-Apply den vollständig installierten und unveränderten Docker- und
-Sprachzustand anhand bekannter Bytes und Attribute prüfen. Der feste voraussichtliche Dateisatz
-umfasst `config/project.yaml`, `compose.yaml`, `.github/workflows/docker.yml`,
-`docs/DOCKER.md`, `docs/POSTGRESQL.md` und eine falls nötig eng begrenzte `.gitignore`-Regel.
-Die konkrete sichere Bearbeitung bestehender `.gitignore`-Dateien ist in PR B zu prüfen;
-fremde Dateien dürfen nicht still überschrieben werden. Alte Snapshot-Projektionen behalten
-ihre ursprüngliche Bedeutung. Die Folge Python → Docker → PostgreSQL → Java muss die
-PostgreSQL-Projektion erhalten; Restore erfolgt umgekehrt und verweigert Fremdänderungen.
-Dies ist in PR A noch kein implementierter PostgreSQL-Restore. Die vorhandene Format-4-Engine
-bleibt allein zuständig; vollständige Dateisystem-Atomarität wird nicht behauptet.
+Die feste Projektion verwendet PostgreSQL 18.6 mit geprüftem Registry-Digest, Service
+`db-postgres`, benanntem Volume unter `/var/lib/postgresql` und ohne Host-Portfreigabe.
+Es gibt weder privilegierte Container noch Docker-Socket- oder Host-Netzwerkzugriff.
+Das lokale, ignorierte `.secrets/postgres_password` ist ein Compose-Secret und wird über
+`POSTGRES_PASSWORD_FILE` eingebunden. Neue Datenverzeichnisse verwenden
+`POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256`; bestehende Volumes werden nicht geändert
+und Passwortdateiänderungen rotieren kein bestehendes Passwort. Es gibt keine automatischen
+Major-Upgrades oder Volume-Löschungen.
 
-Für PR B gilt: PostgreSQL 18.6, Registry-Mehrplattform-Digest vor Festlegung erneut prüfen;
-benanntes Volume auf `/var/lib/postgresql`, Service `db-postgres`, keine Host-Portfreigabe,
-kein privileged, Docker-Socket oder Host-Netzwerk. Ein lokales, nicht versioniertes
-`.secrets/postgres_password` wird als Compose-Secret und über `POSTGRES_PASSWORD_FILE`
-eingebunden; keine produktiven Standardpasswörter oder generierten echten Secrets. Neue
-Datenverzeichnisse werden mit `POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256` initialisiert;
-bestehende Volumes werden nicht geändert. Initialen Administrationsbenutzer und Datenbanknamen
-dokumentieren; Passwortdateiänderungen rotieren kein bestehendes Passwort automatisch. Keine
-automatischen Major-Upgrades oder Volume-Löschungen. Plan, Apply und Restore starten oder
-stoppen keine Container, führen keine Datenbankoperationen aus und kontaktieren weder NAS noch
-externe Datenbanken. Ein Generator-Snapshot enthält nur Projektdateien und ist kein
-Datenbankbackup; auch Restore löscht keine Volumes.
+Plan, Apply und Restore starten oder stoppen keine Container, führen keine Datenbankbefehle
+aus und kontaktieren weder NAS noch externe Datenbanken. Ein Generator-Snapshot betrifft nur
+Projektdateien und löscht oder sichert keine Volumes. Die generierte Docker-CI prüft Compose
+und ein isoliertes Test-Secret auf Ubuntu und Windows; der Linux-Job baut die Anwendungen und
+prüft PostgreSQL-Healthcheck, SCRAM-Anmeldung, Ablehnung falscher Zugangsdaten, SQL-Zugriff
+und Persistenz nach Container-Neuerstellung.
 
-Künftige Docker-CI muss kurzlebige `app-python`, `app-typescript`, `app-java` getrennt vom
-langlebigen `db-postgres` behandeln. Ein Healthcheck ersetzt keine authentifizierte Verbindung.
-Die acht bestehenden Sprach-CI-Zustände bleiben bytegleich. PR A implementiert weder den
-Service noch Secrets, Containerlauf, Backupautomatisierung oder PostgreSQL-CI.
+Die t0004-Ubuntu-Docker-CI (`python scripts/docker_ci.py`) führt zusätzlich einen
+isolierten `pg_dump`-/`pg_restore`-Nachweis aus: zufällige Testdaten, Custom-Format-Archiv
+außerhalb des Projekts, Wiederherstellung in eine separate Datenbank und Vergleich von
+Schema, Zeilenzahl und Werten. Ein beschädigtes Archiv und fehlende Anmeldedaten müssen
+abgelehnt werden; Fehler schlagen den Job fehl. Compose-Projektname und Ressourcenlabel
+begrenzen die Bereinigung auf die eigenen Testressourcen. Archivinhalt und Passwort werden
+nicht protokolliert. Das ist ein logischer Testbackup-Nachweis, kein vollständiges
+Cluster-Backup: globale Rollen und Konfiguration sind nicht enthalten; Point-in-Time-Recovery
+(PITR) wird nicht eingerichtet oder geprüft.
 
 Neue Docker-Installationen enthalten den festen Workflow `.github/workflows/docker.yml`.
 Er prüft Compose auf Ubuntu, baut alle Images und startet alle konfigurierten Services;
@@ -392,11 +388,11 @@ löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
   CRLF-Zustand von `java/mvnw.cmd` wird für die Infrastrukturvoraussetzungen akzeptiert;
   fremde Änderungen bleiben Konflikte und Restore prüft weiterhin streng die gesicherten
   Originalbytes und Zugriffsmetadaten.
-- Die Vorlagen verwenden versions- und digestgebundene Basisimages und nicht privilegierte
-  Runtime-Benutzer. V0.1.0 hat
-  keine Ports, Healthchecks, Volumes, Host-Mounts, `.env.example`, Secrets,
-  privilegierten Container oder Docker-Socket-Freigaben. PostgreSQL bleibt ein
-  separates Folgepaket.
+- Die Docker-Compose-Basisvorlagen verwenden versions- und digestgebundene Basisimages
+  sowie nicht privilegierte Runtime-Benutzer. Die reine `docker-compose@0.1.0`-Projektion
+  hat keine Ports, Healthchecks, Volumes, Host-Mounts, `.env.example`, Secrets,
+  privilegierten Container oder Docker-Socket-Freigaben. Die separate, optionale
+  `postgresql@0.1.0`-Erweiterung ergänzt nur die dokumentierten Datenbankressourcen.
 
 ### `typescript@0.1.0` und kombinierte Modulzustände
 

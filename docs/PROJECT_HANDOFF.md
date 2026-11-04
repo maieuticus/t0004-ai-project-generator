@@ -5,6 +5,44 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
+  (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
+  PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
+  Sie besteht lokal einschließlich isoliertem Compose-Projekt und eigenem Volume,
+  zufälligem Secret, SCRAM-Anmeldung, Custom-Format-`pg_dump`, `pg_restore` in
+  eine separate Testdatenbank, Schema-/Zeilen-/Wertvergleich, Ablehnung ungültiger
+  Archive und fehlender Zugangsdaten, Anwendungs-Smoke-Tests sowie Reverse-Restore.
+  Das vollständige `scripts/docker_ci.py`-Ergebnis ist erfolgreich; zusätzlich
+  bestanden der aktuelle Compose-Konfigurationslauf mit Fresh-Checkout-No-op
+  für Python, TypeScript, Java und PostgreSQL, unverändertem Git-Index und
+  Reverse-Restore, `python scripts/check.py`, 16 Template-Basistests,
+  229 Generator-Tests (7 übersprungen), 29 Integrationstests,
+  PostgreSQL-Projektionstest und `git diff --check`. Die Generator-Suite umfasst
+  die PostgreSQL-Sicherheits-/Konflikt-/Restore-Fälle, sieben Sprachmengen und
+  15 unterstützte PostgreSQL-Installationsreihenfolgen. Der SQL-Quoting-Fix
+  `19364f9` ist unverändert enthalten.
+  Die Dokumentation in README, Vertrag, `docs/POSTGRESQL.md` und der erzeugten
+  PostgreSQL-Doku beschreibt die tatsächlich geprüfte Sicherungsstrecke und
+  stellt klar, dass logische Dumps weder vollständige Cluster-Backups noch PITR
+  ersetzen.
+  Die p9999-Test-PRs bleiben offen und ungemergt: [#9](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/9),
+  finaler Head `519af61c2f4cb12fa609d21c72fb3da07c70bfe6`, und
+  [#8](https://github.com/maieuticus/p9999-ai-project-template-test-repo/pull/8),
+  finaler Head `abeae6e6a0905ed0ccd64f4082d7f6db655d3ac6`.
+  Ihre finalen Template-/Docker-Workflows waren zuvor auf Ubuntu und Windows
+  erfolgreich verifiziert (PR #9: `41865511191`, `41865511172`; PR #8:
+  `41865515513`, `41865515644`); Ubuntu umfasste den PostgreSQL-Laufzeittest,
+  Windows Compose-Konfiguration und Secret. In dieser Sitzung waren PR-Heads,
+  Offenstatus und `p9999/main` (`bb19b7637bf8a4e21e864543b66ef2ca630cdad8`)
+  lesend bestätigt; die erneute Abfrage der Check-Läufe wurde vom Token mit
+  HTTP 403 abgewiesen (fehlende Checks-Leseberechtigung). Es gab keine Änderung
+  an p9999/main oder t0004/main. Keine Produktiv-/NAS-Datenbank wurde kontaktiert;
+  Generator-Plan und Apply starten weder Docker noch Datenbankbefehle; Secrets
+  und Archive wurden nicht versioniert, keine Host-Ports oder fremden Volumes
+  verwendet. CI-Bereinigung war auf eindeutig eigene Testressourcen begrenzt.
+  Noch ausstehend: aktuelle Dokumentationsänderungen committen, Branch pushen,
+  t0004-Draft-PR C erstellen und dessen finale Ubuntu-/Windows-CI abwarten.
+
 - Schritt 133B.1 auf `test/postgresql-infrastructure-pr-c`, ausgehend von
   `b958661`: Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` ist
   bestätigt. `p9999/main` steht unverändert auf `bb19b76`; die bestehenden

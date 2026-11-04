@@ -23,6 +23,8 @@ class PostgreSQLProjection(unittest.TestCase):
         self.assertNotIn(b"ports:", generated["compose.yaml"])
         self.assertEqual(old[".dockerignore"], generated[".dockerignore"])
         self.assertIn(b"kein Datenbankbackup", generated["docs/POSTGRESQL.md"])
+        self.assertIn(b"Point-in-Time-Recovery (PITR)", generated["docs/POSTGRESQL.md"])
+        self.assertIn(b"pg_dump` im Custom-Format", generated["docs/POSTGRESQL.md"])
         self.assertIn(b"openssl rand -hex 32", generated[".github/workflows/docker.yml"])
         self.assertIn(b"docker compose up -d db-postgres", generated[".github/workflows/docker.yml"])
         self.assertIn(b"--force-recreate db-postgres", generated[".github/workflows/docker.yml"])

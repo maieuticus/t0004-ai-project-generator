@@ -145,6 +145,13 @@ erzeugt, protokolliert oder versioniert keine Passwörter. Plan, Apply und Resto
 keine Container und verändern weder Datenbankdaten noch Volumes. Details stehen in
 [docs/POSTGRESQL.md](docs/POSTGRESQL.md).
 
+Die Ubuntu-Docker-CI (`python scripts/docker_ci.py`) testet PostgreSQL in einem
+zufällig benannten temporären Compose-Projekt einschließlich Healthcheck,
+SCRAM-Authentifizierung, Persistenz, `pg_dump` im Custom-Format und `pg_restore`
+in eine separate Datenbank. Das Testarchiv liegt außerhalb des Projekts; Cleanup
+ist auf gelabelte Testressourcen beschränkt. Dieses logische Testbackup ersetzt
+weder ein Cluster-Backup noch Point-in-Time-Recovery.
+
 Bei Projekten, die mit der früheren TypeScript-Vorlage aus PR B erstellt wurden, enthält
 `docs/TYPESCRIPT.md` eine veraltete Aussage. Da Moduldateien bytegenau geprüft werden,
 meldet eine erneute Modulplanung mit der korrigierten Vorlage einen Konflikt, auch bei
