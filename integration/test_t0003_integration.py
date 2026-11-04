@@ -23,6 +23,30 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class T0003Integration(unittest.TestCase):
+    def test_installed_docker_compose_update_and_reverse_restore(self):
+        original = self.files()
+        index = (self.project / ".git/index").read_bytes()
+        python = self.plan()
+        self.apply(python)
+        result = self.cli("plan", "--infrastructure", "docker-compose", "--json")
+        docker = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(docker)
+        compose = self.project / "compose.yaml"
+        self.assertIn(b"app-python:", compose.read_bytes())
+        self.assertNotIn(b"app-java:", compose.read_bytes())
+        result = self.cli("plan", "--module", "java", "--json")
+        java = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(java)
+        self.assertIn(b"app-java:", compose.read_bytes())
+        self.assertTrue((self.project / "Dockerfile.java").is_file())
+        self.assertEqual((self.project / ".git/index").read_bytes(), index)
+        self.cli("restore", "--backup", docker["backup"]["id"], expected=1)
+        for plan in (java, docker, python):
+            self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(self.files(), original)
+
     def test_strategy_b_package_provenance_and_read_only_cli(self):
         old = self.case / "old-baseline"
         old.mkdir()

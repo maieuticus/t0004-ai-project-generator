@@ -458,7 +458,7 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
     if not isinstance(generator_version, str) or not VERSION.fullmatch(generator_version):
         raise PathSafetyError("Ungültige Generatorversion.")
     content, missing = read_target(target)
-    _, conflicts, warnings = assess(content, generator_version, missing)
+    metadata, conflicts, warnings = assess(content, generator_version, missing)
     if conflicts:
         raise PathSafetyError("Projektkonflikte verhindern die Planung.")
     ordered = _operation_paths(changes)
@@ -512,6 +512,31 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         identity["preconditions"] = {
             "files": capabilities["files"], "directories": capabilities["directories"],
         }
+        from .infrastructure_states import INFRASTRUCTURE, DOCKER_COMPOSE
+        if INFRASTRUCTURE[DOCKER_COMPOSE] in metadata["infrastructure"]:
+            from .infrastructure import _language_preconditions
+            from .module_states import MODULES
+            modules = frozenset(name for name, value in MODULES.items() if value in metadata["modules"])
+            language, language_conflicts = _language_preconditions(root, modules)
+            if not modules or language_conflicts:
+                raise PathSafetyError("Docker-Sprachvoraussetzungen sind nicht nachgewiesen.")
+            files = {state["path"]: state for state in capabilities["files"]}
+            files.update({state["path"]: state for state in language["files"]})
+            dirs = {state["path"]: state for state in capabilities["directories"]}
+            dirs.update({state["path"]: state for state in language["directories"]})
+            from .docker_files import docker_files
+            docker = docker_files(modules)
+            for name, wanted in docker.items():
+                current, attributes = _operation_state(root, name)
+                if current != wanted:
+                    raise PathSafetyError("Docker-Datei fehlt oder wurde verändert.")
+                files[name] = {"path": name, "sha256": hashlib.sha256(current).hexdigest(),
+                               "attributes": attributes}
+            dirs.update({state["path"]: state for state in _directory_states(root, list(docker))})
+            identity["preconditions"] = {
+                "files": sorted(files.values(), key=lambda state: state["path"].lower()),
+                "directories": sorted(dirs.values(), key=lambda state: (state["path"].count("/"), state["path"].lower())),
+            }
     if infrastructure is not None:
         from .infrastructure_states import DOCKER_COMPOSE, known_docker_projection
         if (infrastructure != DOCKER_COMPOSE or not isinstance(preconditions, dict)

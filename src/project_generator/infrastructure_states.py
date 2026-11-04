@@ -20,13 +20,19 @@ def docker_projection(modules: frozenset[str]) -> tuple[str, ...]:
     )
 
 
+def docker_projection_with_docs(modules: frozenset[str]) -> tuple[str, ...]:
+    """Closed PR-B projection; PR-A snapshots retain their original projection."""
+    return (*docker_projection(modules), "docs/DOCKER.md")
+
+
 def known_docker_projection(paths: object) -> bool:
-    """Validate a serialized PR-A projection without accepting arbitrary paths."""
+    """Accept the fixed PR-A and PR-B projections, never arbitrary paths."""
     if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
         return False
     expected = {
-        docker_projection(frozenset(names))
+        projection(frozenset(names))
         for count in range(1, len(MODULES) + 1)
         for names in combinations(MODULES, count)
+        for projection in (docker_projection, docker_projection_with_docs)
     }
     return tuple(paths) in expected

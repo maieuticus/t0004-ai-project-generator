@@ -5,6 +5,48 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 128C auf `feat/docker-infrastructure-pr-b`: Der separate Workflow
+  `.github/workflows/docker-validation.yml` prüft unter Ubuntu 24.04 die echten
+  generierten Images und Konsolenstarts sowie unter Windows die Sicherheitsregression
+  und, sofern verfügbar, die Compose-Konfiguration. Die bestehende `ci.yml` richtet
+  auf beiden Plattformen Temurin 25 ein und führt die vollständige Integration aus.
+  Lokal sind Docker und Java nicht verfügbar; deren Laufzeitprüfungen und die
+  Plattform-CI sind offen. Der geprüfte Konfigurationspfad von `scripts/docker_ci.py`
+  bestand lokal bis zum ausdrücklich übersprungenen Compose-Aufruf. Der Benutzer hat
+  einen Draft-PR für die CI-Abnahme ausdrücklich freigegeben; nicht eigenständig mergen.
+
+- Schritt 128B auf `feat/docker-infrastructure-pr-b`, ausgehend von `cc4f5a9`:
+  Die öffentliche Auswahl `--infrastructure docker-compose` und die festen
+  Docker-Dateien sind über die bestehende Format-4-Engine integriert. Spätere
+  Sprachmodule prüfen bekannte Docker-Dateien und erweitern Compose, Docker-Doku
+  und Dockerfiles in derselben Transaktion. Die 33 zulässigen Reihenfolgen über
+  alle sieben nichtleeren Sprachmengen konvergieren; Reverse-Restore ist getestet.
+  Der installierte Generator bestand den zusätzlichen t0003-End-to-End-Test für
+  Python → Docker → Java, einschließlich Git-Index und Restore. Projektcheck und
+  `git diff --check` bestanden; die vollständige Generator-Suite bestand mit 216
+  Tests, davon 24 plattformbedingt übersprungen. Die vollständige
+  isolierte Integration meldete fünf Java-Laufzeitfehler und einen Java-Starterfehler,
+  weil lokal kein JDK vorhanden ist; Docker ist ebenfalls nicht verfügbar. Reale
+  Image-Builds, Java-Laufzeitabnahme und Plattform-CI stehen deshalb aus. Gemäß
+  Auftrag kein Commit, Push oder PR vor erfolgreicher vollständiger Regression.
+
+- Schritt 128A auf `feat/docker-infrastructure-pr-b`, ausgehend von `cc4f5a9`:
+  PR #20 ist gemergt; die ältere Angabe unten zum offenen Review ist historisch.
+  Ein reproduzierter Fehler bei Änderung einer installierten Sprachdatei nach dem
+  Snapshot wurde durch vollständige erneute Modulplanung vor dem ersten Schreiben
+  korrigiert. Bei registriertem Docker bindet der Modulplan die installierten
+  Sprachdateien und ihre Attribute. Eine geschlossene neue Projektion ergänzt
+  `docs/DOCKER.md`; alte PR-A-Projektionen bleiben gültig. Synthetische Compose-
+  Operationen testen die bestehende Format-4-Engine, sind aber keine Docker-Erzeugung.
+  Bis echte Dateizustände existieren, verweigert die Sprachplanung vorhandene Dateien
+  auf den betreffenden Docker-Pfaden; PR B muss diese Prüfung gezielt ersetzen.
+  Das Integritäts-Gate bleibt offen: Die echten Docker-Dateizustände und ihre
+  Integration in die Sprachplanung sind noch nicht implementiert und daher nicht
+  end-to-end geprüft. Projektcheck und `git diff --check` erfolgreich; vollständige
+  Generator-Suite mit UTF-8 und Zugriff auf den lokalen Backup-Speicher: 207 Tests
+  erfolgreich, 24 übersprungen. Ergänzte gezielte Attribut-, Metadaten- und
+  synthetische Compose-Tests ebenfalls erfolgreich. Kein Commit, Push oder PR.
+
 - Schritt 127 auf `feat/docker-infrastructure-pr-a`, ausgehend von `main` / `67cb088`:
   Docker Compose ist als feste interne Infrastrukturkennung `docker-compose@0.1.0`
   vorbereitet, getrennt von den drei Sprachmodulen. Der Format-4-Kern bindet die
@@ -159,8 +201,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Menschliches Review von PR #20; anschließend entscheiden, ob Docker PR B mit
-öffentlicher Auswahl und den fest gerenderten Dateien freigegeben wird.
+Den Draft-PR mit den vollständigen Ubuntu-/Windows- und Docker-CI-Läufen prüfen;
+erst nach erfolgreicher Abnahme die Mergefähigkeit beurteilen.
 
 ## Risiken
 

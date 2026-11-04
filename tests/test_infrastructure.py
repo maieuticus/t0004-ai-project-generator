@@ -1,7 +1,10 @@
 """Internal Docker Compose infrastructure state and transaction coverage."""
 
 import json
+import hashlib
+import itertools
 import os
+import stat
 from pathlib import Path
 import subprocess
 import sys
@@ -13,8 +16,11 @@ from test_typescript_module import TypeScriptModule
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import infrastructure, installed_version, python_module, transaction
-from project_generator.infrastructure_states import DOCKER_COMPOSE, docker_projection
+from project_generator.infrastructure_states import (
+    DOCKER_COMPOSE, docker_projection, docker_projection_with_docs, known_docker_projection,
+)
 from project_generator.module_states import CI_STATES
+from project_generator.docker_files import docker_files
 
 
 class DockerInfrastructure(unittest.TestCase):
@@ -23,6 +29,120 @@ class DockerInfrastructure(unittest.TestCase):
     select = TypeScriptModule.select
     install = TypeScriptModule.install
     files = TypeScriptModule.files
+
+    def test_public_docker_selection_apply_and_noop(self):
+        self.install("python")
+        result = self.cli("plan", "--infrastructure", "docker-compose", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        applied = self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        self.assert_docker_state({"python"})
+        result = self.cli("plan", "--infrastructure", "docker-compose", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["operations"], [])
+        self.assertEqual(self.cli("restore", "--backup", plan["backup"]["id"]).returncode, 0)
+
+    def test_public_no_language_unknown_infrastructure_and_foreign_dockerfile(self):
+        result = self.cli("plan", "--infrastructure", "docker-compose", "--json")
+        self.assertEqual(result.returncode, 1)
+        self.assertTrue(json.loads(result.stdout)["conflicts"])
+        self.assertEqual(self.cli("plan", "--infrastructure", "unknown").returncode, 2)
+        self.install("python")
+        path = self.project / "Dockerfile.python"
+        path.write_bytes(b"foreign\n")
+        result = self.cli("plan", "--infrastructure", "docker-compose", "--json")
+        self.assertEqual(result.returncode, 1)
+        self.assertTrue(any("Dockerfile.python" in c for c in json.loads(result.stdout)["conflicts"]))
+        self.assertEqual(path.read_bytes(), b"foreign\n")
+
+    def test_docker_restore_before_later_language_is_refused(self):
+        self.install("python")
+        _, docker_backup = self.install_docker()
+        java = self.install("java")
+        before = self.files()
+        refused = self.cli("restore", "--backup", docker_backup)
+        self.assertEqual(refused.returncode, 1)
+        self.assertEqual(self.files(), before)
+        self.restore_all([docker_backup, java["backup"]["id"]])
+
+    def test_damaged_docker_snapshot_is_refused(self):
+        self.install("python")
+        _, backup = self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            store = transaction.backup_store(str(self.project))
+            manifest = store / (".t0004-backup-" + backup) / "manifest.json"
+            manifest.write_bytes(b"{}")
+            before = self.files()
+            with self.assertRaises(transaction.TransactionError):
+                transaction.restore(str(self.project), backup)
+            self.assertEqual(before, self.files())
+
+    def test_all_language_subsets_and_installation_orders_converge(self):
+        modules = ("python", "typescript", "java")
+        original = self.files()
+        for count in range(1, 4):
+            for subset in itertools.combinations(modules, count):
+                target = None
+                for order in itertools.permutations((*subset, "docker")):
+                    if order[0] == "docker":
+                        continue
+                    with self.subTest(order=order):
+                        backups = []
+                        for name in order:
+                            if name == "docker":
+                                _, backup = self.install_docker()
+                            else:
+                                backup = self.install(name)["backup"]["id"]
+                            backups.append(backup)
+                        self.assert_docker_state(set(subset))
+                        current = self.files()
+                        if target is None:
+                            target = current
+                        else:
+                            self.assertEqual(current, target)
+                        self.restore_all(backups)
+                        self.assertEqual(self.files(), original)
+
+    def test_projections_are_closed_and_old_snapshots_keep_their_meaning(self):
+        from itertools import combinations
+        for count in range(1, 4):
+            for names in combinations(("python", "typescript", "java"), count):
+                old = list(docker_projection(frozenset(names)))
+                new = list(docker_projection_with_docs(frozenset(names)))
+                self.assertEqual(new, old + ["docs/DOCKER.md"])
+                self.assertTrue(known_docker_projection(old))
+                self.assertTrue(known_docker_projection(new))
+                self.assertFalse(known_docker_projection(new + ["docs/foreign.md"]))
+
+    def test_foreign_compose_blocks_later_language_plan(self):
+        self.install("python")
+        self.install_docker()
+        (self.project / "compose.yaml").write_bytes(b"foreign\n")
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, changes = python_module.module_plan_target(str(self.project), installed_version(), "java")
+        self.assertEqual(changes, [])
+        self.assertTrue(any("compose.yaml" in conflict for conflict in plan["conflicts"]))
+
+    def test_foreign_compose_created_after_snapshot_blocks_later_language_apply(self):
+        self.install("python")
+        self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, _ = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            compose = self.project / "compose.yaml"
+            real_progress = transaction._multi_progress
+
+            def create_after_snapshot(backup, progress):
+                real_progress(backup, progress)
+                compose.write_bytes(b"foreign\n")
+
+            with mock.patch.object(transaction, "_multi_progress", side_effect=create_after_snapshot):
+                with self.assertRaisesRegex(transaction.TransactionError, "Ziel wurde nicht geschrieben"):
+                    transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+            self.assertEqual(compose.read_bytes(), b"foreign\n")
+            self.assertFalse((self.project / "java").exists())
 
     def select_docker(self):
         with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
@@ -56,8 +176,8 @@ class DockerInfrastructure(unittest.TestCase):
              *(f"Dockerfile.{module}" for module in ("python", "typescript", "java")
               if module in modules)],
         )
-        for path in docker_projection(frozenset(modules)):
-            self.assertFalse((self.project / path).exists(), path)
+        for path, content in docker_files(frozenset(modules)).items():
+            self.assertEqual((self.project / path).read_bytes(), content, path)
 
     def restore_all(self, plans):
         for backup in reversed(plans):
@@ -93,7 +213,7 @@ class DockerInfrastructure(unittest.TestCase):
         self.assertIsNone(noop["backup"])
         self.assertEqual(
             noop["projection"],
-            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.java"],
+            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.java", "docs/DOCKER.md"],
         )
 
         before_refusal = self.files()
@@ -123,7 +243,7 @@ class DockerInfrastructure(unittest.TestCase):
         self.assert_docker_state({"python", "typescript"})
         self.assertEqual(
             docker["projection"],
-            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.typescript"],
+            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.typescript", "docs/DOCKER.md"],
         )
         self.restore_all([python["backup"]["id"], typescript["backup"]["id"], docker_backup])
         self.assertEqual(self.files(), original)
@@ -153,6 +273,139 @@ class DockerInfrastructure(unittest.TestCase):
                     )
         self.assertEqual((self.project / "config/project.yaml").read_bytes(), original_config)
         self.assertEqual(foreign.read_bytes(), b"foreign")
+
+    def test_language_dependency_changed_after_snapshot_blocks_module_apply(self):
+        self.install("python")
+        self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, _ = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            dependency = self.project / "src/project_app/app.py"
+            original = dependency.read_bytes()
+            before_config = (self.project / "config/project.yaml").read_bytes()
+            real_progress = transaction._multi_progress
+
+            def edit_after_snapshot(backup, progress):
+                real_progress(backup, progress)
+                dependency.write_bytes(original + b"# foreign\n")
+
+            with mock.patch.object(transaction, "_multi_progress", side_effect=edit_after_snapshot):
+                with self.assertRaisesRegex(transaction.TransactionError, "Ziel wurde nicht geschrieben"):
+                    transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+            self.assertEqual((self.project / "config/project.yaml").read_bytes(), before_config)
+            self.assertFalse((self.project / "java").exists())
+
+    def test_installed_language_fingerprint_is_bound_when_docker_registered(self):
+        self.install("python")
+        self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, _ = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            state = next(item for item in plan["preconditions"]["files"]
+                         if item["path"] == "src/project_app/app.py")
+            dependency = self.project / state["path"]
+            self.assertEqual(state["sha256"], hashlib.sha256(dependency.read_bytes()).hexdigest())
+            self.assertIsInstance(state["attributes"], str)
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            config = self.project / "config/project.yaml"
+            config.write_bytes(config.read_bytes().replace(b'"python@0.1.0"', b'"typescript@0.1.0"'))
+            before = self.files()
+            with self.assertRaises(transaction.TransactionError):
+                transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+            self.assertEqual(before, self.files())
+
+    def test_installed_language_attribute_change_rejects_confirmed_plan(self):
+        self.install("python")
+        self.install_docker()
+        dependency = self.project / "src/project_app/app.py"
+        mode = stat.S_IMODE(dependency.stat().st_mode)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, _ = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            try:
+                dependency.chmod(mode & ~stat.S_IWRITE)
+                before = self.files()
+                with self.assertRaises(transaction.TransactionError):
+                    transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+                self.assertEqual(before, self.files())
+            finally:
+                dependency.chmod(mode)
+
+    def test_dockerfile_attributes_are_bound_to_later_language_plan(self):
+        self.install("python")
+        self.install_docker()
+        path = self.project / "Dockerfile.python"
+        mode = stat.S_IMODE(path.stat().st_mode)
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            plan, _ = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            state = next(item for item in plan["preconditions"]["files"] if item["path"] == "Dockerfile.python")
+            self.assertEqual(state["sha256"], hashlib.sha256(path.read_bytes()).hexdigest())
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            try:
+                path.chmod(mode & ~stat.S_IWRITE)
+                with self.assertRaises(transaction.TransactionError):
+                    transaction.apply(str(self.project), str(self.plan_file), plan["plan_id"], installed_version())
+                self.assertFalse((self.project / "java").exists())
+            finally:
+                path.chmod(mode)
+
+    def test_format4_fixture_compose_operation_and_reverse_restore(self):
+        # The earlier synthetic transaction now exercises real generated bytes.
+        self.install("python")
+        self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            compose = self.project / "compose.yaml"
+            original = compose.read_bytes()
+            target = docker_files(frozenset({"python", "java"}))["compose.yaml"]
+            plan, changes = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            operation = next(op for op in plan["operations"] if op["path"] == "compose.yaml")
+            self.assertEqual(operation["before_sha256"], hashlib.sha256(original).hexdigest())
+            self.assertEqual(operation["after_sha256"], hashlib.sha256(target).hexdigest())
+            backup = transaction.apply_multi(str(self.project), plan, plan["plan_id"], installed_version(),
+                                             changes, module="java")
+            self.assertEqual(compose.read_bytes(), target)
+            compose.write_bytes(b"foreign\n")
+            with self.assertRaises(transaction.TransactionError):
+                transaction.restore(str(self.project), backup)
+            compose.write_bytes(target)
+            transaction.restore(str(self.project), backup)
+            self.assertEqual(compose.read_bytes(), original)
+            self.assertFalse((self.project / "Dockerfile.java").exists())
+
+    def test_format4_fixture_compose_changed_after_snapshot_aborts(self):
+        self.install("python")
+        self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            compose = self.project / "compose.yaml"
+            plan, changes = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            real_progress = transaction._multi_progress
+
+            def edit_after_snapshot(backup, progress):
+                real_progress(backup, progress)
+                compose.write_bytes(b"foreign\n")
+
+            with mock.patch.object(transaction, "_multi_progress", side_effect=edit_after_snapshot):
+                with self.assertRaisesRegex(transaction.TransactionError, "Ziel wurde nicht geschrieben"):
+                    transaction.apply_multi(str(self.project), plan, plan["plan_id"], installed_version(),
+                                            changes, module="java")
+            self.assertEqual(compose.read_bytes(), b"foreign\n")
+            self.assertFalse((self.project / "java").exists())
+
+    def test_format4_fixture_stale_compose_and_manipulated_plan_rejected(self):
+        self.install("python")
+        self.install_docker()
+        with mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")}):
+            compose = self.project / "compose.yaml"
+            plan, changes = python_module.module_plan_target(str(self.project), installed_version(), "java")
+            manipulated = json.loads(json.dumps(plan))
+            manipulated["preconditions"]["files"][0]["sha256"] = "0" * 64
+            with self.assertRaises(transaction.TransactionError):
+                transaction.apply_multi(str(self.project), manipulated, plan["plan_id"], installed_version(),
+                                        changes, module="java")
+            compose.write_bytes(b"foreign\n")
+            with self.assertRaises(transaction.TransactionError):
+                transaction.apply_multi(str(self.project), plan, plan["plan_id"], installed_version(),
+                                        changes, module="java")
+            self.assertFalse((self.project / "java").exists())
 
     def test_java_legacy_crlf_state_remains_accepted_by_docker_preconditions(self):
         real_files = python_module._files_for

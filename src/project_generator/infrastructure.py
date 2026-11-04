@@ -8,10 +8,11 @@ from pathlib import Path
 
 from . import projectcfg
 from .config import ConfigurationError
-from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE, docker_projection
+from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE, docker_projection_with_docs
+from .docker_files import docker_files
 from .module_states import CI_STATES, MODULES
 from .plan import (
-    PathSafetyError, _canonical_id, _directory_states, _location_fingerprint, _operation_state,
+    PathSafetyError, _canonical_id, _directory_states, _location_fingerprint, _operation_state, _portable_path_collisions,
     backup_store, file_attributes, multi_plan_target, read_target, assess,
 )
 from .python_module import CHECKS, CI_PATH, _files_for, _matches_module_file
@@ -127,22 +128,29 @@ def infrastructure_plan_target(target: str, version: str, infrastructure: str = 
     metadata, conflicts, warnings = assess(content, version, missing)
     root = Path(target).expanduser().resolve(strict=True)
     modules = frozenset(name for name, value in MODULES.items() if value in metadata["modules"])
-    projection = list(docker_projection(modules)) if modules else []
+    projection = list(docker_projection_with_docs(modules)) if modules else []
     if not modules:
         conflicts.append("docker-compose@0.1.0 benötigt mindestens ein installiertes Sprachmodul.")
         return _empty_plan(target, version, content, warnings, conflicts, {"files": [], "directories": []},
                            projection), []
     preconditions, language_conflicts = _language_preconditions(root, modules)
     conflicts.extend(language_conflicts)
-    for name in projection:
-        existing, _ = _operation_state(root, name)
-        if existing is not None:
-            conflicts.append(f"{name}: vorhandene Docker-Projektion wird nicht überschrieben.")
     installed = INFRASTRUCTURE[infrastructure] in metadata["infrastructure"]
+    files = docker_files(modules)
+    for name in _portable_path_collisions(root, list(files)):
+        conflicts.append(f"{name}: Pfad kollidiert auf anderen Plattformen.")
+    for name, result in files.items():
+        existing, _ = _operation_state(root, name)
+        if installed and existing != result:
+            conflicts.append(f"{name}: Docker-Datei fehlt oder wurde verändert.")
+        elif not installed and existing is not None:
+            conflicts.append(f"{name}: vorhandene Docker-Projektion wird nicht überschrieben.")
     if installed or conflicts:
         return _empty_plan(target, version, content, warnings, conflicts, preconditions, projection), []
     result = _metadata_with_infrastructure(content, infrastructure)
-    changes = [("config/project.yaml", "modify", result)]
+    changes = [("config/project.yaml", "modify", result)] + [
+        (name, "create", data) for name, data in files.items()
+    ]
     return multi_plan_target(
         target, version, changes, backup_id, infrastructure=infrastructure,
         preconditions=preconditions, projection=projection,
