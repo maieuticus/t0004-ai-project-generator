@@ -5,6 +5,12 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 134B auf `feat/github-actions-maintenance`, Basis `main` (`5adabae`):
+  Nur die eigenen Workflows `ci.yml` und `docker-validation.yml` des Generators
+  nutzen jetzt SHA-gepinnte Actions (checkout v7.0.1, setup-python v7.1.0,
+  setup-node v7.1.0, setup-java v6.1.0), `persist-credentials: false` und
+  `package-manager-cache: false`. Generierte Projekt-Workflows und ihre
+  Bytezustände bleiben unverändert. Gesamtfortschritt bis zum bestätigten Merge: 77 %.
 - Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
   (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
   PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
@@ -417,9 +423,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Nach Nutzer-LOS Schritt 133C zur abschließenden PostgreSQL-PR-C-Konvergenz
-beginnen. Empfehlung dafür: starkes Modell, Reasoning-Stufe hoch. Der
-Gesamtfortschritt bleibt bis zum erfolgreichen PostgreSQL-PR-C-Merge bei 76 %.
+Nach Nutzer-LOS PR zu Schritt 134B prüfen und mergen. Empfehlung: leichtes Modell,
+Reasoning-Stufe niedrig. Gesamtfortschritt bleibt bis zum Merge bei 77 %.
 
 ## Risiken
 
