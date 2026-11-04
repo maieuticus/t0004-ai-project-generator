@@ -45,9 +45,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   Basis- und Docker-Workflows auf Ubuntu und Windows. Die vier Runs
   `41871532914`, `41871571088`, `41871532874` und `41871570873` sind erfolgreich;
   die Docker-Workflows enthalten den PostgreSQL-Laufzeittest auf Ubuntu und
-  Compose-Prüfung auf Windows. Dieser Handoff-Nachtrag ändert nur die Übergabe;
-  seine neuen CI-Läufe auf dem nachfolgenden Commit müssen ebenfalls erfolgreich
-  abschließen. PR C bleibt Draft und ungemergt.
+  Compose-Prüfung auf Windows. Auch der nachfolgende Handoff-Commit `fb5fce2`
+  bestand die finalen Basis- und Docker-Workflows auf Ubuntu und Windows
+  (`41873593887`, `41873595507`, `41873593911`, `41873595411`). PR C bleibt
+  Draft und ungemergt.
 
 - Schritt 133B.1 auf `test/postgresql-infrastructure-pr-c`, ausgehend von
   `b958661`: Zugriff auf `maieuticus/p9999-ai-project-template-test-repo` ist
