@@ -5,6 +5,23 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- Schritt 132B auf `feat/postgresql-infrastructure-pr-b-clean`, aufbauend auf
+  `c062723`: Die PostgreSQL-Sicherheitsmatrix verwendet reale Format-4-Projektionen
+  und öffentliche CLI-Pfade. Sie deckt fehlendes Docker, fremde Compose-/Workflow-/
+  Dokumentationspfade, falsche oder umgeordnete Infrastrukturmetadaten, manipulierte
+  Plan-IDs und Zielhashes, Dateiattribute, Änderung nach Snapshot, beschädigte
+  Manifeste und Originale, Fremdänderungen vor Restore, falsche Restore-Reihenfolge
+  sowie kontrollierte Teiltransaktionen mit Recovery ab. Die sieben Sprachmengen und
+  zulässigen Installationsreihenfolgen konvergieren mit PostgreSQL; nachträgliche
+  TypeScript- und Java-Installation erhält die Projektion. Git-Index, No-op,
+  Secret-Abwesenheit, `.gitignore`-/`.dockerignore`-Schutz und ein Docker-Sentinel
+  sind geprüft. `python -m unittest discover -s tests -v` bestand mit 229 Tests
+  (7 übersprungen), `python -m unittest discover -s integration -v` mit 29 Tests;
+  `python scripts/docker_ci.py --config-only`, Projektcheck und `git diff --check`
+  bestanden. Es wurden keine Container, Datenbanken oder Volumes gestartet bzw.
+  verändert. Noch offen bleiben reale PostgreSQL-Compose-Laufzeit, Ubuntu-/Windows-CI
+  und menschliches PR-Review in 132C.
+
 - Schritt 132A auf `feat/postgresql-infrastructure-pr-b-clean`, ausgehend von `main`
   (`217e8b9`): Die öffentliche Auswahl `--infrastructure postgresql` nutzt die bestehende
   Format-4-Engine. Sie setzt einen bytegenau geprüften Docker- und Sprachzustand voraus,
