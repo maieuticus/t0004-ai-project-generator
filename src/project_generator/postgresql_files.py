@@ -28,7 +28,15 @@ exports/
 *~
 '''
 SECRET_IGNORE = b'/.secrets/postgres_password\n'
-POSTGRES_GITIGNORES = (SECRET_IGNORE, TEMPLATE_GITIGNORE + SECRET_IGNORE)
+POSTGRES_GITIGNORES = (TEMPLATE_GITIGNORE, TEMPLATE_GITIGNORE + SECRET_IGNORE)
+
+
+def postgresql_gitignore(content: bytes) -> bytes:
+    """Append the sole managed secret rule to the exact known t0003 ignore file."""
+    if content != TEMPLATE_GITIGNORE:
+        raise ValueError("Die .gitignore entspricht nicht dem geprüften t0003-Zustand.")
+    return TEMPLATE_GITIGNORE + SECRET_IGNORE
+
 
 POSTGRESQL_DOC = '''# PostgreSQL mit Docker Compose
 

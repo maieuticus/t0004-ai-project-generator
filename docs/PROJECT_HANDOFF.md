@@ -5,21 +5,21 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
-- Schritt 132: Der Arbeitsbranch `feat/postgresql-infrastructure-pr-b` enthält im
-  Commit `d7acac5` vier Gitlinks auf die vom Auftrag ausgeschlossenen `.work-p9999-*`-
-  Testklone. Diese Fremdänderung wurde nicht verändert. Für die Vorbereitung wurde
-  `feat/postgresql-infrastructure-pr-b-clean` als separater Arbeitsbaum ab `main`
-  (`217e8b9`) angelegt. Eine noch nicht öffentlich verwendete Compose- und Workflow-
-  Variante, Dokumentationsvorlage und geschlossene Projektionskennung sind begonnen;
-  öffentliche Auswahl und Transaktionsbindung fehlen noch.
-  Es gibt keinen PR und keine neue CI-Abnahme. Dieser gesonderte Arbeitsbranch enthält
-  keine Testklone und dient der Fortsetzung im Codespace; er ist nicht mergefähig.
-  Der am 2026-11-04 direkt bei der Registry abgefragte Index für `postgres:18.6`
-  war `sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81`
-  und wurde am selben Tag erneut bestätigt. Die t0003-`.gitignore` an Commit `6e8363a` enthält
-  keine explizite Regel für `.secrets/postgres_password`. Projektcheck, der gezielte
-  bestehende Docker-Auswahltest und zwei einfache Projektionstests bestanden; die
-  PostgreSQL-Variante ist weder mit Compose noch als Transaktion geprüft.
+- Schritt 132A auf `feat/postgresql-infrastructure-pr-b-clean`, ausgehend von `main`
+  (`217e8b9`): Die öffentliche Auswahl `--infrastructure postgresql` nutzt die bestehende
+  Format-4-Engine. Sie setzt einen bytegenau geprüften Docker- und Sprachzustand voraus,
+  ergänzt `db-postgres`, Volume, Healthcheck, lokale Compose-Secret-Referenz und
+  `docs/POSTGRESQL.md`, und erweitert ausschließlich die exakt bekannte t0003-`.gitignore`
+  um `/.secrets/postgres_password`. Passwortdateien werden nicht erzeugt. Eine spätere
+  Java-Installation erhält die PostgreSQL-Projektion; Reverse-Restore verweigert falsche
+  Reihenfolgen oder Fremdänderungen. Historische Docker-Projektionen und die acht
+  Sprach-CI-Zustände bleiben unverändert. Der Registry-Index von `postgres:18.6` wurde am
+  2026-11-04 erneut als `sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81`
+  bestätigt. `python scripts/check.py`, die Infrastruktursuite (32 Tests), die gesamte
+  Generatorsuite (225 Tests, 7 übersprungen) sowie ein installierter CLI-E2E-Test gegen
+  einen temporären echten t0003-Checkout bestanden im Codespace. Es wurden keine Container,
+  Datenbanken oder Volumes gestartet bzw. verändert. Ein PR, Push und Compose-/Datenbank-
+  Laufzeitabnahme stehen aus; Sicherheitsmatrix und CI-Härtung folgen in 132B/132C.
 
 - Schritt 131 auf `feat/postgresql-infrastructure-pr-a`, ausgehend von `main` auf
   Merge-Commit `35352a4`: PostgreSQL wird als fester interner Infrastrukturzustand und

@@ -32,7 +32,8 @@ def _parser() -> argparse.ArgumentParser:
         if name != "check":
             selection = command.add_mutually_exclusive_group()
             selection.add_argument("--module", choices=("python", "typescript", "java"), help="Technologiemodul planen")
-            selection.add_argument("--infrastructure", choices=("docker-compose",), help="Infrastruktur planen")
+            selection.add_argument("--infrastructure", choices=("docker-compose", "postgresql"),
+                                   help="Infrastruktur planen")
     command = commands.add_parser("migrate", help="bestehendes Projekt ausschließlich lesend analysieren")
     command.add_argument("target", nargs="?", default=".", help="Quellprojekt (Standard: aktuelles Verzeichnis)")
     command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbarer Analysebericht")

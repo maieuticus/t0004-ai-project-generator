@@ -407,9 +407,10 @@ def apply(target: str, plan_file: str, confirmation: str, version: str, source: 
     if source is not None:
         raise TransactionError("--source ist nur für Migrationspläne zulässig.")
     if supplied.get("format") == 4:
-        if supplied.get("infrastructure") == "docker-compose":
+        if supplied.get("infrastructure") in ("docker-compose", "postgresql"):
             from .infrastructure import apply_infrastructure
-            return apply_infrastructure(target, supplied, confirmation, version)
+            return apply_infrastructure(target, supplied, confirmation, version,
+                                        supplied["infrastructure"])
         if supplied.get("module") not in ("python", "typescript", "java"):
             raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
         from .python_module import module_plan_target
@@ -651,7 +652,8 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
     if "module" in plan or "infrastructure" in plan:
         conditions = plan["preconditions"]
         if ((("module" in plan and plan["module"] not in ("python", "typescript", "java"))
-             or ("infrastructure" in plan and plan["infrastructure"] != "docker-compose"))
+             or ("infrastructure" in plan
+                 and plan["infrastructure"] not in ("docker-compose", "postgresql")))
                 or plan["conflicts"] != [] or not isinstance(conditions, dict)
                 or set(conditions) != {"files", "directories"}
                 or not isinstance(conditions["files"], list)
@@ -667,8 +669,15 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
                        for state in conditions["directories"])):
             raise TransactionError("Modulvoraussetzungen im Backup sind ungültig.")
     if "infrastructure" in plan:
-        from .infrastructure_states import known_docker_projection
-        if not known_docker_projection(plan["projection"]):
+        from .infrastructure_states import (
+            DOCKER_COMPOSE, POSTGRESQL, known_docker_projection, known_postgresql_projection,
+        )
+        if (plan["infrastructure"] not in {DOCKER_COMPOSE, POSTGRESQL}
+                or not (
+                    known_docker_projection(plan["projection"])
+                    if plan["infrastructure"] == DOCKER_COMPOSE
+                    else known_postgresql_projection(plan["projection"])
+                )):
             raise TransactionError("Infrastrukturprojektion im Backup ist ungültig.")
     identity = {key: value for key, value in plan.items() if key not in {"plan_id", "read_only"}}
     if (type(plan["format"]) is not int or plan["format"] != 4 or plan["read_only"] is not True

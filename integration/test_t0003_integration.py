@@ -212,6 +212,38 @@ class T0003Integration(unittest.TestCase):
             self.cli("restore", "--backup", plan["backup"]["id"])
         self.assertEqual(self.files(), original)
 
+    def test_installed_postgresql_update_and_reverse_restore(self):
+        original = self.files()
+        index = (self.project / ".git/index").read_bytes()
+        python = self.plan()
+        self.apply(python)
+        docker = self.docker_install(("--infrastructure", "docker-compose"))
+        postgres = self.docker_install(("--infrastructure", "postgresql"))
+        compose = self.project / "compose.yaml"
+        self.assertIn(b"db-postgres:", compose.read_bytes())
+        self.assertIn(b"postgres_data:/var/lib/postgresql", compose.read_bytes())
+        self.assertFalse((self.project / ".secrets/postgres_password").exists())
+        self.assertIn(b"/.secrets/postgres_password\n", (self.project / ".gitignore").read_bytes())
+
+        noop = json.loads(self.cli("plan", "--infrastructure", "postgresql", "--json").stdout)
+        self.assertFalse(noop["conflicts"])
+        self.assertEqual(noop["operations"], [])
+        self.assertIsNone(noop["backup"])
+
+        result = self.cli("plan", "--module", "java", "--json")
+        java = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(java)
+        self.assertIn(b"app-java:", compose.read_bytes())
+        self.assertIn(b"db-postgres:", compose.read_bytes())
+        self.assertEqual((self.project / ".git/index").read_bytes(), index)
+
+        self.assert_docker_refused("restore", "--backup", postgres["backup"]["id"])
+        for plan in (java, postgres, docker, python):
+            self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(self.files(), original)
+        self.assertEqual((self.project / ".git/index").read_bytes(), index)
+
     def test_strategy_b_package_provenance_and_read_only_cli(self):
         old = self.case / "old-baseline"
         old.mkdir()

@@ -23,6 +23,7 @@ from project_generator.infrastructure_states import (
 from project_generator.config import ConfigurationError, load_metadata
 from project_generator.module_states import CI_STATES
 from project_generator.docker_files import docker_files
+from project_generator.postgresql_files import POSTGRES_GITIGNORES
 
 
 class DockerInfrastructure(unittest.TestCase):
@@ -232,6 +233,21 @@ class DockerInfrastructure(unittest.TestCase):
             )
         return plan, backup
 
+    def select_postgresql(self):
+        result = self.cli("plan", "--infrastructure", "postgresql", "--json")
+        self.assertIn(result.returncode, (0, 1), result.stderr)
+        return result.returncode, json.loads(result.stdout)
+
+    def install_postgresql(self):
+        code, plan = self.select_postgresql()
+        self.assertEqual(code, 0, plan["conflicts"])
+        self.assertEqual(plan["format"], 4)
+        self.assertEqual(plan["infrastructure"], POSTGRESQL)
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        applied = self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+        self.assertEqual(applied.returncode, 0, applied.stderr)
+        return plan
+
     def assert_docker_state(self, modules):
         config = (self.project / "config/project.yaml").read_text(encoding="utf-8")
         expected_modules = [f"{module}@0.1.0" for module in ("python", "typescript", "java")
@@ -248,6 +264,17 @@ class DockerInfrastructure(unittest.TestCase):
         )
         for path, content in docker_files(frozenset(modules)).items():
             self.assertEqual((self.project / path).read_bytes(), content, path)
+
+    def assert_postgresql_state(self, modules):
+        config = (self.project / "config/project.yaml").read_text(encoding="utf-8")
+        expected_modules = [f"{module}@0.1.0" for module in ("python", "typescript", "java")
+                            if module in modules]
+        self.assertIn(f"modules: {json.dumps(expected_modules)}", config)
+        self.assertIn('infrastructure: ["docker-compose@0.1.0", "postgresql@0.1.0"]', config)
+        for path, content in docker_files(frozenset(modules), postgresql=True).items():
+            self.assertEqual((self.project / path).read_bytes(), content, path)
+        self.assertEqual((self.project / ".gitignore").read_bytes(), POSTGRES_GITIGNORES[-1])
+        self.assertFalse((self.project / ".secrets/postgres_password").exists())
 
     def restore_all(self, plans):
         for backup in reversed(plans):
@@ -317,6 +344,43 @@ class DockerInfrastructure(unittest.TestCase):
         )
         self.restore_all([python["backup"]["id"], typescript["backup"]["id"], docker_backup])
         self.assertEqual(self.files(), original)
+
+    def test_public_postgresql_plan_apply_noop_java_and_reverse_restore(self):
+        original = self.files()
+        python = self.install("python")
+        _, docker_backup = self.install_docker()
+        postgres = self.install_postgresql()
+        self.assert_postgresql_state({"python"})
+
+        code, noop = self.select_postgresql()
+        self.assertEqual(code, 0, noop["conflicts"])
+        self.assertEqual(noop["operations"], [])
+        self.assertIsNone(noop["backup"])
+
+        java = self.install("java")
+        self.assert_postgresql_state({"python", "java"})
+        before_refusal = self.files()
+        self.assertEqual(self.cli("restore", "--backup", postgres["backup"]["id"]).returncode, 1)
+        self.assertEqual(self.files(), before_refusal)
+        self.restore_all([
+            python["backup"]["id"], docker_backup, postgres["backup"]["id"], java["backup"]["id"],
+        ])
+        self.assertEqual(self.files(), original)
+
+    def test_postgresql_requires_docker_and_exact_ignore_file(self):
+        self.install("python")
+        code, plan = self.select_postgresql()
+        self.assertEqual(code, 1)
+        self.assertTrue(any("benötigt docker-compose" in item for item in plan["conflicts"]))
+
+        self.install_docker()
+        ignore = self.project / ".gitignore"
+        original = ignore.read_bytes()
+        ignore.write_bytes(original + b"# foreign\n")
+        code, plan = self.select_postgresql()
+        self.assertEqual(code, 1)
+        self.assertTrue(any(".gitignore" in item for item in plan["conflicts"]))
+        self.assertEqual(ignore.read_bytes(), original + b"# foreign\n")
 
     def test_foreign_compose_projection_blocks_the_plan_and_snapshot_recheck(self):
         self.install("python")

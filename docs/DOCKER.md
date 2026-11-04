@@ -23,11 +23,26 @@ und verweigert Fremdänderungen. Die Generator-Snapshots können Secrets enthalt
 Historische, nur intern durch PR A registrierte Docker-Zustände ohne Dateien sind
 Konflikte; ihre alten Snapshots bleiben rücknehmbar.
 
-Die Vorlagen verwenden keine Volumes, Host-Mounts, Ports, Healthchecks, privilegierten
-Container oder Docker-Sockets. Die Ausschlussliste verhindert nicht die Aufnahme aller
-projektspezifischen Secrets und muss überprüft werden. PostgreSQL ist nicht implementiert.
-Für Image-Updates offizielle Docker-Hub-Tags und Mehrplattform-Digests neu prüfen,
-Vorlagen anpassen und die Build- und Laufzeittests erneut ausführen.
+Die Konsolen-Starter verwenden keine Volumes, Host-Mounts, Ports, Healthchecks,
+privilegierten Container oder Docker-Sockets. Die Ausschlussliste verhindert nicht die
+Aufnahme aller projektspezifischen Secrets und muss überprüft werden.
+
+Nach einer vollständigen Docker-Installation kann PostgreSQL als feste Erweiterung geplant
+werden. Sie ergänzt ausschließlich bekannte Dateien über dieselbe Format-4-Transaktion:
+
+```text
+t0004-generator plan PROJEKT --infrastructure postgresql --json > postgres-plan.json
+t0004-generator apply PROJEKT --plan postgres-plan.json --confirm PLAN-ID
+```
+
+Die Erweiterung erzeugt keine Passwortdatei. Vor einem späteren Containerstart muss der
+Benutzer `.secrets/postgres_password` lokal erstellen; der Generator ergänzt nur die exakt
+bekannte t0003-`.gitignore` um diese Regel. Compose verwendet `db-postgres`, ein benanntes
+Volume und einen Healthcheck ohne Host-Portfreigabe. Plan, Apply und Restore starten oder
+stoppen keine Container und ändern oder löschen weder Volumes noch Datenbankdaten. Ein
+Generator-Snapshot ist kein Datenbankbackup. Für Image-Updates offizielle Docker-Hub-Tags und
+Mehrplattform-Digests neu prüfen, Vorlagen anpassen und die Build- und Laufzeittests erneut
+ausführen.
 
 Die festgelegten Mehrplattform-Digests wurden gegen die Docker-Hub-Tagmetadaten der
 offiziellen Images geprüft:
@@ -38,3 +53,4 @@ offiziellen Images geprüft:
 | `node:24.11.1-bookworm-slim` | `48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57` |
 | `eclipse-temurin:25.0.2_10-jdk-noble` | `b866059783e3dd2dd183937b713e77d0fd94d87ce7bdd4ed4a77d79e97a276cd` |
 | `eclipse-temurin:25.0.2_10-jre-noble` | `a051234f864d7ab78bf0188c3c540ac06c711a3b566f00f246be37073cc99dce` |
+| `postgres:18.6` | `3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81` |
