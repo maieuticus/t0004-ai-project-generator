@@ -192,7 +192,8 @@ def _metadata_with_module(content: bytes, version: str, current_version: str | N
     raise ConfigurationError("config/project.yaml: generator.modules kann nicht sicher geändert werden.")
 
 
-def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str, object], list[tuple[str, str, bytes]]]:
+def module_plan_target(target: str, version: str, module: str,
+                       backup_id: str | None = None) -> tuple[dict[str, object], list[tuple[str, str, bytes]]]:
     if module not in MODULES:
         raise ConfigurationError("Unbekanntes Technologiemodul.")
     files = _files_for(module)
@@ -208,6 +209,26 @@ def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str
     checks = projectcfg.checks(content.decode("utf-8"))
     ci, _ = _operation_state(root, CI_PATH)
     expected_modules = frozenset(name for name in MODULES if MODULES[name] in metadata["modules"])
+    from .infrastructure_states import DOCKER_COMPOSE, INFRASTRUCTURE
+    docker_changes = []
+    if INFRASTRUCTURE[DOCKER_COMPOSE] in metadata["infrastructure"]:
+        from .docker_files import docker_files
+        old_files = docker_files(expected_modules) if expected_modules else {}
+        new_files = docker_files(expected_modules | {module})
+        for name in _portable_path_collisions(root, list(new_files)):
+            conflicts.append(f"{name}: Pfad kollidiert auf anderen Plattformen.")
+        for name, expected in old_files.items():
+            existing, _ = _operation_state(root, name)
+            if existing != expected:
+                conflicts.append(f"{name}: Docker-Datei fehlt oder wurde verändert.")
+            elif not installed and expected != new_files[name]:
+                docker_changes.append((name, "modify", new_files[name]))
+        for name in new_files.keys() - old_files.keys():
+            existing, _ = _operation_state(root, name)
+            if existing is not None:
+                conflicts.append(f"{name}: vorhandene Datei wird nicht überschrieben.")
+            elif not installed:
+                docker_changes.append((name, "create", new_files[name]))
     check = CHECKS[module]
     if installed and check not in checks:
         label = {"python": "Python", "typescript": "TypeScript", "java": "Java"}[module]
@@ -239,10 +260,11 @@ def module_plan_target(target: str, version: str, module: str) -> tuple[dict[str
            for entry in root.iterdir()):
         conflicts.append("Altes Backup im Zielprojekt: vor Git-Operationen geschützt außerhalb sichern.")
     if not installed and not conflicts and ci is not None:
+        changes.extend(docker_changes)
         config_result = _metadata_with_module(content, version, metadata["generator_version"], module)
         changes.append(("config/project.yaml", "modify", config_result))
         changes.append((CI_PATH, "modify", CI_STATES[expected_modules | {module}]))
-        return multi_plan_target(target, version, changes, module=module), changes
+        return multi_plan_target(target, version, changes, backup_id, module=module), changes
 
     identity = {
         "format": 4,

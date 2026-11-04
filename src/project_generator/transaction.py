@@ -407,6 +407,9 @@ def apply(target: str, plan_file: str, confirmation: str, version: str, source: 
     if source is not None:
         raise TransactionError("--source ist nur für Migrationspläne zulässig.")
     if supplied.get("format") == 4:
+        if supplied.get("infrastructure") == "docker-compose":
+            from .infrastructure import apply_infrastructure
+            return apply_infrastructure(target, supplied, confirmation, version)
         if supplied.get("module") not in ("python", "typescript", "java"):
             raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
         from .python_module import module_plan_target
@@ -416,7 +419,16 @@ def apply(target: str, plan_file: str, confirmation: str, version: str, source: 
             raise TransactionError(f"Modulplan kann nicht geprüft werden: {_error_detail(error)}") from error
         if expected.get("conflicts") or not changes:
             raise TransactionError("Modulplan enthält Konflikte oder keine ausführbare Operation.")
-        return apply_multi(target, supplied, confirmation, version, changes, module=supplied["module"])
+        def validate_module() -> None:
+            fresh, fresh_changes = module_plan_target(
+                target, version, supplied["module"], expected["backup"]["id"]
+            )
+            if (fresh != supplied or fresh_changes != changes
+                    or not hmac.compare_digest(confirmation, fresh["plan_id"])):
+                raise TransactionError("Modulvoraussetzungen haben sich vor apply geändert.")
+
+        return apply_multi(target, supplied, confirmation, version, changes,
+                           module=supplied["module"], preflight=validate_module)
     content, expected = _current_plan(target, version)
     if expected["conflicts"]:
         raise TransactionError("Projektkonflikte verhindern apply.")

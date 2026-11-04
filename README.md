@@ -111,6 +111,17 @@ Die CI installiert mit Node 24 zuerst per `npm ci --ignore-scripts --prefix type
 und führt danach den Projektcheck mit TypeScript-Build und `node:test` aus. Plan und Apply
 installieren keine Pakete. Der echte GitHub-Template-Test mit p9999 ist abgeschlossen.
 
+Nach mindestens einem Sprachmodul plant `t0004-generator plan /pfad/zum/projekt
+--infrastructure docker-compose --json` die feste Erweiterung `docker-compose@0.1.0`.
+Der gespeicherte Plan wird wie bei Sprachmodulen mit `apply --plan DATEI --confirm
+PLAN-ID` bestätigt. Er erzeugt Compose, `.dockerignore`, sprachabhängige Dockerfiles
+und `docs/DOCKER.md`; Generatorbefehle starten kein Docker. Mit Docker Engine und
+Compose können die Konsolenprogramme anschließend über `docker compose build` und
+`docker compose run --rm app-python` (entsprechend `app-typescript`, `app-java` für
+installierte Module) gestartet werden. Neue Sprachmodule erweitern die bekannten Dateien
+innerhalb ihrer geschützten Transaktion. Fremdänderungen sind Konflikte; Restore erfolgt
+in umgekehrter Apply-Reihenfolge. Weitere Hinweise stehen in der erzeugten Docker-Doku.
+
 Bei Projekten, die mit der früheren TypeScript-Vorlage aus PR B erstellt wurden, enthält
 `docs/TYPESCRIPT.md` eine veraltete Aussage. Da Moduldateien bytegenau geprüft werden,
 meldet eine erneute Modulplanung mit der korrigierten Vorlage einen Konflikt, auch bei

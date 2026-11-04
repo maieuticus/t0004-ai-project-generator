@@ -293,24 +293,39 @@ der Reihenfolge Python, TypeScript, Java; fremde Checks behalten ihre relative
 Reihenfolge. Jedes Apply erhält einen Snapshot; Restore erfolgt rückwärts und
 löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
 
-### Docker Compose als feste Infrastruktur-Erweiterung, PR A
+### Docker Compose als feste Infrastruktur-Erweiterung
 
+- Für die Dateierzeugung gehört `docs/DOCKER.md` zur festen
+  generatorverwalteten Projektion. Dafür ist nur die jeweilige PR-A-Projektion
+  mit genau diesem zusätzlichen Pfad zulässig. Bereits gespeicherte PR-A-Pläne
+  und Snapshots behalten ihre ursprüngliche Projektion; beliebige zusätzliche
+  Pfade werden nicht zugelassen.
+- Beim öffentlichen Sprach-Apply wird nach dem Snapshot vor dem ersten
+  Projektschreibzugriff der gesamte Modulplan erneut aus dem Dateisystem ermittelt
+  und mit dem bestätigten Plan einschließlich der Zielbytes verglichen. Ist Docker
+  registriert, bindet der Plan auch die Inhalte und Zugriffsattribute der vorhandenen
+  Sprachdateien. Die Format-4-Engine prüft Operationszustände zusätzlich vor und
+  nach dem Snapshot. Dies ersetzt keine exklusive Nutzung während Apply.
+- Bekannte Docker-Dateien werden bei späterer Sprachinstallation bytegenau und mit
+  Zugriffsattributen geprüft; Compose und Dokumentation werden kontrolliert aktualisiert,
+  neue Dockerfiles exklusiv erstellt. Fehlende oder fremd geänderte Dateien sind Konflikte.
+- `plan` und `new` akzeptieren `--infrastructure docker-compose`; mindestens ein
+  vollständig installiertes Sprachmodul ist erforderlich. `apply` und `restore`
+  verwenden die bestehende Format-4-Engine. Docker wird dabei nicht ausgeführt.
+  Bereits intern durch PR A registrierte Zustände ohne Dateien sind Konflikte und
+  werden nicht still als vollständig installiert interpretiert.
 - `docker-compose@0.1.0` ist eine feste Infrastrukturkennung, kein viertes
   Sprachmodul. Sie steht getrennt in der optionalen JSON-Liste
   `generator.infrastructure`; `generator.modules` enthält weiterhin ausschließlich
   Python, TypeScript und Java in dieser festen Reihenfolge. Es gibt keine dynamische
-  Registrierung, keine zweite Schreib-Engine und keine öffentliche CLI-Auswahl in PR A.
+  Registrierung und keine zweite Schreib-Engine.
 - Die interne Planung erlaubt Docker Compose nur bei mindestens einem vollständig
   eingerichteten Sprachmodul. Sie bindet die komplette bekannte Sprachprojektion an
   den Format-4-Plan: Moduldateien, Projektchecks, den exakten der acht Sprach-CI-Zustände
-  sowie die künftigen Docker-Pfade `.dockerignore`, `compose.yaml` und genau einen
-  `Dockerfile.<sprache>` je installiertem Sprachmodul. Vorhandene Dateien auf diesen
-  Pfaden sind Konflikte und werden nie überschrieben.
-- PR A registriert ausschließlich den Infrastrukturzustand in `config/project.yaml`;
-  es erzeugt weder Dockerfiles noch Compose-Dateien und bietet keine Container-, Build-
-  oder Compose-Ausführung. Die Projektion ist dennoch deterministisch und wird bei
-  nachträglichen Sprachmodulen aus dem gesamten bekannten Sprachzustand neu berechnet.
-  PR B liefert erst die fest gerenderten Datei-Bytes und die öffentliche Auswahl.
+  sowie `.dockerignore`, `compose.yaml`, `docs/DOCKER.md` und genau einen
+  `Dockerfile.<sprache>` je installiertem Sprachmodul. Fremde Dateien auf diesen
+  Pfaden werden nie überschrieben. Die Projektion wird bei nachträglichen Sprachmodulen
+  aus dem gesamten bekannten Sprachzustand neu berechnet.
 - Die Registrierung nutzt unverändert die vorhandene Format-4-Engine mit einem
   geschützten Snapshot und Restore. Ein weiterer Sprach- oder Infrastrukturzustand
   verhindert die Rücknahme eines älteren Snapshots; die Rücknahme erfolgt daher in
@@ -321,8 +336,8 @@ löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
   CRLF-Zustand von `java/mvnw.cmd` wird für die Infrastrukturvoraussetzungen akzeptiert;
   fremde Änderungen bleiben Konflikte und Restore prüft weiterhin streng die gesicherten
   Originalbytes und Zugriffsmetadaten.
-- PR B muss versions- und digestgebundene Basisimages, nicht privilegierte
-  Runtime-Benutzer und sprachspezifische Multi-stage-Builds verwenden. V0.1.0 hat
+- Die Vorlagen verwenden versions- und digestgebundene Basisimages und nicht privilegierte
+  Runtime-Benutzer. V0.1.0 hat
   keine Ports, Healthchecks, Volumes, Host-Mounts, `.env.example`, Secrets,
   privilegierten Container oder Docker-Socket-Freigaben. PostgreSQL bleibt ein
   separates Folgepaket.
