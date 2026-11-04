@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import infrastructure, installed_version, python_module, transaction
 from project_generator.infrastructure_states import (
-    DOCKER_COMPOSE, docker_projection, docker_projection_with_docs, known_docker_projection,
+    DOCKER_COMPOSE, docker_projection, docker_projection_with_docs, docker_projection_with_ci, known_docker_projection,
 )
 from project_generator.module_states import CI_STATES
 from project_generator.docker_files import docker_files
@@ -79,6 +79,35 @@ class DockerInfrastructure(unittest.TestCase):
                 transaction.restore(str(self.project), backup)
             self.assertEqual(before, self.files())
 
+    def test_workflow_conflicts_and_restore_are_protected(self):
+        self.install("python")
+        workflow = self.project / ".github/workflows/docker.yml"
+        workflow.write_bytes(b"foreign\n")
+        plan, changes = self.select_docker()
+        self.assertFalse(changes)
+        self.assertTrue(any("docker.yml" in item for item in plan["conflicts"]))
+        workflow.unlink()
+        _, backup = self.install_docker()
+        generated = workflow.read_bytes()
+        workflow.write_bytes(b"foreign\n")
+        before = self.files()
+        self.assertEqual(self.cli("restore", "--backup", backup).returncode, 1)
+        self.assertEqual(before, self.files())
+        workflow.write_bytes(generated)
+        self.assertEqual(self.cli("restore", "--backup", backup).returncode, 0)
+        self.assertFalse(workflow.exists())
+
+    def test_historical_installation_without_workflow_is_not_modified(self):
+        self.install("python")
+        self.install_docker()
+        workflow = self.project / ".github/workflows/docker.yml"
+        workflow.unlink()
+        before = self.files()
+        plan, changes = self.select_docker()
+        self.assertFalse(changes)
+        self.assertTrue(any("docker.yml" in item for item in plan["conflicts"]))
+        self.assertEqual(before, self.files())
+
     def test_all_language_subsets_and_installation_orders_converge(self):
         modules = ("python", "typescript", "java")
         original = self.files()
@@ -114,6 +143,7 @@ class DockerInfrastructure(unittest.TestCase):
                 self.assertEqual(new, old + ["docs/DOCKER.md"])
                 self.assertTrue(known_docker_projection(old))
                 self.assertTrue(known_docker_projection(new))
+                self.assertTrue(known_docker_projection(list(docker_projection_with_ci(frozenset(names)))))
                 self.assertFalse(known_docker_projection(new + ["docs/foreign.md"]))
 
     def test_foreign_compose_blocks_later_language_plan(self):
@@ -213,7 +243,7 @@ class DockerInfrastructure(unittest.TestCase):
         self.assertIsNone(noop["backup"])
         self.assertEqual(
             noop["projection"],
-            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.java", "docs/DOCKER.md"],
+            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.java", "docs/DOCKER.md", ".github/workflows/docker.yml"],
         )
 
         before_refusal = self.files()
@@ -243,7 +273,7 @@ class DockerInfrastructure(unittest.TestCase):
         self.assert_docker_state({"python", "typescript"})
         self.assertEqual(
             docker["projection"],
-            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.typescript", "docs/DOCKER.md"],
+            [".dockerignore", "compose.yaml", "Dockerfile.python", "Dockerfile.typescript", "docs/DOCKER.md", ".github/workflows/docker.yml"],
         )
         self.restore_all([python["backup"]["id"], typescript["backup"]["id"], docker_backup])
         self.assertEqual(self.files(), original)

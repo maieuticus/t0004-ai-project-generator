@@ -68,6 +68,30 @@ IGNORE = b'''# Local data, secrets and generated files
 **/*.egg-info
 '''
 
+WORKFLOW = b'''name: Docker Compose
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate, build and run services
+        shell: bash
+        run: |
+          set -eu
+          docker compose version
+          docker compose config -q
+          docker compose build
+          while IFS= read -r service; do
+            docker compose run --rm --no-deps "$service"
+          done < <(docker compose config --services)
+'''
+
 
 def docker_files(modules: frozenset[str]) -> dict[str, bytes]:
     """Return the complete trusted projection in canonical module order."""
@@ -108,4 +132,4 @@ Docker-Hub-Tags und Digests prüfen, die Vorlagen ändern und alle Builds und Te
 '''
     return {".dockerignore": IGNORE, "compose.yaml": compose.encode("utf-8"),
             **{f"Dockerfile.{name}": DOCKERFILES[name] for name in MODULES if name in modules},
-            "docs/DOCKER.md": doc.encode("utf-8")}
+            "docs/DOCKER.md": doc.encode("utf-8"), ".github/workflows/docker.yml": WORKFLOW}

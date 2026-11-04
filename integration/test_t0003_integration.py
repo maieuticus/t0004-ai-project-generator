@@ -1,6 +1,9 @@
 """Installed CLI integration against two immutable public t0003 commits."""
 
 import hashlib
+import contextlib
+import errno
+import io
 import itertools
 from importlib import resources
 import json
@@ -14,6 +17,7 @@ import sys
 import sysconfig
 import tempfile
 import unittest
+from unittest import mock
 
 
 SOURCE = "https://github.com/maieuticus/t0003-ai-project-template.git"
@@ -23,6 +27,167 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class T0003Integration(unittest.TestCase):
+    def docker_install(self, selection):
+        result = self.cli("plan", *selection, "--json")
+        plan = json.loads(result.stdout)
+        self.assertFalse(plan["conflicts"])
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        self.apply(plan)
+        return plan
+
+    def docker_java_setup(self):
+        self.docker_install(("--module", "python"))
+        docker = self.docker_install(("--infrastructure", "docker-compose"))
+        result = self.cli("plan", "--module", "java", "--json")
+        plan = json.loads(result.stdout)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        return docker, plan
+
+    def assert_docker_refused(self, *args):
+        before, index = self.file_states(), (self.project / ".git/index").read_bytes()
+        result = self.cli(*args, expected=1)
+        self.assertIn("Konflikt:", result.stderr)
+        self.assertEqual(before, self.file_states())
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+        return result
+
+    def docker_inprocess_apply(self, plan, hook, callback):
+        # Invoke the public CLI entry point in-process solely for deterministic fault injection.
+        from project_generator import cli, transaction
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, self.env, clear=True), mock.patch.object(transaction, hook, side_effect=callback):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = cli.main(["apply", str(self.project), "--plan", str(self.plan_file),
+                                 "--confirm", plan["plan_id"]])
+        self.assertEqual(code, 1, stderr.getvalue())
+        self.assertIn("Konflikt:", stderr.getvalue())
+        return stderr.getvalue()
+
+    def test_docker_security_foreign_compose_before_install(self):
+        self.docker_install(("--module", "python"))
+        compose = self.project / "compose.yaml"
+        compose.write_bytes(b"foreign compose\n")
+        before, index = self.file_states(), (self.project / ".git/index").read_bytes()
+        result = self.cli("plan", "--infrastructure", "docker-compose", "--json", expected=1)
+        self.assertTrue(any("compose.yaml" in item for item in json.loads(result.stdout)["conflicts"]))
+        self.assertEqual(before, self.file_states())
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+
+    def test_docker_security_stale_plan_and_attributes(self):
+        _, plan = self.docker_java_setup()
+        compose = self.project / "compose.yaml"
+        original = compose.read_bytes()
+        compose.write_bytes(b"foreign compose\n")
+        self.assert_docker_refused("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+        compose.write_bytes(original)
+        dockerfile = self.project / "Dockerfile.python"
+        mode = stat.S_IMODE(dockerfile.stat().st_mode)
+        try:
+            dockerfile.chmod(mode & ~stat.S_IWRITE)
+            self.assert_docker_refused("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+        finally:
+            dockerfile.chmod(mode)
+
+    def test_docker_security_plan_and_metadata_tampering(self):
+        _, plan = self.docker_java_setup()
+        self.assert_docker_refused("apply", "--plan", str(self.plan_file), "--confirm", "0" * 64)
+        for field in ("plan_id", "after_sha256"):
+            with self.subTest(field=field):
+                altered = json.loads(json.dumps(plan))
+                if field == "plan_id":
+                    altered[field] = "0" * 64
+                else:
+                    next(op for op in altered["operations"] if op["path"] == "compose.yaml")[field] = "0" * 64
+                self.plan_file.write_text(json.dumps(altered), encoding="utf-8")
+                self.assert_docker_refused("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+        self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+        config = self.project / "config/project.yaml"
+        original = config.read_bytes()
+        for old, new in ((b'"docker-compose@0.1.0"', b'"foreign@0.1.0"'),
+                         (b'"python@0.1.0"', b'"typescript@0.1.0"')):
+            with self.subTest(metadata=old):
+                config.write_bytes(original.replace(old, new))
+                before, index = self.file_states(), (self.project / ".git/index").read_bytes()
+                result = self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"], expected=1)
+                self.assertIn("Konflikt:", result.stderr)
+                self.assertEqual(before, self.file_states())
+                self.assertEqual(index, (self.project / ".git/index").read_bytes())
+        config.write_bytes(original)
+
+    def test_docker_security_snapshot_recheck_before_write(self):
+        _, plan = self.docker_java_setup()
+        from project_generator import transaction
+        compose = self.project / "compose.yaml"
+        before, index = self.file_states(), (self.project / ".git/index").read_bytes()
+        real = transaction._multi_progress
+
+        def inject(backup, progress):
+            real(backup, progress)
+            compose.write_bytes(b"foreign after snapshot\n")
+
+        error = self.docker_inprocess_apply(plan, "_multi_progress", inject)
+        self.assertIn("Ziel wurde nicht geschrieben", error)
+        self.assertEqual(compose.read_bytes(), b"foreign after snapshot\n")
+        del before["compose.yaml"]
+        after = self.file_states()
+        del after["compose.yaml"]
+        self.assertEqual(before, after)
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+
+    def test_docker_security_restore_manifest_original_and_dependencies(self):
+        docker, java = self.docker_java_setup()
+        self.apply(java)
+        self.assert_docker_refused("restore", "--backup", docker["backup"]["id"])
+        backup = self.data / "t0004-generator" / "backups" / (".t0004-backup-" + java["backup"]["id"])
+        manifest = backup / "manifest.json"
+        original_index = next(i for i, op in enumerate(java["operations"]) if op["path"] == "compose.yaml")
+        original = backup / f"original-{original_index:02d}"
+        for damaged in (manifest, original):
+            content = damaged.read_bytes()
+            damaged.write_bytes(b"tampered")
+            self.assert_docker_refused("restore", "--backup", java["backup"]["id"])
+            damaged.write_bytes(content)
+        for name in ("compose.yaml", "Dockerfile.java", "docs/DOCKER.md"):
+            path = self.project / name
+            content = path.read_bytes()
+            path.write_bytes(b"foreign\n")
+            self.assert_docker_refused("restore", "--backup", java["backup"]["id"])
+            path.write_bytes(content)
+        self.cli("restore", "--backup", java["backup"]["id"])
+        workflow = self.project / ".github/workflows/docker.yml"
+        content = workflow.read_bytes()
+        workflow.write_bytes(b"foreign\n")
+        self.assert_docker_refused("restore", "--backup", docker["backup"]["id"])
+        workflow.write_bytes(content)
+        self.cli("restore", "--backup", docker["backup"]["id"])
+
+    def test_docker_security_partial_transaction_recovery(self):
+        _, plan = self.docker_java_setup()
+        from project_generator import transaction
+        before, index = self.files(), (self.project / ".git/index").read_bytes()
+        real = transaction._multi_create
+        calls = []
+
+        def fail_second(path, content, opened):
+            calls.append(path)
+            if len(calls) == 2:
+                raise OSError(errno.ENOSPC, "injected failure")
+            return real(path, content, opened)
+
+        error = self.docker_inprocess_apply(plan, "_multi_create", fail_second)
+        self.assertIn(plan["backup"]["id"], error)
+        self.assertGreaterEqual(len(calls), 2)
+        self.assertNotEqual(before, self.files())
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+        partial = calls[0]
+        written = partial.read_bytes()
+        partial.write_bytes(b"foreign after partial apply\n")
+        self.assert_docker_refused("restore", "--backup", plan["backup"]["id"])
+        partial.write_bytes(written)
+        self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(before, self.files())
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+
     def test_installed_docker_compose_update_and_reverse_restore(self):
         original = self.files()
         index = (self.project / ".git/index").read_bytes()

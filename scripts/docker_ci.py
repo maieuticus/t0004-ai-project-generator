@@ -84,13 +84,9 @@ def main():
 
         docker = ["docker", "compose"]
         if args.config_only:
-            try:
-                run([*docker, "version"], cwd=project, env=env)
-            except (FileNotFoundError, RuntimeError):
-                print("Docker Compose unavailable: configuration check skipped")
-            else:
-                run([*docker, "config", "-q"], cwd=project, env=env)
-                print("Docker Compose configuration OK")
+            print(run([*docker, "version"], cwd=project, env=env))
+            run([*docker, "config", "-q"], cwd=project, env=env)
+            print("Docker Compose configuration OK")
         else:
             print(run(["docker", "version"], cwd=project, env=env))
             print(run([*docker, "version"], cwd=project, env=env))

@@ -25,6 +25,11 @@ def docker_projection_with_docs(modules: frozenset[str]) -> tuple[str, ...]:
     return (*docker_projection(modules), "docs/DOCKER.md")
 
 
+def docker_projection_with_ci(modules: frozenset[str]) -> tuple[str, ...]:
+    """PR-C projection; older snapshots keep their original path lists."""
+    return (*docker_projection_with_docs(modules), ".github/workflows/docker.yml")
+
+
 def known_docker_projection(paths: object) -> bool:
     """Accept the fixed PR-A and PR-B projections, never arbitrary paths."""
     if not isinstance(paths, list) or not all(isinstance(path, str) for path in paths):
@@ -33,6 +38,6 @@ def known_docker_projection(paths: object) -> bool:
         projection(frozenset(names))
         for count in range(1, len(MODULES) + 1)
         for names in combinations(MODULES, count)
-        for projection in (docker_projection, docker_projection_with_docs)
+        for projection in (docker_projection, docker_projection_with_docs, docker_projection_with_ci)
     }
     return tuple(paths) in expected
