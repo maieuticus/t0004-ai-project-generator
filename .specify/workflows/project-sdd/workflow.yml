@@ -1,0 +1,63 @@
+schema_version: "1.0"
+workflow:
+  id: project-sdd
+  name: Projektentwicklung mit DV-Konzept
+  version: "1.0.0"
+  description: Spezifikation, Plan, Umsetzung und Prüfung mit zentralem DV-Konzept.
+inputs:
+  spec:
+    type: string
+    required: true
+    prompt: Beschreibe das abgegrenzte Feature.
+steps:
+  - id: specify
+    type: command
+    command: speckit.specify
+    input:
+      args: "{{ inputs.spec }}"
+  - id: plan
+    type: command
+    command: speckit.plan
+    input:
+      args: "Berücksichtige docs/DV_KONZEPT.md und die Constitution."
+  - id: tasks
+    type: command
+    command: speckit.tasks
+  - id: analyze
+    type: command
+    command: speckit.analyze
+    input:
+      args: >-
+        Schreibe das Ergebnis in `analyze.md` des aktiven Features. Verwende
+        den Abschnitt `## Wesentliche Befunde`; wenn keine vorliegen, schreibe
+        dort exakt `Keine wesentlichen Befunde.`. Jeder Befund braucht genau
+        ein `**Status:**`-Feld mit genau einem Wert aus `offen`, `geklärt`
+        oder `akzeptiert`, eine nichtleere `**Begründung:**` und bei `geklärt` ein
+        `**Geändertes Artefakt:**`. Wesentlich sind Befunde mit Auswirkungen auf
+        Akzeptanzkriterien, Schnittstellen, Daten, Sicherheit oder Betrieb.
+        Redaktionelle Befunde blockieren nicht und gehören in einen separaten
+        Hinweisabschnitt.
+  - id: analyze-report-check
+    type: shell
+    run: python scripts/check_analyze_gate.py
+    output_format: json
+  - id: analyze-gate
+    type: gate
+    message: "Geprüfter Analysebericht: offene wesentliche Befunde sind ausgeschlossen. Inhalt prüfen und nur bei geklärten/akzeptierten Befunden freigeben."
+    show_file: "{{ steps.analyze-report-check.output.data.report_path }}"
+    options: [approve, reject]
+    on_reject: abort
+  - id: implement
+    type: command
+    command: speckit.implement
+  - id: checks
+    type: shell
+    run: python scripts/check.py
+  - id: converge
+    type: command
+    command: speckit.converge
+  - id: review
+    type: gate
+    message: "Akzeptanzkriterien, offene Tasks, Prüfergebnisse und DV-Konzept prüfen. Bei Lücken abbrechen und nacharbeiten."
+    options: [approve, reject]
+    on_reject: abort
