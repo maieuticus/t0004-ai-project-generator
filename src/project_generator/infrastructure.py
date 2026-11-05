@@ -13,7 +13,7 @@ from .infrastructure_states import (
     docker_projection_with_ci, valid_infrastructure,
 )
 from .docker_files import docker_files
-from .module_states import CI_STATES, MODULES
+from .module_states import CI_STATES, MODULES, DOCKER_MODULES
 from .plan import (
     PathSafetyError, _canonical_id, _directory_states, _location_fingerprint, _operation_state, _portable_path_collisions,
     backup_store, file_attributes, multi_plan_target, read_target, assess,
@@ -163,12 +163,13 @@ def infrastructure_plan_target(target: str, version: str, infrastructure: str = 
     )
     root = Path(target).expanduser().resolve(strict=True)
     modules = frozenset(name for name, value in MODULES.items() if value in metadata["modules"])
+    docker_modules = modules & DOCKER_MODULES
     projection = (
         list(POSTGRESQL_PROJECTION)
         if infrastructure == POSTGRESQL
-        else list(docker_projection_with_ci(modules)) if modules else []
+        else list(docker_projection_with_ci(modules)) if docker_modules else []
     )
-    if not modules:
+    if not docker_modules:
         conflicts.append("docker-compose@0.1.0 benötigt mindestens ein installiertes Sprachmodul.")
         return _empty_plan(target, version, content, warnings, conflicts, {"files": [], "directories": []},
                            projection, infrastructure), []

@@ -2,7 +2,7 @@
 
 from itertools import combinations
 
-from .module_states import MODULES
+from .module_states import MODULES, DOCKER_MODULES
 
 DOCKER_COMPOSE = "docker-compose"
 POSTGRESQL = "postgresql"
@@ -15,8 +15,9 @@ def valid_infrastructure(values: object, modules: object) -> bool:
         return False
     if values != [value for value in INFRASTRUCTURE.values() if value in values]:
         return False
+    has_console_module = any(MODULES[name] in modules for name in DOCKER_MODULES)
     return not ((INFRASTRUCTURE[POSTGRESQL] in values and INFRASTRUCTURE[DOCKER_COMPOSE] not in values)
-                or (INFRASTRUCTURE[DOCKER_COMPOSE] in values and not modules))
+                or (INFRASTRUCTURE[DOCKER_COMPOSE] in values and not has_console_module))
 
 
 # A distinct projection keeps historical Docker snapshot path lists unchanged.
@@ -31,13 +32,13 @@ def known_postgresql_projection(paths: object) -> bool:
 
 def docker_projection(modules: frozenset[str]) -> tuple[str, ...]:
     """Return the PR-B Docker file paths for a known, non-empty language state."""
-    known = frozenset(MODULES)
-    if not modules or not modules.issubset(known):
+    docker_modules = modules & DOCKER_MODULES
+    if not modules or not modules.issubset(MODULES) or not docker_modules:
         raise ValueError("Docker Compose benötigt mindestens ein bekanntes Sprachmodul.")
     return (
         ".dockerignore",
         "compose.yaml",
-        *(f"Dockerfile.{module}" for module in MODULES if module in modules),
+        *(f"Dockerfile.{module}" for module in MODULES if module in docker_modules),
     )
 
 
@@ -57,8 +58,8 @@ def known_docker_projection(paths: object) -> bool:
         return False
     expected = {
         projection(frozenset(names))
-        for count in range(1, len(MODULES) + 1)
-        for names in combinations(MODULES, count)
+        for count in range(1, len(DOCKER_MODULES) + 1)
+        for names in combinations(tuple(name for name in MODULES if name in DOCKER_MODULES), count)
         for projection in (docker_projection, docker_projection_with_docs, docker_projection_with_ci)
     }
     return tuple(paths) in expected

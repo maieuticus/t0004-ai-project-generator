@@ -1,7 +1,7 @@
 # React Frontend Acceptance Quickstart
 
-This guide describes validation scenarios for implementation; it does not claim that
-the feature is implemented. No Docker daemon, secrets, external project, or production
+This guide records React acceptance scenarios and the validated workflow for the
+current increment. No Docker daemon, secrets, external project, or production
 resource is required.
 
 ## Prerequisites
@@ -43,6 +43,50 @@ reported by Apply. Confirm the first plan is read-only, the repeated plan has no
 operations, and restore returns only managed files to their prior state. Repeat on a
 project with the existing TypeScript module and confirm its files and lockfile are
 byte-identical.
+
+### Browser preview in GitHub Codespaces
+
+Run the preview from the generated project's `react/` directory, or use
+`TARGET/react` from the repository root. Keep this Vite process running while using
+the browser:
+
+```text
+npm start -- --host 0.0.0.0 --strictPort
+```
+
+In another Codespaces terminal, retrieve the complete forwarded address for port
+5173 and confirm it is private:
+
+```text
+gh codespace ports --codespace "$CODESPACE_NAME" --json sourcePort,browseUrl,visibility --jq '.[] | select(.sourcePort == 5173) | {browseUrl, visibility}'
+```
+
+Open the `browseUrl` value in a browser signed in to GitHub, or use **Open in
+Browser** for port 5173 in the Codespaces **Ports** tab. Do not use the Vite
+`localhost` URL in a browser outside the Codespace; it refers to the Codespace
+itself, not the browser's machine. If the command returns no port, add 5173 in the
+Ports tab and keep its visibility **Private**. Stopping Vite also stops the preview.
+If the browser reports that `localhost` could not be forwarded, verify that Vite is
+still running and port 5173 appears in the Ports tab; open its `browseUrl` instead
+of the local `localhost` address.
+
+The forwarding workflow is reusable for other frontend projects: run their
+development server, use that server's port and host-binding option, then open its
+private `browseUrl`. The port, start command, and host option remain
+framework/project-specific, so this React quickstart does not prescribe them for
+other projects.
+
+Automatic forwarding could be configured with `"forwardPorts": [5173]` in a
+`devcontainer.json`; GitHub documents this setting, and existing Codespaces need a
+rebuild after such a configuration change. This repository currently has no
+`devcontainer.json`, and forwarding a React-only port by default is not appropriate
+for every project generated here. Keep forwarding manual for this review; no
+Codespaces configuration is changed.
+
+**Review Gate 2 (2026-11-05): PASSED.** The user confirmed opening the generated
+React application in a browser and verified that **Add a step** increments the
+displayed counter. The user also confirmed the T005-T008 technical checks passed.
+Browser reload and browser-console inspection were not separately confirmed.
 
 ## Compatibility Review (Increment 3)
 

@@ -505,7 +505,8 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
     if module is not None and infrastructure is not None:
         raise PathSafetyError("Eine Mehrdatei-Operation kann nicht zugleich Modul und Infrastruktur sein.")
     if module is not None:
-        if module not in ("python", "typescript", "java"):
+        from .module_states import MODULES
+        if module not in MODULES:
             raise PathSafetyError("Unbekanntes Technologiemodul.")
         if _portable_path_collisions(root, [name for name, _, _ in ordered]):
             raise PathSafetyError("Ein Modulpfad kollidiert auf anderen Plattformen.")
@@ -521,7 +522,6 @@ def multi_plan_target(target: str, generator_version: str, changes: list[tuple[s
         from .infrastructure_states import INFRASTRUCTURE, DOCKER_COMPOSE, POSTGRESQL
         if INFRASTRUCTURE[DOCKER_COMPOSE] in metadata["infrastructure"]:
             from .infrastructure import _language_preconditions
-            from .module_states import MODULES
             modules = frozenset(name for name, value in MODULES.items() if value in metadata["modules"])
             language, language_conflicts = _language_preconditions(root, modules)
             if not modules or language_conflicts:

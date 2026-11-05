@@ -411,7 +411,8 @@ def apply(target: str, plan_file: str, confirmation: str, version: str, source: 
             from .infrastructure import apply_infrastructure
             return apply_infrastructure(target, supplied, confirmation, version,
                                         supplied["infrastructure"])
-        if supplied.get("module") not in ("python", "typescript", "java"):
+        from .module_states import MODULES
+        if supplied.get("module") not in MODULES:
             raise TransactionError("Unbekannter öffentlicher Mehrdatei-Plan.")
         from .python_module import module_plan_target
         try:
@@ -651,7 +652,8 @@ def _validate_multi_backup(root: Path, store: Path, backup: Path, backup_id: str
         raise TransactionError("Mehrdatei-Plan vermischt Modul und Infrastruktur.")
     if "module" in plan or "infrastructure" in plan:
         conditions = plan["preconditions"]
-        if ((("module" in plan and plan["module"] not in ("python", "typescript", "java"))
+        from .module_states import MODULES
+        if ((("module" in plan and plan["module"] not in MODULES)
              or ("infrastructure" in plan
                  and plan["infrastructure"] not in ("docker-compose", "postgresql")))
                 or plan["conflicts"] != [] or not isinstance(conditions, dict)

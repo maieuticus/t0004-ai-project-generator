@@ -93,7 +93,12 @@ matches the user's clarification.
 - Analyze gate: **APPROVED by the user on 2026-11-05**.
 - Review Gate 1: **PASSED by the user on 2026-11-05** after the browser counter
   interaction and technical evidence for T001-T004 were accepted.
-- T001-T004: complete. T005-T013: not started; T005 requires separate authorization.
+- Review Gate 2: **PASSED by the user on 2026-11-05** after confirming the generated
+  React app in a browser, the **Add a step** counter interaction, and successful
+  technical checks for T005-T008. Browser reload and browser-console inspection
+  were not separately confirmed.
+- T001-T008: complete. T009-T013: pending; their full task-level acceptance criteria
+  remain incomplete.
 
 ## Editorial Notes
 
@@ -109,6 +114,6 @@ matches the user's clarification.
 
 ## Next Actions
 
-The user resolved A001-A005 and approved the Analyze gate on 2026-11-05. T001-T004
-and Review Gate 1 are complete. No later task is authorized by this review; T005
-requires a separate explicit LOS.
+The user resolved A001-A005 and approved the Analyze gate on 2026-11-05. T001-T008
+and Review Gates 1 and 2 are complete. T009-T013 remain pending; reconcile their
+remaining scope with the current T005-T008 diff before undertaking that work.
