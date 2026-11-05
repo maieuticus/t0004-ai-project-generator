@@ -248,6 +248,55 @@ class ReactModule(unittest.TestCase):
             restored = self.cli("restore", "--backup", backup)
             self.assertEqual(restored.returncode, 0, restored.stderr)
 
+    def test_console_module_after_react_extends_compose_and_converges(self):
+        steps = (("python", None), (None, DOCKER_COMPOSE), (None, POSTGRESQL),
+                 ("react", None), ("java", None))
+        backups = []
+        initial = self.files()
+        for module, infrastructure in steps:
+            plan = self.install(module) if module else self.install_infrastructure(infrastructure)
+            backups.append(plan["backup"]["id"])
+            if module == "react":
+                before_java = self.files()
+        after = self.files()
+        compose = after["compose.yaml"].decode()
+        self.assertIn("app-java", compose)
+        self.assertIn("app-python", compose)
+        self.assertNotIn("app-react", compose)
+        self.assertIn("postgres", compose)
+        self.assertTrue((self.project / "Dockerfile.java").exists())
+        self.assertFalse((self.project / "Dockerfile.react").exists())
+        self.assertEqual(after[".github/workflows/ci.yml"],
+                         CI_STATES[frozenset({"python", "react", "java"})])
+        for path in REACT_FILES:
+            self.assertEqual(after[path], before_java[path])
+        self.assertEqual(self.select(module="java")["operations"], [])
+        self.assertEqual(self.select()["operations"], [])
+        self.assertEqual(self.cli("restore", "--backup", backups[0]).returncode, 1)
+        self.assertEqual(self.files(), after)
+
+        java_backup = backups.pop()
+        self.assertEqual(self.cli("restore", "--backup", java_backup).returncode, 0)
+        self.assertEqual(self.files(), before_java)
+        for backup in reversed(backups):
+            restored = self.cli("restore", "--backup", backup)
+            self.assertEqual(restored.returncode, 0, restored.stderr)
+        self.assertEqual(self.files(), initial)
+
+    def test_console_module_after_react_blocks_on_modified_compose_without_writes(self):
+        self.install("python")
+        self.install_infrastructure(DOCKER_COMPOSE)
+        self.install("react")
+        compose = self.project / "compose.yaml"
+        compose.write_bytes(compose.read_bytes() + b"# user edit\n")
+        original = self.files()
+        result = self.cli("plan", "--module", "java", "--json")
+        self.assertEqual(result.returncode, 1)
+        plan = json.loads(result.stdout)
+        self.assertTrue(plan["conflicts"])
+        self.assertEqual(plan["operations"], [])
+        self.assertEqual(self.files(), original)
+
     def test_react_alone_does_not_satisfy_docker_prerequisite(self):
         plan = self.install()
         result = self.cli("plan", "--infrastructure", "docker-compose", "--json")

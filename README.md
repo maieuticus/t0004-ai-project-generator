@@ -111,6 +111,16 @@ Die CI installiert mit Node 24 zuerst per `npm ci --ignore-scripts --prefix type
 und führt danach den Projektcheck mit TypeScript-Build und `node:test` aus. Plan und Apply
 installieren keine Pakete. Der echte GitHub-Template-Test mit p9999 ist abgeschlossen.
 
+`--module react` plant das unabhängige Frontend-Modul `react@0.1.0` im Ordner `react/`
+(TSX, Node.js 24, Vite) und benötigt weder TypeScript noch ein anderes Modul. Es lässt sich
+in beliebiger Reihenfolge mit Python, TypeScript und Java kombinieren (16 Modulzustände);
+Plan/Apply, No-op, Snapshot und Restore (umgekehrte Reihenfolge) funktionieren wie bei den
+anderen Modulen, die bekannten CI-Zustände ohne React bleiben bytegleich. Prüfen und
+bauen: `npm ci --ignore-scripts --prefix react`, dann `npm run verify --prefix react`;
+die CI tut dasselbe. React erfüllt die Docker-Voraussetzung nicht und erhält keinen
+Docker-Service. Die private Browser-Vorschau in GitHub Codespaces ist in
+`specs/001-react-frontend/quickstart.md` beschrieben. Vertrag: `docs/GENERATOR_CONTRACT.md`.
+
 Nach mindestens einem Sprachmodul plant `t0004-generator plan /pfad/zum/projekt
 --infrastructure docker-compose --json` die feste Erweiterung `docker-compose@0.1.0`.
 Der gespeicherte Plan wird wie bei Sprachmodulen mit `apply --plan DATEI --confirm
@@ -227,8 +237,8 @@ t0004-generator apply /pfad/zum/projekt --plan /tmp/t0004-plan.json --confirm <P
 t0004-generator restore /pfad/zum/projekt --backup <Backup-ID>
 ```
 
-Für TypeScript oder Java `--module typescript` beziehungsweise `--module java`
-verwenden und für jedes weitere Modul einen neuen Plan erzeugen und bestätigen.
+Für TypeScript, Java oder React `--module typescript`, `--module java` beziehungsweise
+`--module react` verwenden und für jedes weitere Modul einen neuen Plan erzeugen und bestätigen.
 
 In Windows PowerShell den Plan z. B. mit `t0004-generator new C:\projekt --module python --json |
 Out-File -Encoding utf8 "$env:TEMP\t0004-plan.json"` speichern und diesen Pfad bei `--plan`

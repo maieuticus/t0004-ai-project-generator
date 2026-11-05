@@ -951,6 +951,108 @@ class T0003Integration(unittest.TestCase):
         self.cli("restore", "--backup", plan["backup"]["id"], expected=1)
         self.assertEqual(after, self.files())
 
+    def react_plan(self, expected=0):
+        result = self.cli("plan", "--module", "react", "--json", expected=expected)
+        self.plan_file.write_text(result.stdout, encoding="utf-8")
+        return json.loads(result.stdout)
+
+    def test_public_react_apply_noop_project_check_and_restore(self):
+        before = self.files()
+        index = (self.project / ".git/index").read_bytes()
+        plan = self.react_plan()
+        self.assertEqual(plan["format"], 4)
+        self.assertEqual(plan["module"], "react")
+        self.assertEqual(plan["conflicts"], [])
+        self.assertEqual(before, self.files())
+        self.apply(plan)
+        self.snapshot(plan, before)
+        after = self.files()
+        modified = {item["path"] for item in plan["operations"] if item["action"] == "modify"}
+        self.assertEqual(modified, {".github/workflows/ci.yml", "config/project.yaml"})
+        for name, content in before.items():
+            if name not in modified:
+                self.assertEqual(after[name], content, name)
+        self.assertTrue(all(name.startswith("react/") for name in after.keys() - before.keys()))
+        self.assertFalse((self.project / "typescript").exists())
+        self.assertIn(b"react@0.1.0", after["config/project.yaml"])
+        self.assertNotIn(b"typescript@", after["config/project.yaml"])
+        noop = self.react_plan()
+        self.assertEqual(noop["operations"], [])
+        self.assertIsNone(noop["backup"])
+        self.assertEqual(after, self.files())
+        check_copy = self.case / "check-copy"
+        shutil.copytree(self.project, check_copy, ignore=shutil.ignore_patterns(".git"))
+        npm = "npm.cmd" if os.name == "nt" else "npm"
+        environment = dict(self.env, npm_config_cache=str(self.case / "npm-cache"))
+        node = self.run_command(["node", "--version"], cwd=check_copy, env=environment)
+        self.assertRegex(node.stdout.strip(), r"^v24\.")
+        self.run_command([npm, "ci", "--ignore-scripts", "--prefix", "react",
+                          "--no-audit", "--no-fund"], cwd=check_copy, env=environment)
+        self.run_command([sys.executable, "scripts/check.py"], cwd=check_copy, env=environment)
+        self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(before, self.files())
+        self.assertEqual(index, (self.project / ".git/index").read_bytes())
+
+    def test_react_and_python_orders_converge_and_restore_in_reverse(self):
+        finals = []
+        for number, modules in enumerate((("react", "python"), ("python", "react"))):
+            if number:
+                self.project = self.case / "project-1"
+                self.checkout(COMPATIBLE)
+            original = self.files()
+            plans = []
+            for module in modules:
+                before = self.files()
+                result = self.cli("plan", "--module", module, "--json")
+                plan = json.loads(result.stdout)
+                self.assertEqual(plan["conflicts"], [])
+                self.plan_file.write_text(result.stdout, encoding="utf-8")
+                self.apply(plan)
+                self.snapshot(plan, before)
+                plans.append(plan)
+            finals.append(self.files())
+            self.cli("restore", "--backup", plans[0]["backup"]["id"], expected=1)
+            self.assertEqual(finals[-1], self.files())
+            for module in modules:
+                noop = json.loads(self.cli("plan", "--module", module, "--json").stdout)
+                self.assertEqual(noop["operations"], [])
+            for plan in reversed(plans):
+                self.cli("restore", "--backup", plan["backup"]["id"])
+            self.assertEqual(original, self.files())
+        self.assertEqual(finals[0], finals[1])
+
+    def test_react_rejects_unsupported_base_changed_contract_and_foreign_paths(self):
+        for name in (".github/workflows/ci.yml", "scripts/check.py", "scripts/projectcfg.py"):
+            with self.subTest(path=name):
+                path = self.project / name
+                original = path.read_bytes()
+                plan = self.react_plan()
+                path.write_bytes(original + b"\n# modified\n")
+                changed = self.files()
+                self.apply(plan, expected=1)
+                self.assertEqual(changed, self.files())
+                conflict = self.react_plan(expected=1)
+                self.assertEqual(conflict["operations"], [])
+                self.assertTrue(any(name in item for item in conflict["conflicts"]))
+                self.assertFalse(self.data.exists())
+                path.write_bytes(original)
+        foreign = self.project / "react/package.json"
+        foreign.parent.mkdir()
+        foreign.write_bytes(b"{}\n")
+        changed = self.files()
+        self.assertEqual(self.react_plan(expected=1)["operations"], [])
+        self.assertEqual(changed, self.files())
+        self.assertFalse(self.data.exists())
+
+        self.project = self.case / "old-project"
+        self.checkout(RELEASE)
+        before = self.files()
+        plan = self.react_plan(expected=1)
+        self.assertEqual(plan["operations"], [])
+        self.assertTrue(plan["conflicts"])
+        self.assertEqual(before, self.files())
+        self.assertFalse(self.data.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

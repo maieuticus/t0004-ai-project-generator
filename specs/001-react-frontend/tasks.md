@@ -104,7 +104,7 @@ after opening it in a browser and verifying that **Add a step** increments the
 displayed counter. The user confirmed the T005-T008 technical checks passed.
 Browser reload and browser-console inspection were not separately confirmed. The
 Codespaces preview instructions are recorded in `quickstart.md`. T009-T013 remain
-unchecked; their full task-level acceptance criteria remain incomplete.
+unchecked; their full task-level acceptance criteria remain incomplete (T009-T013 were later completed in Increment 3; Review Gate 3 was approved on 2026-11-05).
 
 ---
 
@@ -116,22 +116,22 @@ the supported CI platforms without adding React container support.
 **Independent Test**: Verify the full 16-state module matrix, unchanged legacy
 projections, Docker/PostgreSQL coexistence and the existing Linux/Windows CI.
 
-- [ ] T009 Add compatibility tests in `tests/test_infrastructure.py` and
+- [x] T009 Add compatibility tests in `tests/test_infrastructure.py` and
   `tests/test_react_module.py` for React with existing Docker/PostgreSQL projects,
   React-only Docker prerequisite rejection, and installing a console module after
   React without changing existing Compose files or services.
-- [ ] T010 Separate Docker-capable console modules from all generator modules in
+- [x] T010 Separate Docker-capable console modules from all generator modules in
   `src/project_generator/module_states.py`, `src/project_generator/infrastructure.py`,
   `src/project_generator/infrastructure_states.py`, `src/project_generator/docker_files.py`,
   and `src/project_generator/plan.py`; keep Compose and PostgreSQL projections limited
   to Python, TypeScript and Java.
-- [ ] T011 Extend `integration/test_t0003_integration.py` to verify the React starter
+- [x] T011 Extend `integration/test_t0003_integration.py` to verify the React starter
   against the compatible t0003 base, reject unsupported historical bases, and prove
   a fresh React installation reaches a no-op without changing existing template files.
-- [ ] T012 Update `docs/GENERATOR_CONTRACT.md`, `README.md`, and
+- [x] T012 Update `docs/GENERATOR_CONTRACT.md`, `README.md`, and
   `docs/DV_KONZEPT.md` with the fixed React contract, independent TypeScript
   relationship, local-only preview, compatibility behavior and Docker exclusion.
-- [ ] T013 Run focused and full checks from `scripts/check.py`,
+- [x] T013 Run focused and full checks from `scripts/check.py`,
   `tests/test_react_module.py`, `tests/test_infrastructure.py`,
   `integration/test_t0003_integration.py`, and the existing Ubuntu/Windows GitHub
   Actions; record exact results and residual risks in `docs/PROJECT_HANDOFF.md`.
