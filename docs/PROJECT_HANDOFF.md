@@ -71,8 +71,11 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   Fixture nutzt ebenfalls neutrale Metadaten; die Migrationsprüfung deckt neutral
   und konfiguriert ab. Lokal bestanden 17 Template-, 231 Generator-/Infrastruktur-
   (7 plattformbedingt übersprungen) und 2 React-Tests sowie `scripts/check.py` und
-  `git diff --check`. Hosted Baseline- und Docker-Ergebnisse sind PR #28 zugeordnet;
-  kein Merge und kein Start von T005.
+  `git diff --check`. Die gehostete Ubuntu-Baseline sowie Docker-Validierung auf
+  Linux und Windows bestanden zunächst; der Windows-Baseline-Lauf deckte danach
+  einen direkten `npm`-Aufruf aus Python auf, der `npm.cmd` nicht startete. Der
+  React-Test nutzt nun plattformgerecht `cmd.exe`/`npm.cmd`; die Hosted-Prüfung
+  dieses Nachtrags läuft über PR #28. Kein Merge und kein Start von T005.
 - Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
   (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
   PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.

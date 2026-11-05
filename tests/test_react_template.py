@@ -34,6 +34,12 @@ def asset(name: str) -> bytes:
     return resource.joinpath(*name.split("/")).read_bytes()
 
 
+def npm_command(*args: str) -> list[str]:
+    if sys.platform == "win32":
+        return ["cmd.exe", "/d", "/c", "npm.cmd", *args]
+    return ["npm", *args]
+
+
 class ReactTemplate(unittest.TestCase):
     def test_packaged_assets_include_locked_starter_and_documented_preview(self):
         package = json.loads(asset("package.json"))
@@ -68,14 +74,14 @@ class ReactTemplate(unittest.TestCase):
                 ignore=shutil.ignore_patterns("node_modules", "dist"),
             )
             installed = subprocess.run(
-                ["npm", "ci", "--ignore-scripts", "--no-audit", "--no-fund", "--strict-peer-deps"],
+                npm_command("ci", "--ignore-scripts", "--no-audit", "--no-fund", "--strict-peer-deps"),
                 cwd=starter,
                 capture_output=True,
                 text=True,
             )
             self.assertEqual(installed.returncode, 0, installed.stderr)
             verified = subprocess.run(
-                ["npm", "run", "verify"],
+                npm_command("run", "verify"),
                 cwd=starter,
                 capture_output=True,
                 text=True,
