@@ -69,7 +69,23 @@ Ohne Modul plant `new` ausschließlich `generator.version`. Mit `--module python
 über denselben Freigabe-, Backup- und Restore-Pfad. Beide Module sind nacheinander in
 beliebiger Reihenfolge installierbar. Es erstellt kein Repository und richtet keine
 SDD-Werkzeuge ein.
-Die abschließenden plattformübergreifenden Praxistests bleiben offen.
+Schritt 134D wurde als abnahmefähig bewertet: Die historische Bestätigung der Erstellung
+über GitHub „Use this template“, die erfolgreichen, den aktuellen Heads zugeordneten
+Template- und Docker-CI-Läufe für p9999 PR #8/#9 sowie die erfolgreiche Main-CI mit
+29 Integrationstests belegen die vier Pflichtkriterien ausreichend. Der lokale
+Docker-/BuildKit-Exportfehler ist davon getrennt; die erfolgreichen Hosted-Läufe
+belegen keinen lokalen Fehlergrund und der Fehler blieb als Umgebungsproblem offen.
+
+### React-Frontend
+
+Das freigegebene React-Inkrement ist eine optionale, feste Frontend-Erweiterung mit
+eigenem Verzeichnis und Metadaten. Es verändert `typescript@0.1.0` und dessen
+historische Datei- und CI-Zustände nicht und verwendet dieselbe Format-4-Engine.
+Die erste Abnahme umfasst eine lokal startbare Beispieloberfläche; Docker-Compose-
+Unterstützung ist nicht Bestandteil dieses Inkrements. React darf mit bestehenden
+Docker-/PostgreSQL-Projektionen koexistieren, erhält aber keinen eigenen Service und
+ändert deren Projektionen oder bestehende Konsolmodul-Voraussetzungen nicht.
+PostgreSQL bleibt optional und unabhängig.
 
 ## Entwicklung und Betrieb
 
@@ -92,3 +108,6 @@ Template nur nach expliziter Auswahl eingerichtet.
 | 2026-11-02 | Java 25 LTS (Temurin), Maven 3.9 mit offiziellem Wrapper und geprüftem Distributionshash sowie JUnit Jupiter als isolierter Java-Starter; feste spätere Modulintegration über die bestehende Engine, kein Plugin-Framework. PR A enthält keine öffentliche Java-Auswahl. | Nutzer |
 | 2026-11-04 | Docker Compose als feste Infrastruktur-Erweiterung `docker-compose@0.1.0`, getrennt von den drei Sprachmodulen und ohne zweite Engine oder Plugin-Framework. PR A registriert nur den konfliktgeschützten Zustand und die deterministische Dateiprojektion; Auswahl, Docker-Dateien, Containerstarts und CI folgen erst in PR B/C. | Nutzer |
 | 2026-11-04 | PostgreSQL als feste Infrastrukturkennung `postgresql@0.1.0` mit Docker-Abhängigkeit vorbereiten. PR A definiert internen Zustand und Sicherheitsvertrag; öffentliche Auswahl und PostgreSQL-Projektion folgen erst in PR B. | Nutzer |
+| 2026-11-05 | Schritt 134D als abnahmefähig bewertet; historische Template-Erstellung, p9999-CI und Main-Integrationstests gelten als ausreichende Nachweise. Der lokale Docker-/BuildKit-Fehler bleibt separat dokumentiert. | Nutzer |
+| 2026-11-05 | React als optionale feste Frontend-Erweiterung mit eigener Projektion freigegeben. Bestehende TypeScript-Zustände bleiben bytegleich; die erste Abnahme startet lokal und umfasst kein Docker-Frontend. | Nutzer |
+| 2026-11-05 | React-Kennung `react@0.1.0`, TSX/Node 24/React/ReactDOM/Vite, manuelle Browserinteraktion zusätzlich zu automatisierten Starterprüfungen sowie Koexistenz mit bestehendem Docker/PostgreSQL ohne React-Service bestätigt. Exakte Paketversionen wurden vor dem Startercode in `specs/001-react-frontend/research.md` gepinnt und geprüft. | Nutzer |

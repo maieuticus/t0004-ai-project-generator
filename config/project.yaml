@@ -12,8 +12,8 @@ template:
   last_update_check: null
 sdd:
   # Set only after the user approved the choice: speckit | openspec.
-  tool: null
-  version: null
+  tool: "speckit"
+  version: "1.0.7"
 generator:
   # Runtime metadata written by generator runs in generated projects.
   # In this repository, implementation starts with version null.

@@ -12,11 +12,70 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   setup-node v7.1.0, setup-java v6.1.0), `persist-credentials: false` und
   `package-manager-cache: false`. Generierte Projekt-Workflows und ihre
   Bytezustände bleiben unverändert. Gesamtfortschritt: 78 %.
-- Schritt 134C auf `docs/manual-workflow-maintenance-134c`, Basis `main`
-  (`069a46e`): Dokumentiert die bewusste separate Wartung generierter Workflows.
-  Entscheidung A: keine automatischen Generator-Upgrades; manuelle Änderungen
-  können Konflikte verursachen, historische Zustände bleiben unverändert. Keine
-  Änderungen an Engine, Vorlagen oder Tests.
+- Schritt 134C abgeschlossen: PR #27 wurde mit Merge-Commit
+  `f4fa64494b6522778cb51e17cf341ba9ca481e1c` in `main` gemergt. Dokumentiert ist
+  die bewusste separate Wartung generierter Workflows: keine automatischen
+  Generator-Upgrades, mögliche Konflikte durch manuelle Änderungen und unveränderte
+  historische Zustände. Keine Änderungen an Engine, Vorlagen oder Tests.
+- Schritt 134D als abnahmefähig bewertet; Gesamtfortschritt: 80 % (Schätzung).
+  Die historische Bestätigung der GitHub-Template-Erstellung, erfolgreiche und
+  eindeutig zugeordnete p9999-CI für PR #8/#9 sowie die erfolgreiche Main-CI mit
+  29 Integrationstests belegen die Pflichtkriterien ausreichend. Der lokale
+  Docker-/BuildKit-Content-Store-Fehler bleibt ein separates, nicht abschließend
+  diagnostiziertes Umgebungsproblem; Hosted-CI-Erfolg ist kein Beleg seiner Ursache.
+- Schritt 135A: Nutzerfreigabe für eine optionale React-Frontend-Erweiterung mit
+  eigener Projektion und Wiederverwendung der Format-4-Engine. Die bestehende
+  TypeScript-Modulabhängigkeit wurde geklärt: React ist unabhängig installierbar.
+  T001–T004 sind in `275e31483ebc3a89fdd25e6a4aec2856f90a9155` und
+  `bc21cbe5c514a296d4eb7e435fa95c57c10d9d24` auf
+  `feature/react-frontend-135a` versioniert. PR #28 gegen `main` ist offen und
+  ungemergt. Spec Kit 1.0.7 ist eingerichtet;
+  Constitution, Spezifikation, technischer Plan, Tasks und Analyze-Bericht liegen
+  unter `.specify/` und `specs/001-react-frontend/`. Der Nutzer hat am 2026-11-05
+  die Constitution ratifiziert und alle fünf Analyze-Entscheidungen bestätigt:
+  `react@0.1.0`, TSX/Node 24/React/ReactDOM/Vite, automatisierte Starterprüfungen
+  plus manuelle Browserinteraktion, sowie Docker/PostgreSQL-Koexistenz ohne
+  React-Service. T001 ist abgeschlossen: Node `24.22.2`/npm `11.19.1`, React und
+  ReactDOM `19.3.1`, TypeScript `5.9.3`, Vite `8.3.6`, React-Plugin `6.2.1` sowie
+  die exakt gepinnten Typdeklarationen stehen mit Kompatibilitätsnachweisen in
+  `specs/001-react-frontend/research.md`. T002 ist abgeschlossen: eigenständiger
+  TSX-Starter, exakt gepinnte `package.json` und Lockfile, Vite-Dev-/Build-Setup,
+  ignorierte Buildartefakte und fokussierter Counter-Test. T003 ist abgeschlossen:
+  Setup-, Verify-, Preview-, Stop- und Codespaces-Browseranleitung unter
+  `src/project_generator/templates/react/docs/REACT.md`, vollständige React-
+  Paketdatenregeln in `pyproject.toml` und `--strictPort`-Scripts für die
+  Codespaces-Hostüberschreibung. Sauberes `npm ci`, `npm run verify`, Wheel-Build
+  mit allen 12 erwarteten React-Dateien, HTTP-200-Codespaces-Host-Smoke,
+  `python scripts/check.py` und `git diff --check` bestanden; der Projektcheck
+  meldet keine konfigurierten projektspezifischen Prüfungen. T004 wurde am
+  2026-11-05 abschließend erneut geprüft: `python -m unittest discover -s tests -p
+  test_react_template.py -v` bestand mit 2 Tests; darin bestanden isoliertes
+  `npm ci --ignore-scripts --no-audit --no-fund --strict-peer-deps` und
+  `npm run verify`. Zwei weitere saubere Lockfile-Installationen erzeugten
+  bytegleiche Vite-Ausgaben (3 Dateien). Zwei isolierte Wheel-Builds enthielten
+  jeweils genau die 12 erwarteten React-Assets mit identischen Datei-Inhalten.
+  Die historischen Generatorprüfungen bestanden: 51 Python-/TypeScript-/Java-
+  Modultests und 36 Infrastrukturtests; `python scripts/check.py` war erfolgreich.
+  Generatorimplementierung, bestehende Templates, Workflows und historische
+  Projektionszustände haben keine Änderungen. Der Nutzer hat den manuellen Browser-Review
+  akzeptiert: Die Oberfläche wurde angezeigt und „Add a step“ erhöhte den
+  sichtbaren Zähler. Der Nutzer hat Review Gate 1 am 2026-11-05 formal bestanden;
+  Inkrement 1 ist angenommen. T005 bleibt offen und wurde nicht gestartet. Keine
+  Generatorregistrierung oder Folgeaufgabe ausgeführt.
+- Gezielte CI-Korrektur für PR #28: Ursache der Baseline-Fehler war, dass
+  `.github/template-tests/test_template.py` den konfigurierten t0004-Checkout als
+  neutrales „Use this template“-Projekt kopierte. Die Tests trennen jetzt explizit
+  einen neutralen Fixture-Zustand (`sdd.tool/version: null`, keine `.specify/`-,
+  `openspec/`- oder `specs/`-Projektartefakte) vom unveränderten konfigurierten
+  Zustand mit Spec Kit 1.0.7, Constitution und React-Spezifikation. Die Safety-Core-
+  Fixture nutzt ebenfalls neutrale Metadaten; die Migrationsprüfung deckt neutral
+  und konfiguriert ab. Lokal bestanden 17 Template-, 231 Generator-/Infrastruktur-
+  (7 plattformbedingt übersprungen) und 2 React-Tests sowie `scripts/check.py` und
+  `git diff --check`. Die gehostete Ubuntu-Baseline sowie Docker-Validierung auf
+  Linux und Windows bestanden zunächst; der Windows-Baseline-Lauf deckte danach
+  einen direkten `npm`-Aufruf aus Python auf, der `npm.cmd` nicht startete. Der
+  React-Test nutzt nun plattformgerecht `cmd.exe`/`npm.cmd`; die Hosted-Prüfung
+  dieses Nachtrags läuft über PR #28. Kein Merge und kein Start von T005.
 - Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
   (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
   PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
@@ -429,9 +488,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-PR zu Schritt 134C durch den Nutzer prüfen und mergen; nicht eigenständig mergen.
-Nach bestätigtem Merge den geschätzten Fortschritt auf 79 % setzen und anschließend
-stoppen. Empfehlung: leichtes Modell, Reasoning-Stufe niedrig.
+Die aktualisierten Ubuntu-/Windows-Baseline- und Docker-Ergebnisse von PR #28
+prüfen; nicht mergen und T005 nicht beginnen. Danach auf separate Nutzerfreigabe
+warten. Empfehlung: leichtes Modell, Reasoning-Stufe niedrig.
 
 ## Risiken
 
