@@ -590,6 +590,29 @@ class DockerInfrastructure(unittest.TestCase):
         ])
         self.assertEqual(self.files(), original)
 
+    def assert_react_postgresql_files(self, console):
+        for path, content in docker_files(frozenset(console), postgresql=True).items():
+            self.assertEqual((self.project / path).read_bytes(), content, path)
+        self.assertFalse((self.project / "Dockerfile.react").exists())
+
+    def test_react_installed_before_docker_postgresql_adds_no_service_and_later_java_extends(self):
+        original = self.files()
+        react = self.install("react")
+        self.assertEqual(self.select_docker()[0]["operations"], [])
+        self.assertTrue(self.select_docker()[0]["conflicts"])
+        python = self.install("python")
+        _, docker = self.install_docker()
+        postgres = self.install_postgresql()
+        self.assert_react_postgresql_files({"python"})
+        java = self.install("java")
+        self.assert_react_postgresql_files({"python", "java"})
+        self.assertNotIn(b"app-react", (self.project / "compose.yaml").read_bytes())
+        self.assertEqual((self.project / ".github/workflows/ci.yml").read_bytes(),
+                         CI_STATES[frozenset({"react", "python", "java"})])
+        self.restore_all([react["backup"]["id"], python["backup"]["id"], docker,
+                          postgres["backup"]["id"], java["backup"]["id"]])
+        self.assertEqual(self.files(), original)
+
     def test_foreign_compose_projection_blocks_the_plan_and_snapshot_recheck(self):
         self.install("python")
         foreign = self.project / "compose.yaml"
