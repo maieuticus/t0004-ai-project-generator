@@ -23,13 +23,32 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   29 Integrationstests belegen die Pflichtkriterien ausreichend. Der lokale
   Docker-/BuildKit-Content-Store-Fehler bleibt ein separates, nicht abschließend
   diagnostiziertes Umgebungsproblem; Hosted-CI-Erfolg ist kein Beleg seiner Ursache.
+- Schritt 135B: PR #28 für das erste React-Inkrement wurde am 2026-11-05 in `main`
+  gemergt (Merge-Commit `68dc8cfcbc13d7fd5dccb9ea92796a4782b8aa80`). Die
+  `Generator-Basisprüfung` (Run `42052098380`) und `Docker validation` (Run
+  `42052098441`) auf dem Main-Merge-Commit bestanden; auch die zugehörigen
+  Ubuntu-/Windows-Checks des PR waren erfolgreich.
+  T005-T008 für das zweite React-Inkrement sind im aktuellen Arbeitsbaum umgesetzt
+  und laut Nutzer technisch erfolgreich geprüft. Der Nutzer hat Review Gate 2
+  bestanden: Die generierte React-Anwendung wurde im Browser geöffnet und **Add a
+  step** erhöhte den sichtbaren Zähler. Browser-Neuladen und Browserkonsole wurden
+  nicht separat bestätigt. Die Codespaces-Vorschau einschließlich vollständiger
+  privater `browseUrl` über `gh codespace ports --json`, laufendem Vite-Server,
+  Fehlerhinweis und manueller privater Weiterleitung ist in
+  `specs/001-react-frontend/quickstart.md` dokumentiert. Automatische Weiterleitung
+  via `devcontainer.json` wurde geprüft, aber nicht eingerichtet. T009-T013 sind
+  offen; der aktuelle T005-T008-Diff berührt allerdings Teile der T009/T010-
+  Akzeptanzkriterien (Docker-/PostgreSQL-Koexistenz, Docker-Modulabgrenzung und
+  zugehörige Tests). Vor deren Umsetzung sind die verbleibenden Kriterien gegen den
+  Diff abzugleichen, um Doppelarbeit zu vermeiden. Es gibt keine Commits, Pushes
+  oder PRs für dieses zweite Inkrement.
 - Schritt 135A: Nutzerfreigabe für eine optionale React-Frontend-Erweiterung mit
   eigener Projektion und Wiederverwendung der Format-4-Engine. Die bestehende
   TypeScript-Modulabhängigkeit wurde geklärt: React ist unabhängig installierbar.
   T001–T004 sind in `275e31483ebc3a89fdd25e6a4aec2856f90a9155` und
   `bc21cbe5c514a296d4eb7e435fa95c57c10d9d24` auf
-  `feature/react-frontend-135a` versioniert. PR #28 gegen `main` ist offen und
-  ungemergt. Spec Kit 1.0.7 ist eingerichtet;
+  `feature/react-frontend-135a` versioniert. PR #28 gegen `main` wurde später am
+  2026-11-05 gemergt (siehe Schritt 135B). Spec Kit 1.0.7 ist eingerichtet;
   Constitution, Spezifikation, technischer Plan, Tasks und Analyze-Bericht liegen
   unter `.specify/` und `specs/001-react-frontend/`. Der Nutzer hat am 2026-11-05
   die Constitution ratifiziert und alle fünf Analyze-Entscheidungen bestätigt:
@@ -60,8 +79,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   Projektionszustände haben keine Änderungen. Der Nutzer hat den manuellen Browser-Review
   akzeptiert: Die Oberfläche wurde angezeigt und „Add a step“ erhöhte den
   sichtbaren Zähler. Der Nutzer hat Review Gate 1 am 2026-11-05 formal bestanden;
-  Inkrement 1 ist angenommen. T005 bleibt offen und wurde nicht gestartet. Keine
-  Generatorregistrierung oder Folgeaufgabe ausgeführt.
+  Inkrement 1 ist angenommen. T005-T008 wurden anschließend im zweiten Inkrement
+  umgesetzt und Review Gate 2 ist bestanden (siehe Schritt 135B).
 - Gezielte CI-Korrektur für PR #28: Ursache der Baseline-Fehler war, dass
   `.github/template-tests/test_template.py` den konfigurierten t0004-Checkout als
   neutrales „Use this template“-Projekt kopierte. Die Tests trennen jetzt explizit
@@ -74,8 +93,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `git diff --check`. Die gehostete Ubuntu-Baseline sowie Docker-Validierung auf
   Linux und Windows bestanden zunächst; der Windows-Baseline-Lauf deckte danach
   einen direkten `npm`-Aufruf aus Python auf, der `npm.cmd` nicht startete. Der
-  React-Test nutzt nun plattformgerecht `cmd.exe`/`npm.cmd`; die Hosted-Prüfung
-  dieses Nachtrags läuft über PR #28. Kein Merge und kein Start von T005.
+  React-Test nutzt plattformgerecht `cmd.exe`/`npm.cmd`. Der Windows-Fix wurde
+  in PR #28 aufgenommen; PR #28 wurde danach gemergt. Die Main-Läufe für
+  `Generator-Basisprüfung` und `Docker validation` bestanden auf dem Merge-Commit.
 - Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
   (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
   PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
@@ -488,9 +508,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Die aktualisierten Ubuntu-/Windows-Baseline- und Docker-Ergebnisse von PR #28
-prüfen; nicht mergen und T005 nicht beginnen. Danach auf separate Nutzerfreigabe
-warten. Empfehlung: leichtes Modell, Reasoning-Stufe niedrig.
+Auf die separate Git-Freigabe des Nutzers warten. Erst danach T005-T008 in die
+empfohlenen Commits aufteilen und einen PR gegen `main` vorbereiten; bis dahin kein
+Commit, Push oder PR. Vor späterer Kompatibilitätsarbeit die Überschneidungen von
+T005-T008 mit T009/T010 anhand der Akzeptanzkriterien klären.
 
 ## Risiken
 

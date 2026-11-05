@@ -74,8 +74,8 @@ remain byte-identical.
 
 No constitution conflict is known. The material Analyze decisions and exact dependency
 pins are recorded in `spec.md` and `research.md`. The user approved the human Analyze
-gate on 2026-11-05; implementation of T005 and later work still requires its own
-authorization.
+gate on 2026-11-05. T005-T008 and Review Gate 2 are complete; the full task-level
+acceptance criteria for T009-T013 remain pending.
 
 ## Repository Evidence and Design
 
@@ -138,9 +138,9 @@ tasks and are not part of the accepted first increment.
 
 ## Interface and Transaction Design
 
-- Public selection is proposed as `new|plan --module react`, followed by the existing
-  `apply --plan ... --confirm ...` and `restore --backup ...` interfaces; registration
-  for this interface is planned in T005-T007 and is not implemented yet.
+- Public selection is `new|plan --module react`, followed by the existing
+  `apply --plan ... --confirm ...` and `restore --backup ...` interfaces; this
+  registration and its transaction behavior were implemented in T005-T007.
 - The fixed identifier is `react@0.1.0`; its public name/version is user-confirmed.
 - `generator.modules` remains a closed, canonically ordered list. No extension
   discovery or automatic upgrades are introduced.

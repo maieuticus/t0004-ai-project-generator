@@ -58,7 +58,8 @@ the exact toolchain choices recorded by T001.
 opening it in a browser and verifying the counter interaction. The T001-T004
 technical evidence, including exact dependency pins, lockfile install, verification,
 build, package contents, and local preview, was reviewed and accepted. This closes
-the first-increment gate; T005 remains a separate, not-yet-authorized task.
+the first-increment gate; subsequent work began after separate authorization and is
+recorded under Review Gate 2.
 
 ---
 
@@ -71,23 +72,39 @@ Format-4 planner and transaction behavior.
 supported projects; verify read-only planning, confirmed apply, no-op, conflicts,
 stale-plan rejection and reverse-order restore.
 
-- [ ] T005 Add public-CLI tests for `--module react`, independent installation,
+- [x] T005 Add public-CLI tests for `--module react`, independent installation,
   canonical metadata/checks and React-specific operations in
-  `tests/test_react_module.py`.
-- [ ] T006 Register the fixed React files, check and metadata ordering in
+  `tests/test_react_module.py`. Both public tests pass now that T007 enables the
+  React CLI selection and Format-4 module transaction validation.
+- [x] T006 Register the fixed React files, check and metadata ordering in
   `src/project_generator/python_module.py`; register `react` in the closed module
   mapping and add conditional CI states in `src/project_generator/module_states.py`,
-  while asserting all eight pre-React CI byte states stay unchanged.
-- [ ] T007 Extend accepted module selections and Format-4 Apply/Restore validation
+  while asserting all eight pre-React CI byte states stay unchanged. Added the
+  React projection and check, canonical module/check ordering, 16 unique CI states,
+  and Docker/PostgreSQL service exclusion tests; all eight historical CI hashes
+  match their pre-React byte states.
+- [x] T007 Extend accepted module selections and Format-4 Apply/Restore validation
   for `react` in `src/project_generator/cli.py`, `src/project_generator/plan.py`,
-  and `src/project_generator/transaction.py`.
-- [ ] T008 Complete `tests/test_react_module.py` with Apply/no-op, stale and tampered
+  and `src/project_generator/transaction.py`. React is accepted by the public
+  `plan`/`new` CLI, and existing Format-4 apply, confirmation, preflight, backup
+  validation and restore handle it; focused React safety checks passed.
+- [x] T008 Complete `tests/test_react_module.py` with Apply/no-op, stale and tampered
   plans, foreign-path conflicts, metadata/config conflicts, snapshot/restore, pairwise
-  installation-order invariance, and all 16 canonical module/CI states.
+  installation-order invariance, and all 16 canonical module/CI states. The React
+  transaction suite passed; the complete 262-test generator suite and all 29 t0003
+  integration tests passed. A generated temporary React project passed `npm ci`,
+  `npm run verify` and the repeated-plan no-op check.
 
 **Review Gate 2**: Generate a disposable project without `typescript@0.1.0`, inspect
 the plan and output, run the browser preview, and verify the existing TypeScript
 projection remains byte-identical where present. Approve before compatibility work.
+
+**Status (2026-11-05): PASSED.** The user accepted the generated React application
+after opening it in a browser and verifying that **Add a step** increments the
+displayed counter. The user confirmed the T005-T008 technical checks passed.
+Browser reload and browser-console inspection were not separately confirmed. The
+Codespaces preview instructions are recorded in `quickstart.md`. T009-T013 remain
+unchecked; their full task-level acceptance criteria remain incomplete.
 
 ---
 
