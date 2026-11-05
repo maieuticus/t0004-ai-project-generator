@@ -86,6 +86,9 @@ Unterstützung ist nicht Bestandteil dieses Inkrements. React darf mit bestehend
 Docker-/PostgreSQL-Projektionen koexistieren, erhält aber keinen eigenen Service und
 ändert deren Projektionen oder bestehende Konsolmodul-Voraussetzungen nicht.
 PostgreSQL bleibt optional und unabhängig.
+Der feste Vertrag (Dateien, Checks, 16 Modulzustände, Basiszustände, Docker-Ausschluss)
+steht in `docs/GENERATOR_CONTRACT.md`; die lokale und die private Codespaces-Vorschau
+in `specs/001-react-frontend/quickstart.md`.
 
 ## Entwicklung und Betrieb
 

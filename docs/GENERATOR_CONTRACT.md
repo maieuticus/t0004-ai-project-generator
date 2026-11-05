@@ -100,7 +100,7 @@ abweicht. Die Hashprüfung lehnt diesen Fall ab; sie darf nicht deaktiviert werd
   `t0004-generator apply [ZIELPROJEKT] --plan DATEI --confirm PLAN-ID [--source QUELLE]` und
   `t0004-generator restore [ZIELPROJEKT] --backup BACKUP-ID`.
   `--json` liefert bei `check`, `plan`, `new` und `migrate` eine maschinenlesbare Darstellung.
-  `new` und `plan` akzeptieren optional `--module python`, `--module typescript` oder `--module java`.
+  `new` und `plan` akzeptieren optional `--module python`, `--module typescript`, `--module java` oder `--module react`.
 - Exitcodes: `0` erfolgreich, `1` bei Kompatibilitäts- oder Voraussetzungskonflikten,
   verweigerten Transaktionen oder Transaktionsfehlern, `2` bei ungültigen Argumenten,
   Pfaden oder Konfigurationen.
@@ -111,8 +111,8 @@ abweicht. Die Hashprüfung lehnt diesen Fall ab; sie darf nicht deaktiviert werd
   richtet das vorhandene kompatible Projekt optional ein; es erstellt kein Repository.
   Der Einstieg ist lesend und erzeugt denselben Plan wie `plan`. Ohne Modulauswahl wird
   ausschließlich `generator.version` geplant; mit `--module python` oder
-  `--module typescript` oder `--module java` wird das jeweilige feste Modul einschließlich Projektchecks und CI
-  geplant. Bei bereits korrekt eingerichtetem Zustand
+  `--module typescript`, `--module java` oder `--module react` wird das jeweilige feste Modul einschließlich
+  Projektchecks und CI geplant. Bei bereits korrekt eingerichtetem Zustand
   gibt es keine Operation und kein Backup. Andere Profile, SDD-Initialisierung und
   Generator-Upgrades sind nicht implementiert.
 - `migrate` prüft ein bestehendes Projekt ausschließlich lesend, auch ohne
@@ -432,6 +432,35 @@ löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
   in umgekehrter Apply-Reihenfolge zurückzunehmen. Der Versuch, zuerst das ältere
   Modul-Backup zurückzunehmen, wird wegen des geänderten Konfigurations-/CI-Zustands
   verweigert. Backups werden nicht automatisch gelöscht.
+
+### `react@0.1.0`: unabhängiges Frontend-Modul
+
+- `react@0.1.0` ist ein festes, optionales Frontend-Modul. Es verwendet ausschließlich die
+  vorhandene Format-4-Mehrdatei-Engine (`plan --module react`, `new --module react`,
+  `apply`, `restore`); es gibt keine zweite Schreib-Engine. Es setzt weder
+  `typescript@0.1.0` noch ein anderes Modul voraus und verändert dessen Dateien nicht.
+- Die festen Moduldateien liegen unter `react/` (TSX-Quellen, Vite-Konfiguration,
+  `package.json` mit exakt gepinnten Versionen, `package-lock.json`, `tsconfig.json`,
+  Test) sowie `docs/REACT.md`. Node.js 24, React, ReactDOM, TSX und Vite sind die
+  geprüfte Laufzeitkombination. `node_modules/` und `dist/` bleiben lokal und ignoriert.
+- Der Modul-Check ist `npm run verify --prefix react` (Typprüfung, `node:test`, Build).
+  Die CI installiert reproduzierbar per `npm ci --ignore-scripts --prefix react` vor
+  `scripts/check.py`. Plan und Apply führen niemals npm oder Projektbefehle aus.
+- Zulässig sind alle 16 Teilmengen aus Python, TypeScript, Java und React. Die Reihenfolge
+  der Installation ist beliebig und führt zum selben Endstand; Modulliste und Checks
+  stehen stets in der Reihenfolge Python, TypeScript, Java, React. Die acht
+  historischen CI-Zustände ohne React bleiben bytegleich.
+- Voraussetzungen, No-op, Snapshot, Restore in umgekehrter Apply-Reihenfolge und
+  Konfliktschutz (fremde oder geänderte Pfade, geänderte Vertragsdateien, veraltete oder
+  manipulierte Pläne) entsprechen den übrigen Modulen. Die Original-Release-Basis von
+  t0003 ohne passende CI wird abgelehnt; unterstützt ist nur die bytegenau geprüfte,
+  kompatible t0003-Basis.
+- Docker: Nur Python, TypeScript und Java sind Docker-fähige Konsolenmodule. React allein
+  erfüllt die Voraussetzung von `docker-compose@0.1.0` nicht, erhält keinen Service, kein
+  Dockerfile und ändert weder Compose- noch PostgreSQL-Projektionen. Ein Konsolenmodul
+  darf nach React installiert werden und erweitert Compose wie üblich.
+- Die Vorschau ist lokal (`npm start`); die private Browser-Vorschau in GitHub Codespaces
+  steht in `specs/001-react-frontend/quickstart.md`.
 
 ## Sicherheit und Änderungsstrategie
 

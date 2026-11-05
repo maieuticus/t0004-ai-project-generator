@@ -28,20 +28,31 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `Generator-Basisprüfung` (Run `42052098380`) und `Docker validation` (Run
   `42052098441`) auf dem Main-Merge-Commit bestanden; auch die zugehörigen
   Ubuntu-/Windows-Checks des PR waren erfolgreich.
-  T005-T008 für das zweite React-Inkrement sind im aktuellen Arbeitsbaum umgesetzt
-  und laut Nutzer technisch erfolgreich geprüft. Der Nutzer hat Review Gate 2
-  bestanden: Die generierte React-Anwendung wurde im Browser geöffnet und **Add a
-  step** erhöhte den sichtbaren Zähler. Browser-Neuladen und Browserkonsole wurden
-  nicht separat bestätigt. Die Codespaces-Vorschau einschließlich vollständiger
-  privater `browseUrl` über `gh codespace ports --json`, laufendem Vite-Server,
-  Fehlerhinweis und manueller privater Weiterleitung ist in
-  `specs/001-react-frontend/quickstart.md` dokumentiert. Automatische Weiterleitung
-  via `devcontainer.json` wurde geprüft, aber nicht eingerichtet. T009-T013 sind
-  offen; der aktuelle T005-T008-Diff berührt allerdings Teile der T009/T010-
-  Akzeptanzkriterien (Docker-/PostgreSQL-Koexistenz, Docker-Modulabgrenzung und
-  zugehörige Tests). Vor deren Umsetzung sind die verbleibenden Kriterien gegen den
-  Diff abzugleichen, um Doppelarbeit zu vermeiden. Es gibt keine Commits, Pushes
-  oder PRs für dieses zweite Inkrement.
+  Inkrement 2 (T005-T008) wurde mit PR #29 (Merge-Commit
+  `205c8db13d1682041a57c492bacde4c790061fc7`) gemergt; die Main-CI war vollständig
+  erfolgreich. Der Nutzer hat Review Gate 2 bestanden: Die generierte React-Anwendung
+  wurde im Browser geöffnet und **Add a step** erhöhte den sichtbaren Zähler.
+  Browser-Neuladen und Browserkonsole wurden nicht separat bestätigt. Die
+  Codespaces-Vorschau (private `browseUrl` über `gh codespace ports --json`, laufender
+  Vite-Server, Fehlerhinweis) steht in `specs/001-react-frontend/quickstart.md`.
+  Automatische Weiterleitung via `devcontainer.json` wurde geprüft, aber nicht
+  eingerichtet.
+- Schritt 135C (Inkrement 3, Branch `feature/react-frontend-135c`, Basis `205c8db`):
+  T009-T012 sind lokal umgesetzt, aber **noch nicht committet**. T009/T010: zusätzliche
+  Koexistenz- und Installationsreihenfolge-Tests (React vor/nach Docker/PostgreSQL,
+  Java nach React erweitert Compose um `app-java` ohne `app-react`; Konfliktschutz);
+  die Docker-Modulabgrenzung (`DOCKER_MODULES`) stammte bereits aus T005-T008, es gab
+  keine Generatoränderung. T011: drei React-Integrationstests gegen die kompatible
+  t0003-Basis `6e8363a` (Apply/No-op/Check/Restore ohne TypeScript, Python-Reihenfolgen,
+  Ablehnung der Release-Basis, geänderter Vertragsdateien und fremder Pfade). T012:
+  React-Vertrag in `docs/GENERATOR_CONTRACT.md`, `README.md`, `docs/DV_KONZEPT.md`.
+  T013 Phase A (lokal, mit frisch installiertem Generator, Installation verglichen mit
+  `src/`): Generator-Suite 265 Tests (7 plattformbedingt übersprungen), Integration 32,
+  Template-Tests 17, React-/Python-/TypeScript-/Java-/Infrastrukturmodule 121,
+  `scripts/check.py` und `git diff --check` erfolgreich. Offen: Hosted-CI
+  (Ubuntu/Windows, Docker), Review Gate 3 und damit T013. Gesamtfortschritt: ca. 93 %
+  (Schätzung). Bekannte Einschränkungen: Browser-Neuladen und Browserkonsole nicht
+  separat bestätigt; Windows-DACL-/Junction-Tests lokal übersprungen.
 - Schritt 135A: Nutzerfreigabe für eine optionale React-Frontend-Erweiterung mit
   eigener Projektion und Wiederverwendung der Format-4-Engine. Die bestehende
   TypeScript-Modulabhängigkeit wurde geklärt: React ist unabhängig installierbar.
@@ -508,10 +519,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Auf die separate Git-Freigabe des Nutzers warten. Erst danach T005-T008 in die
-empfohlenen Commits aufteilen und einen PR gegen `main` vorbereiten; bis dahin kein
-Commit, Push oder PR. Vor späterer Kompatibilitätsarbeit die Überschneidungen von
-T005-T008 mit T009/T010 anhand der Akzeptanzkriterien klären.
+Auf die separate Git-Freigabe des Nutzers warten. Danach Inkrement 3 in zwei Commits
+(Tests, dann Dokumentation und Handoff) auf `feature/react-frontend-135c` aufteilen,
+pushen, PR gegen `main` erstellen und alle acht Ubuntu-/Windows-Baseline- und
+Docker-Jobs prüfen (T013 Phase B). Review Gate 3 gibt ausschließlich der Nutzer frei.
 
 ## Risiken
 
