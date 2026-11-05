@@ -54,9 +54,13 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   bestand alle acht Hosted-CI-Jobs (Ubuntu-/Windows-Baseline und Docker Linux/Windows,
   je für Push und PR). **Review Gate 3 wurde am 2026-11-05 vom Nutzer auf Basis der
   Abnahmematrix und dieser CI freigegeben; T013 ist abgeschlossen.** Die Feature-
-  Umsetzung T001-T013 ist damit vollständig; der Merge von PR #30 steht aus
-  (separate Nutzerfreigabe). Bekannte Einschränkungen: Browser-Neuladen und Browserkonsole nicht
-  separat bestätigt; Windows-DACL-/Junction-Tests lokal übersprungen.
+  Umsetzung T001-T013 ist damit vollständig. PR #30 wurde mit Merge-Commit
+  `2ea3e638f2b734062fc1f8598b7f2ed6d75d5090` in `main` gemergt; die Main-CI dieses
+  Commits bestand vollständig (Generator-Basisprüfung Ubuntu und Windows, Docker
+  validation Linux und Windows). `react@0.1.0` und die Review Gates 1-3 sind
+  abgeschlossen. Bekannte Einschränkungen: Browser-Neuladen und Browserkonsole nicht
+  separat bestätigt; Windows-DACL-/Junction-Tests lokal übersprungen;
+  automatische Port-Weiterleitung via `devcontainer.json` nur geprüft, nicht eingerichtet.
 - Schritt 135A: Nutzerfreigabe für eine optionale React-Frontend-Erweiterung mit
   eigener Projektion und Wiederverwendung der Format-4-Engine. Die bestehende
   TypeScript-Modulabhängigkeit wurde geklärt: React ist unabhängig installierbar.
@@ -523,8 +527,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Auf die ausdrückliche Mergefreigabe des Nutzers für PR #30 warten und die Main-CI
-nach dem Merge prüfen. Kein automatischer Merge.
+Das React-Feature ist abgeschlossen. Weitere Arbeit erst nach neuer Nutzerfreigabe;
+kein Schritt ist offen.
 
 ## Risiken
 
