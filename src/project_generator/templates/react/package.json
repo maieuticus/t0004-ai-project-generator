@@ -1,0 +1,29 @@
+{
+  "name": "project-react-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": "24.22.2"
+  },
+  "scripts": {
+    "start": "vite --strictPort",
+    "preview": "vite preview --strictPort",
+    "test": "tsc --project tsconfig.json && node --test test/app.test.mjs",
+    "build": "tsc --project tsconfig.json && vite build",
+    "verify": "npm run test && npm run build"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "typescript": "5.9.3",
+    "vite": "8.3.6"
+  }
+}
