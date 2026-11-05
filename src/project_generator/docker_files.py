@@ -1,6 +1,6 @@
 """Deterministic, fixed Docker Compose artifacts for the three starter modules."""
 
-from .module_states import MODULES
+from .module_states import MODULES, DOCKER_MODULES
 
 PYTHON_IMAGE = "python:3.13.13-slim-bookworm@sha256:355bfa66770995d7e9a0da4b3473b44d0cb451f6b56f5615ad9c39e3c4eca03f"
 NODE_IMAGE = "node:24.11.1-bookworm-slim@sha256:48abc13a19400ca3985071e287bd405a1d99306770eb81d61202fb6b65cf0b57"
@@ -174,13 +174,14 @@ jobs:
 
 def docker_files(modules: frozenset[str], postgresql: bool = False) -> dict[str, bytes]:
     """Return the complete trusted projection in canonical module order."""
-    if not modules or not modules.issubset(MODULES):
+    docker_modules = modules & DOCKER_MODULES
+    if not modules or not modules.issubset(MODULES) or not docker_modules:
         raise ValueError("Docker Compose benötigt mindestens ein bekanntes Sprachmodul.")
     compose = "services:\n" + "".join(
         f"  app-{name}:\n    build:\n      context: .\n      dockerfile: Dockerfile.{name}\n"
-        for name in MODULES if name in modules
+        for name in MODULES if name in docker_modules
     )
-    commands = "".join(f"docker compose run --rm app-{name}\n" for name in MODULES if name in modules)
+    commands = "".join(f"docker compose run --rm app-{name}\n" for name in MODULES if name in docker_modules)
     doc = f'''# Docker Compose
 
 Voraussetzung sind Docker Engine und das Compose-Plugin. Die Starter sind Konsolenprogramme;
@@ -235,7 +236,7 @@ secrets:
         doc = doc.replace("Die Container erhalten keine Volumes, Host-Mounts, Docker-Sockets oder privilegierten Rechte.\n", "Die Konsolenstarter erhalten keine Volumes, Host-Mounts, Docker-Sockets oder privilegierten Rechte.\n")
         doc = doc.replace("PostgreSQL ist nicht implementiert.", "Für PostgreSQL siehe docs/POSTGRESQL.md.")
     result = {".dockerignore": IGNORE, "compose.yaml": compose.encode("utf-8"),
-            **{f"Dockerfile.{name}": DOCKERFILES[name] for name in MODULES if name in modules},
+            **{f"Dockerfile.{name}": DOCKERFILES[name] for name in MODULES if name in docker_modules},
             "docs/DOCKER.md": doc.encode("utf-8"), ".github/workflows/docker.yml": WORKFLOW}
     if postgresql:
         from .postgresql_files import POSTGRESQL_DOC

@@ -13,7 +13,7 @@ from .plan import (
     assess, backup_store, file_attributes, metadata_result, multi_plan_target, read_target,
 )
 from .python_compat import PYTHON_CI_SHA256, VERIFIED_FILES, python_capabilities
-from .module_states import MODULES, CI_STATES, known_ci
+from .module_states import MODULES, DOCKER_MODULES, CI_STATES, known_ci
 
 MODULE = "python@0.1.0"
 CHECK = ["python", "-m", "unittest", "discover", "-s", "tests", "-v"]
@@ -88,6 +88,7 @@ The application uses a `src/` layout and only the Python standard library.
 
 
 TS_VERIFY = ["npm", "run", "verify", "--prefix", "typescript"]
+REACT_VERIFY = ["npm", "run", "verify", "--prefix", "react"]
 JAVA_VERIFY = ["python", "scripts/check_java.py"]
 JAVA_FILES = tuple("java/" + name for name in (
     ".gitignore", ".mvn/wrapper/maven-wrapper.properties", "mvnw", "mvnw.cmd", "pom.xml",
@@ -105,17 +106,26 @@ else:
     command = ["sh", "mvnw", "verify"]
 raise SystemExit(subprocess.run(command, cwd=root / "java", check=False).returncode)
 '''
-CHECKS = {"python": CHECK, "typescript": TS_VERIFY, "java": JAVA_VERIFY}
 TS_FILES = tuple("typescript/" + name for name in
                  (".gitignore", "package.json", "package-lock.json", "tsconfig.json",
                   "src/app.ts", "src/main.ts", "test/app.test.mjs")) + ("docs/TYPESCRIPT.md",)
+REACT_FILES = tuple("react/" + name for name in (
+    ".gitignore", "index.html", "package.json", "package-lock.json", "tsconfig.json",
+    "vite.config.ts", "src/App.tsx", "src/counter.ts", "src/main.tsx", "src/style.css",
+    "test/app.test.mjs", "docs/REACT.md",
+))
+CHECKS = {"python": CHECK, "typescript": TS_VERIFY, "java": JAVA_VERIFY, "react": REACT_VERIFY}
 
 
 def _files_for(module: str) -> dict[str, bytes]:
     if module == "python":
         return FILES
     root = resources.files("project_generator").joinpath("templates", module)
-    names = TS_FILES if module == "typescript" else JAVA_FILES
+    names = {
+        "typescript": TS_FILES,
+        "java": JAVA_FILES,
+        "react": REACT_FILES,
+    }[module]
     files = {name: root.joinpath(*name.removeprefix(module + "/").split("/")).read_bytes()
              for name in names}
     if module == "java":
@@ -214,8 +224,10 @@ def module_plan_target(target: str, version: str, module: str,
     if INFRASTRUCTURE[DOCKER_COMPOSE] in metadata["infrastructure"]:
         from .docker_files import docker_files
         postgresql = INFRASTRUCTURE[POSTGRESQL] in metadata["infrastructure"]
-        old_files = docker_files(expected_modules, postgresql=postgresql) if expected_modules else {}
-        new_files = docker_files(expected_modules | {module}, postgresql=postgresql)
+        docker_modules = expected_modules & DOCKER_MODULES
+        old_files = docker_files(docker_modules, postgresql=postgresql) if docker_modules else {}
+        new_docker_modules = docker_modules | ({module} if module in DOCKER_MODULES else set())
+        new_files = docker_files(new_docker_modules, postgresql=postgresql)
         if postgresql:
             from .postgresql_files import POSTGRES_GITIGNORES
             old_files[".gitignore"] = POSTGRES_GITIGNORES[-1]
@@ -236,7 +248,7 @@ def module_plan_target(target: str, version: str, module: str,
                 docker_changes.append((name, "create", new_files[name]))
     check = CHECKS[module]
     if installed and check not in checks:
-        label = {"python": "Python", "typescript": "TypeScript", "java": "Java"}[module]
+        label = {"python": "Python", "typescript": "TypeScript", "java": "Java", "react": "React"}[module]
         conflicts.append(f"config/project.yaml: {label}-Projektprüfung fehlt oder wurde verändert.")
     for other in MODULES:
         if other != module and other in expected_modules:

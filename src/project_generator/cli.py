@@ -31,7 +31,8 @@ def _parser() -> argparse.ArgumentParser:
         command.add_argument("--json", action="store_true", dest="as_json", help="maschinenlesbare Ausgabe")
         if name != "check":
             selection = command.add_mutually_exclusive_group()
-            selection.add_argument("--module", choices=("python", "typescript", "java"), help="Technologiemodul planen")
+            selection.add_argument("--module", choices=("python", "typescript", "java", "react"),
+                                   help="Technologiemodul planen")
             selection.add_argument("--infrastructure", choices=("docker-compose", "postgresql"),
                                    help="Infrastruktur planen")
     command = commands.add_parser("migrate", help="bestehendes Projekt ausschließlich lesend analysieren")
@@ -150,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.infrastructure:
             from .infrastructure import infrastructure_plan_target
             result, _ = infrastructure_plan_target(args.target, version, args.infrastructure)
-        elif args.module in ("python", "typescript", "java"):
+        elif args.module in ("python", "typescript", "java", "react"):
             from .python_module import module_plan_target
             result, _ = module_plan_target(args.target, version, args.module)
         else:
@@ -159,8 +160,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "new" and not args.as_json and not result.get("conflicts") and not result["operations"]:
             if args.infrastructure:
                 print("Die Infrastruktur ist bereits korrekt eingerichtet.")
-            elif args.module in ("python", "typescript", "java"):
-                label = {"python": "Python", "typescript": "TypeScript", "java": "Java"}[args.module]
+            elif args.module in ("python", "typescript", "java", "react"):
+                label = {"python": "Python", "typescript": "TypeScript", "java": "Java",
+                         "react": "React"}[args.module]
                 print(f"Das {label}-Modul ist bereits korrekt eingerichtet.")
             else:
                 print("Die Generator-Version ist bereits aktuell.")
