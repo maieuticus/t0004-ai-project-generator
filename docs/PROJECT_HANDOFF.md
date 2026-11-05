@@ -5,12 +5,18 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
-- Schritt 134B auf `feat/github-actions-maintenance`, Basis `main` (`5adabae`):
+- Schritt 134B abgeschlossen: PR #26 wurde am 2026-11-04 in `main` gemergt
+  (Merge-Commit `069a46e`):
   Nur die eigenen Workflows `ci.yml` und `docker-validation.yml` des Generators
   nutzen jetzt SHA-gepinnte Actions (checkout v7.0.1, setup-python v7.1.0,
   setup-node v7.1.0, setup-java v6.1.0), `persist-credentials: false` und
   `package-manager-cache: false`. Generierte Projekt-Workflows und ihre
-  Bytezustände bleiben unverändert. Gesamtfortschritt bis zum bestätigten Merge: 77 %.
+  Bytezustände bleiben unverändert. Gesamtfortschritt: 78 %.
+- Schritt 134C auf `docs/manual-workflow-maintenance-134c`, Basis `main`
+  (`069a46e`): Dokumentiert die bewusste separate Wartung generierter Workflows.
+  Entscheidung A: keine automatischen Generator-Upgrades; manuelle Änderungen
+  können Konflikte verursachen, historische Zustände bleiben unverändert. Keine
+  Änderungen an Engine, Vorlagen oder Tests.
 - Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
   (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
   PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
@@ -423,8 +429,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Nach Nutzer-LOS PR zu Schritt 134B prüfen und mergen. Empfehlung: leichtes Modell,
-Reasoning-Stufe niedrig. Gesamtfortschritt bleibt bis zum Merge bei 77 %.
+PR zu Schritt 134C durch den Nutzer prüfen und mergen; nicht eigenständig mergen.
+Nach bestätigtem Merge den geschätzten Fortschritt auf 79 % setzen und anschließend
+stoppen. Empfehlung: leichtes Modell, Reasoning-Stufe niedrig.
 
 ## Risiken
 
