@@ -126,6 +126,9 @@ Neue Docker-Projekte erhalten außerdem `.github/workflows/docker.yml`: Ubuntu p
 Compose, baut die Images und startet die vorhandenen Konsolen-Services. Die bisherige
 Sprach-CI bleibt unverändert. Bestehende Docker-Projekte ohne diesen Workflow melden
 bei erneuter Planung einen Konflikt; der Generator ergänzt ihn nicht ungefragt.
+Generierte Workflows werden nicht automatisch aktualisiert und sind bewusst separat zu
+warten. Manuelle Änderungen können dabei Konflikte verursachen; historische Zustände
+bleiben unverändert.
 Die t0004-Docker-CI verlangt unter Windows Compose und `docker compose config -q`;
 Linux-Image-Builds erfolgen auf Ubuntu. Sie benötigt Docker Engine und Compose; Plan
 und Apply benötigen Docker nicht. Die Images verwenden gepinnte Basis-Digests, aber
