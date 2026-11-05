@@ -104,7 +104,7 @@ after opening it in a browser and verifying that **Add a step** increments the
 displayed counter. The user confirmed the T005-T008 technical checks passed.
 Browser reload and browser-console inspection were not separately confirmed. The
 Codespaces preview instructions are recorded in `quickstart.md`. T009-T013 remain
-unchecked; their full task-level acceptance criteria remain incomplete (T009-T012 were later completed in Increment 3).
+unchecked; their full task-level acceptance criteria remain incomplete (T009-T013 were later completed in Increment 3; Review Gate 3 was approved on 2026-11-05).
 
 ---
 
@@ -131,7 +131,7 @@ projections, Docker/PostgreSQL coexistence and the existing Linux/Windows CI.
 - [x] T012 Update `docs/GENERATOR_CONTRACT.md`, `README.md`, and
   `docs/DV_KONZEPT.md` with the fixed React contract, independent TypeScript
   relationship, local-only preview, compatibility behavior and Docker exclusion.
-- [ ] T013 Run focused and full checks from `scripts/check.py`,
+- [x] T013 Run focused and full checks from `scripts/check.py`,
   `tests/test_react_module.py`, `tests/test_infrastructure.py`,
   `integration/test_t0003_integration.py`, and the existing Ubuntu/Windows GitHub
   Actions; record exact results and residual risks in `docs/PROJECT_HANDOFF.md`.

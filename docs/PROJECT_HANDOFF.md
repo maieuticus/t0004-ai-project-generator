@@ -49,9 +49,13 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   T013 Phase A (lokal, mit frisch installiertem Generator, Installation verglichen mit
   `src/`): Generator-Suite 265 Tests (7 plattformbedingt übersprungen), Integration 32,
   Template-Tests 17, React-/Python-/TypeScript-/Java-/Infrastrukturmodule 121,
-  `scripts/check.py` und `git diff --check` erfolgreich. Offen: Hosted-CI
-  (Ubuntu/Windows, Docker), Review Gate 3 und damit T013. Gesamtfortschritt: ca. 93 %
-  (Schätzung). Bekannte Einschränkungen: Browser-Neuladen und Browserkonsole nicht
+  `scripts/check.py` und `git diff --check` erfolgreich. PR #30 (Head
+  `c848f3077dd890c1c98c2ff0cda81ad24d91f0f5`, zwei Commits `a9e5de9` und `c848f30`)
+  bestand alle acht Hosted-CI-Jobs (Ubuntu-/Windows-Baseline und Docker Linux/Windows,
+  je für Push und PR). **Review Gate 3 wurde am 2026-11-05 vom Nutzer auf Basis der
+  Abnahmematrix und dieser CI freigegeben; T013 ist abgeschlossen.** Die Feature-
+  Umsetzung T001-T013 ist damit vollständig; der Merge von PR #30 steht aus
+  (separate Nutzerfreigabe). Bekannte Einschränkungen: Browser-Neuladen und Browserkonsole nicht
   separat bestätigt; Windows-DACL-/Junction-Tests lokal übersprungen.
 - Schritt 135A: Nutzerfreigabe für eine optionale React-Frontend-Erweiterung mit
   eigener Projektion und Wiederverwendung der Format-4-Engine. Die bestehende
@@ -519,10 +523,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Auf die separate Git-Freigabe des Nutzers warten. Danach Inkrement 3 in zwei Commits
-(Tests, dann Dokumentation und Handoff) auf `feature/react-frontend-135c` aufteilen,
-pushen, PR gegen `main` erstellen und alle acht Ubuntu-/Windows-Baseline- und
-Docker-Jobs prüfen (T013 Phase B). Review Gate 3 gibt ausschließlich der Nutzer frei.
+Auf die ausdrückliche Mergefreigabe des Nutzers für PR #30 warten und die Main-CI
+nach dem Merge prüfen. Kein automatischer Merge.
 
 ## Risiken
 
