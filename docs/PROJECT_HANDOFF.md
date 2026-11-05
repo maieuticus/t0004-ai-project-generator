@@ -26,8 +26,10 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 - Schritt 135A: Nutzerfreigabe für eine optionale React-Frontend-Erweiterung mit
   eigener Projektion und Wiederverwendung der Format-4-Engine. Die bestehende
   TypeScript-Modulabhängigkeit wurde geklärt: React ist unabhängig installierbar.
-  Die Arbeit liegt uncommitted auf `feature/react-frontend-135a`, Basis
-  `f4fa64494b6522778cb51e17cf341ba9ca481e1c`. Spec Kit 1.0.7 ist eingerichtet;
+  T001–T004 sind in `275e31483ebc3a89fdd25e6a4aec2856f90a9155` und
+  `bc21cbe5c514a296d4eb7e435fa95c57c10d9d24` auf
+  `feature/react-frontend-135a` versioniert. PR #28 gegen `main` ist offen und
+  ungemergt. Spec Kit 1.0.7 ist eingerichtet;
   Constitution, Spezifikation, technischer Plan, Tasks und Analyze-Bericht liegen
   unter `.specify/` und `specs/001-react-frontend/`. Der Nutzer hat am 2026-11-05
   die Constitution ratifiziert und alle fünf Analyze-Entscheidungen bestätigt:
@@ -55,11 +57,22 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   Die historischen Generatorprüfungen bestanden: 51 Python-/TypeScript-/Java-
   Modultests und 36 Infrastrukturtests; `python scripts/check.py` war erfolgreich.
   Generatorimplementierung, bestehende Templates, Workflows und historische
-  Testdateien haben keine Änderungen. Der Nutzer hat den manuellen Browser-Review
+  Projektionszustände haben keine Änderungen. Der Nutzer hat den manuellen Browser-Review
   akzeptiert: Die Oberfläche wurde angezeigt und „Add a step“ erhöhte den
   sichtbaren Zähler. Der Nutzer hat Review Gate 1 am 2026-11-05 formal bestanden;
   Inkrement 1 ist angenommen. T005 bleibt offen und wurde nicht gestartet. Keine
   Generatorregistrierung oder Folgeaufgabe ausgeführt.
+- Gezielte CI-Korrektur für PR #28: Ursache der Baseline-Fehler war, dass
+  `.github/template-tests/test_template.py` den konfigurierten t0004-Checkout als
+  neutrales „Use this template“-Projekt kopierte. Die Tests trennen jetzt explizit
+  einen neutralen Fixture-Zustand (`sdd.tool/version: null`, keine `.specify/`-,
+  `openspec/`- oder `specs/`-Projektartefakte) vom unveränderten konfigurierten
+  Zustand mit Spec Kit 1.0.7, Constitution und React-Spezifikation. Die Safety-Core-
+  Fixture nutzt ebenfalls neutrale Metadaten; die Migrationsprüfung deckt neutral
+  und konfiguriert ab. Lokal bestanden 17 Template-, 231 Generator-/Infrastruktur-
+  (7 plattformbedingt übersprungen) und 2 React-Tests sowie `scripts/check.py` und
+  `git diff --check`. Hosted Baseline- und Docker-Ergebnisse sind PR #28 zugeordnet;
+  kein Merge und kein Start von T005.
 - Schritt 133C auf `test/postgresql-infrastructure-pr-c`, Basis `main`
   (`6dac03c`): Die vorhandene `scripts/docker_ci.py`-Prüfung deckt den
   PostgreSQL-Backup-/Restore-Pfad bereits ab; es wurde keine Duplikation ergänzt.
@@ -472,9 +485,9 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-PR zu Schritt 134C durch den Nutzer prüfen und mergen; nicht eigenständig mergen.
-Nach bestätigtem Merge den geschätzten Fortschritt auf 79 % setzen und anschließend
-stoppen. Empfehlung: leichtes Modell, Reasoning-Stufe niedrig.
+Die aktualisierten Ubuntu-/Windows-Baseline- und Docker-Ergebnisse von PR #28
+prüfen; nicht mergen und T005 nicht beginnen. Danach auf separate Nutzerfreigabe
+warten. Empfehlung: leichtes Modell, Reasoning-Stufe niedrig.
 
 ## Risiken
 

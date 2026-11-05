@@ -13,6 +13,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator import migrate
+from project_generator.projectcfg import set_value
 
 
 class MigrationAnalysis(unittest.TestCase):
@@ -118,7 +119,11 @@ class MigrationAnalysis(unittest.TestCase):
         self.assertEqual(report["facts"]["t0003_metadata"], "recognized_supported")
         self.assertEqual(report["facts"]["t0003_details"],
                          {"generator_version_configured": False, "modules_configured": False,
-                          "sdd_configured": False})
+                          "sdd_configured": True})
+        neutral = set_value(set_value(config, "sdd", "tool", None), "sdd", "version", None)
+        path.write_text(neutral, encoding="utf-8")
+        report = self.report()
+        self.assertFalse(report["facts"]["t0003_details"]["sdd_configured"])
         path.write_text(config.replace("release: 0.1.0", "release: 9.0.0"), encoding="utf-8")
         report = self.report()
         self.assertEqual(report["facts"]["t0003_metadata"], "recognized_unverified_version")

@@ -13,7 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 SOURCE_CONFIG = (ROOT / "config/project.yaml").read_text(encoding="utf-8")
 sys.path.insert(0, str(ROOT / "src"))
 from project_generator.plan import create_plan
+from project_generator.projectcfg import set_value
 
+SOURCE_CONFIG = set_value(SOURCE_CONFIG, "sdd", "tool", None)
+SOURCE_CONFIG = set_value(SOURCE_CONFIG, "sdd", "version", None)
 
 class SafetyCoreCli(unittest.TestCase):
     def setUp(self):

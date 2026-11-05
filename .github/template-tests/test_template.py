@@ -1,7 +1,8 @@
 """Template regression and practical tests.
 
-Practical tests copy the template exactly like "Use this template" would (tracked and
-untracked files, no .git history) into a temporary project and run it there.
+Practical tests copy tracked and untracked files without .git history into a temporary
+project. Each test selects either a neutral fixture or the exact configured-project
+state explicitly.
 Set TEMPLATE_TEST_OFFLINE=1 to skip tests that download Spec Kit or OpenSpec.
 """
 
@@ -27,7 +28,7 @@ def git(cwd: Path, *args: str) -> str:
     return result.stdout
 
 
-def copy_template(destination: Path) -> Path:
+def copy_template(destination: Path, *, neutral: bool) -> Path:
     listing = git(ROOT, "ls-files", "-co", "--exclude-standard", "-z").split("\0")
     for name in filter(None, listing):
         if not (ROOT / name).is_file():
@@ -35,6 +36,17 @@ def copy_template(destination: Path) -> Path:
         target = destination / name
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / name, target)
+    if neutral:
+        config = destination / "config/project.yaml"
+        text = projectcfg.read_text(config)
+        text = projectcfg.set_value(text, "sdd", "tool", None)
+        config.write_text(projectcfg.set_value(text, "sdd", "version", None), encoding="utf-8")
+        for name in (".specify", "openspec", "specs"):
+            path = destination / name
+            if path.is_dir():
+                shutil.rmtree(path)
+            elif path.exists():
+                path.unlink()
     git(destination, "init", "-q")
     git(destination, "add", "-A")
     git(destination, "commit", "-qm", "initial")
@@ -69,7 +81,7 @@ class GeneratorBootstrap(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp = tempfile.TemporaryDirectory()
-        cls.project = copy_template(Path(cls.temp.name) / "project")
+        cls.project = copy_template(Path(cls.temp.name) / "project", neutral=True)
 
     @classmethod
     def tearDownClass(cls):
@@ -80,6 +92,8 @@ class GeneratorBootstrap(unittest.TestCase):
             self.assertFalse((self.project / name).exists(), name)
         config = projectcfg.read_text(self.project / "config/project.yaml")
         self.assertIsNone(projectcfg.get(config, "sdd", "tool"))
+        self.assertIsNone(projectcfg.get(config, "sdd", "version"))
+        self.assertFalse((self.project / "specs").exists())
         self.assertTrue((self.project / "docs/GENERATOR_CONTRACT.md").is_file())
 
     def test_no_agent_installer_or_privilege_escalation(self):
@@ -97,7 +111,7 @@ class GeneratorBootstrap(unittest.TestCase):
         self.assertIn("noch nicht gewählt", status)
 
     def test_check_detects_broken_link_and_missing_file(self):
-        broken = copy_template(Path(self.temp.name) / "broken")
+        broken = copy_template(Path(self.temp.name) / "broken", neutral=True)
         (broken / "docs/PROJECT_HANDOFF.md").write_text("# x\n[kaputt](gibt-es-nicht.md)\n", encoding="utf-8")
         (broken / "docs/QUICKSTART.md").unlink()
         result = run(broken, "scripts/check.py")
@@ -107,25 +121,38 @@ class GeneratorBootstrap(unittest.TestCase):
         self.assertIn("Abschnitt '## Aktueller Stand' fehlt", result.stderr)
 
     def test_project_checks_run_and_failures_are_reported(self):
-        failing = copy_template(Path(self.temp.name) / "failing")
+        failing = copy_template(Path(self.temp.name) / "failing", neutral=True)
         config = failing / "config/project.yaml"
         config.write_text(config.read_text(encoding="utf-8").replace(
             "checks: []", 'checks:\n  - ["python", "-c", "raise SystemExit(3)"]'), encoding="utf-8")
         self.assertEqual(run(failing, "scripts/check.py").returncode, 1)
 
     def test_openspec_tool_rejects_invalid_pin(self):
-        pinned = copy_template(Path(self.temp.name) / "pin")
+        pinned = copy_template(Path(self.temp.name) / "pin", neutral=True)
         (pinned / ".openspec-version").write_text("latest\n", encoding="utf-8")
         result = run(pinned, "scripts/openspec_tool.py", "--version")
         self.assertEqual(result.returncode, 1)
         self.assertIn("MAJOR.MINOR.PATCH", result.stderr)
 
 
+class ConfiguredProject(unittest.TestCase):
+    def test_t0004_keeps_its_spec_kit_configuration_and_artifacts(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        project = copy_template(Path(temp.name) / "project", neutral=False)
+        config = projectcfg.read_text(project / "config/project.yaml")
+        self.assertEqual(projectcfg.get(config, "sdd", "tool"), "speckit")
+        self.assertEqual(projectcfg.get(config, "sdd", "version"), "1.0.7")
+        for name in (".specify/memory/constitution.md", "specs/001-react-frontend/spec.md",
+                     "specs/001-react-frontend/plan.md", "specs/001-react-frontend/tasks.md"):
+            self.assertTrue((project / name).is_file(), name)
+
+
 class Handoff(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.project = copy_template(Path(self.temp.name) / "project")
+        self.project = copy_template(Path(self.temp.name) / "project", neutral=True)
 
     def export(self, *args: str) -> Path:
         out = self.project / "out.md"
@@ -188,7 +215,7 @@ class UpdateCheck(unittest.TestCase):
         git(self.upstream, "commit", "-qm", "c")
         for tag in ("v0.1.0", "v0.2.0"):
             git(self.upstream, "tag", tag)
-        self.project = copy_template(base / "project")
+        self.project = copy_template(base / "project", neutral=True)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -218,7 +245,7 @@ class SelectSdd(unittest.TestCase):
     def select(self, tool: str, *extra: str):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        project = copy_template(Path(temp.name) / "project")
+        project = copy_template(Path(temp.name) / "project", neutral=True)
         protected = {name: (project / name).read_bytes() for name in
                      ("AGENTS.md", ".github/copilot-instructions.md", "README.md")}
         run(project, "scripts/sdd.py", "select", tool, *extra, check=True)
@@ -269,7 +296,7 @@ class SelectSdd(unittest.TestCase):
     def test_existing_file_is_protected(self):
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
-        project = copy_template(Path(temp.name) / "project")
+        project = copy_template(Path(temp.name) / "project", neutral=True)
         target = project / ".github/copilot-instructions.md"
         target.write_text("EIGENE ANPASSUNG\n", encoding="utf-8")
         run(project, "scripts/sdd.py", "select", "openspec", "--integration", "codex", check=True)
