@@ -18,11 +18,10 @@ class PrepareTemplateCi(unittest.TestCase):
         self.output = self.base / "github-output"
         self.source = self.base / "source"
         self.source.mkdir()
-        self.env = {
-            "PATH": os.environ["PATH"],
-            "HOME": str(self.base / "home"),
-            "GH_TOKEN": "synthetic-fixture-credential",
-        }
+        inherited = dict(os.environ, HOME=str(self.base / "home"),
+                         USERPROFILE=str(self.base / "home"))
+        self.env = prepare_template_ci.gh_access.git_environment(inherited)
+        self.env["GH_TOKEN"] = "synthetic-fixture-credential"
 
     def git(self, *args: str, cwd: Path):
         return subprocess.run(
