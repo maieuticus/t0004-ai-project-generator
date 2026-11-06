@@ -6,7 +6,7 @@
 
 **Tests**: Written before or together with the code they cover. Increment 1 needs no private repository and no real token (local bare repositories and stub executables only).
 
-**Conventions**: `[P]` = parallelizable. `[USn]` = user story of the spec. `STOPP` = hard human stop; nothing after it starts without a separate LOS. No task is marked done yet.
+**Conventions**: `[P]` = parallelizable. `[USn]` = user story of the spec. `STOPP` = hard human stop; nothing after it starts without a separate LOS.
 
 ## Increment 1: Access foundation (no private repository, no token)
 
@@ -31,19 +31,46 @@
 
 **Goal**: Tests and CI use the helper, a pinned reference, default-branch drift detection and a trusted/untrusted split; the inherited t0003 update check remains separately runnable and behaviour against the public template is unchanged.
 
-**Prerequisite decision (human, before T014)**: deploy key versus fine-grained token comparison (see Open Decision D1); document the result in T015.
+**Prerequisite decision (human, before T014)**: Fine-grained PAT selected; record the result in T015. The PAT and GitHub secret are not created or configured by this increment.
 
-- [ ] T009 [US2] Add tests that `integration/test_t0003_integration.py` uses the helper and the pinned reference, keeps `COMPATIBLE`/`RELEASE` distinct, detects default-branch drift, and reports missing access as skipped/not verified, never passed (FR-006, FR-007, FR-008, FR-009).
-- [ ] T010 [US2] Change `integration/test_t0003_integration.py` to use `scripts/gh_access.py` (mirror hook `T0004_T0003_MIRROR` preserved).
-- [ ] T011 [P] [US3] Add a contract test proving that the inherited `scripts/update_check.py` remains independently runnable, has no `scripts/gh_access.py` import or invocation and reports an unreachable source as "nicht geprüft"; defer private authenticated operation to Increment 3 (FR-001, FR-007).
-- [ ] T013 [P] [US2] Change `scripts/docker_ci.py` to use the helper and the pinned reference; add a test for the fetch behaviour.
-- [ ] T014 [US2] Update `.github/workflows/ci.yml` and `.github/workflows/docker-validation.yml`: credential only in the retrieval step via a secret, `persist-credentials: false` kept, no `pull_request_target`, template-dependent steps skipped with an explicit "not verified" message when the secret is absent on Linux and Windows (FR-005, FR-006, FR-013).
-- [ ] T015 [US2] Add a workflow/template test in `.github/template-tests/` that asserts: no `pull_request_target`, SHA-pinned actions, minimal read permissions, no workflow/job-level secret environment, secret scoped to the retrieval step and no secret in fork pull-request jobs (FR-005, FR-006, FR-013, FR-014).
-- [ ] T016 [US2] Run all local suites again (as T008) plus `git diff --stat -- src/`.
+- [x] T009 [US2] Add tests that `integration/test_t0003_integration.py` uses the helper and the pinned reference, keeps `COMPATIBLE`/`RELEASE` distinct, detects default-branch drift, and reports missing access as skipped/not verified, never passed (FR-006, FR-007, FR-008, FR-009).
+- [x] T010 [US2] Change `integration/test_t0003_integration.py` to use `scripts/gh_access.py` (mirror hook `T0004_T0003_MIRROR` preserved).
+- [x] T011 [P] [US3] Add a contract test proving that the inherited `scripts/update_check.py` remains independently runnable, has no `scripts/gh_access.py` import or invocation and reports an unreachable source as "nicht geprüft"; defer private authenticated operation to Increment 3 (FR-001, FR-007).
+- [x] T013 [P] [US2] Change `scripts/docker_ci.py` to use the helper and the pinned reference; add a test for the fetch behaviour.
+- [x] T014 [US2] Update `.github/workflows/ci.yml` and `.github/workflows/docker-validation.yml`: credential only in the retrieval step via a secret, `persist-credentials: false` kept, no `pull_request_target`, template-dependent steps skipped with an explicit "not verified" message when the secret is absent on Linux and Windows (FR-005, FR-006, FR-013).
+- [x] T015 [US2] Add a workflow/template test in `.github/template-tests/` that asserts: no `pull_request_target`, SHA-pinned actions, minimal read permissions, no workflow/job-level secret environment, secret scoped to the retrieval step and no secret in fork pull-request jobs (FR-005, FR-006, FR-013, FR-014).
+- [x] T016 [US2] Run all local suites again (as T008) plus `git diff --stat -- src/`.
+
+**D1 (human decision):** Fine-grained PAT selected for a single-repository, `Contents: read`, expiring credential. No PAT or repository secret has been created or configured; both remain subject to a separate explicit authorization. CI references `T0003_READ_TOKEN` only on a push to `main`, in the pinned-template retrieval step. Feature-branch pushes, pull requests, tags and manual dispatches receive no token.
+
+**Security review correction:** The initial feature-branch-push condition was HIGH risk because unreviewed branch code could receive the PAT. It is now restricted to `push` on `refs/heads/main`; PR and feature-push workflows remain secretless. The branch-protection API check returned HTTP 403, so repository protection settings are unverified and must not be assumed.
+
+**CI result semantics:** The workflow summary labels the public t0003 retrieval separately from private authentication. Because t0003 is public, even a successful retrieval with the selected secret records private authentication as `NOT VERIFIED`; a missing secret also records `NOT VERIFIED` and skips template integration. Retrieval/test errors fail the job rather than becoming a successful private-auth result.
+
+**T016 local evidence:** The initial full local run passed 277 generator/helper tests (7 skipped), 33 integration tests and 20 template/workflow tests. After the security correction, 12 focused access/status tests and all 20 template/workflow tests passed again. Workflow YAML parsing, `python scripts/check.py`, `git diff --check`, the credential scan of changed implementation/test files and the empty `git diff --stat -- src/` all passed. On the later CI coverage update, 281 generator/helper tests (7 skipped), 33 integration tests and 21 template/workflow tests passed locally. A secret-backed private-repository run was not performed. Public t0003 retrieval is not evidence of private authentication.
 
 **STOPP before any token**: Creating or configuring any token, secret or deploy key requires a separate human LOS.
 
-**Review Gate 2** (human): Four green hosted jobs (Ubuntu/Windows baseline, Docker Linux/Windows) for push and PR, plus a deliberate untrusted run (fork or secret-less) that shows "skipped/not verified". Decision D1 documented.
+**Review Gate 2** (human, approved 2026-11-06): Increment 2 is complete.
+PR #33 head `bccd27f0ea914bf60f03115d4a2fa1a0d499daa4` passed the four hosted
+jobs for both push and PR. The deliberate untrusted fork PR #34 used base
+`bccd27f0ea914bf60f03115d4a2fa1a0d499daa4` and head
+`24cf2384debfefe8dbae1b0b8a10f1cb329c21be` from
+`maieuticus-ci-test/t0004-ai-project-generator`; both workflow runs recorded
+event `pull_request`. Its four successful jobs were
+[Ubuntu baseline](https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/42207460291/job/127857569817),
+[Windows baseline](https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/42207460291/job/127857570224),
+[Docker Linux](https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/42207460019/job/127857569356)
+and [Docker Windows](https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/42207460019/job/127857569549).
+The retrieval step was skipped, private authentication was reported `NOT VERIFIED`,
+and the jobs used read-only `GITHUB_TOKEN` permissions; no `pull_request_target`
+was used. Docker tests used a local fixture, not the pinned private template.
+
+No actual PAT was tested. Private repository authentication, secret withholding
+with a configured secret, private pinned integration and private pinned Docker
+validation remain **NOT VERIFIED**. Branch protection is also unverified: its API
+returned HTTP 403. These limits and the later private acceptance remain open;
+Gate 2 does not approve Increment 3 or 4 work or any visibility change.
 
 ---
 
@@ -103,6 +130,5 @@
 
 ## Open decisions
 
-- **D1** Deploy key vs. fine-grained token – may stay open until Gate 2.
 - **D2** Name and account of test copies – must be decided before Increment 3.
 - **D4** Separate private p9999 copy – may stay open until Increment 3.

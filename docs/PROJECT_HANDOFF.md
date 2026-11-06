@@ -5,6 +5,68 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- **Review Gate 2 am 2026-11-06 vom Nutzer freigegeben; Inkrement 2 abgeschlossen.**
+  Die Abnahmenachweise einschließlich Fork-PR #34 und aller vier erfolgreichen
+  Hosted-Jobs stehen in `specs/002-private-github-access/tasks.md`. Kein echter
+  PAT wurde getestet; private Authentifizierung, tatsächliche Secret-Zurückhaltung
+  bei hinterlegtem Secret sowie private gepinnte Integration und Docker-Prüfung
+  bleiben NOT VERIFIED. Branch Protection ist nach HTTP 403 nicht verifiziert.
+  Inkremente 3 und 4 sind offen; keine Testressource löschen und keinen PR ohne
+  separate Freigabe mergen. Die nachfolgenden Einträge halten frühere Stände fest.
+- Private GitHub Access, Inkrement 2: Branch `feature/private-github-access-002-inc2`,
+  Draft-PR #33 gegen `main`, Implementierungscommit `6b22395193ebc2783a050148841505614f834537`.
+  T009-T016 sind lokal umgesetzt. Das Sicherheitsreview fand einen HIGH-Befund:
+  Feature-Branch-Pushes hätten `T0003_READ_TOKEN` erhalten können. Die Workflow-Bedingung
+  ist auf Pushes zu `main` eingeschränkt; PRs, Feature-Pushes, Tags und Dispatch-Läufe
+  bleiben secretlos. Der Branch-Protection-Endpunkt lieferte HTTP 403; Schutzregeln sind
+  nicht verifiziert. Es wurde kein Token, Secret oder privates Repository erstellt.
+  Die öffentliche t0003-Abfrage wird als öffentliche Prüfung ausgewiesen; private
+  Authentifizierung bleibt **NOT VERIFIED**. Lokale Generator-, Integration-, Template-
+  und Workflowtests bestanden. Windows-Startfehler (`git init --bare`, `winerror=2`)
+  ist durch absolute Git-Pfadauflösung aus der isolierten Umgebung in Commit
+  `cdcc114025a6fe0bcafe6d6b246e0b314759c16e` korrigiert. Auf diesem PR-Head sind
+  Ubuntu-/Windows-Baseline und beide Docker-Jobs für Push und PR grün; der zuvor
+  fehlschlagende Windows-Test besteht. Template-Integration und eigentliche Docker-
+  Validierung wurden dort wegen des secretlosen Events übersprungen; der Untrusted-
+  Status meldet NOT VERIFIED. Lokal bestanden 281 Generator-/Hilfstests (7 skips),
+  33 Integrationstests und 20 Template-/Workflowtests. Review Gate 2 bleibt offen.
+- CI-Abdeckung für PR #33 ergänzt in Commit
+  `bccd27f0ea914bf60f03115d4a2fa1a0d499daa4`: Auf diesem Head bestanden alle acht
+  Hosted-Jobs für Push und PR (Baseline Ubuntu/Windows und Docker Linux/Windows).
+  Baseline: je 21 Template-/Workflowtests und 281 Generator-/Hilfstests
+  (Ubuntu 7, Windows 17 plattformbedingte Skips). Docker Linux führte eine lokale
+  Fixture einschließlich PostgreSQL-Start, Dump/Restore, Negativfällen und drei
+  Image-Builds aus; Docker Windows führte 37 Infrastrukturtests und eine Fixture-
+  Compose-Konfigurationsprüfung aus. Die echten gepinnten t0003-Integrationstests
+  und t0003-basierten Docker-Schritte wurden auf diesen secretlosen Events
+  übersprungen und als NOT VERIFIED ausgewiesen; lokale Fixture-Ergebnisse sind
+  kein Nachweis der echten Pins. Lokal bestanden 281 Tests (7 Skips), 33 echte
+  t0003-Integrationstests und 21 Template-/Workflowtests. Ein gezielter Fork-Lauf
+  gemäß `spec.md` fehlt; vor dem folgenden Abgleich erlaubte `tasks.md` dagegen
+  auch einen secretlosen Lauf. Private Authentifizierung und Branch Protection
+  bleiben NOT VERIFIED. Die zuvor abweichende D1-Dokumentation wurde wie unten
+  beschrieben abgeglichen. Review Gate 2 bleibt offen;
+  keine Tokens, privaten Kopien oder Sichtbarkeitsänderungen wurden angelegt.
+- Fork-Nachweis vorbereitet, noch nicht durchgeführt: `plan.md` und `tasks.md`
+  verlangen nun entsprechend `spec.md` einen echten untrusted Fork-PR; D1 ist
+  im Plan als entschieden übernommen. Beide Workflows erlauben `pull_request`
+  ohne Branchfilter. Vorgesehen ist ein überprüfter Fork-Branch mit minimalem
+  Test-Diff gegen `feature/private-github-access-002-inc2` auf dem aktuellen
+  PR-33-Head, nicht gegen das ältere `main`. Das Repository ist öffentlich,
+  Forking ist erlaubt und GitHub meldet derzeit keinen vorhandenen Fork.
+  Anderer Fork-Owner und gegebenenfalls Freigabe der Fork-Workflows sind noch
+  erforderlich. Fork, Test-PR und Gate-Freigabe benötigen ein separates LOS.
+- Kontrollierter Fork-Test freigegeben, aber vor Erstellung gestoppt: Der
+  authentifizierte Owner ist `maieuticus`; GitHub meldet keine bestehenden Forks
+  und liefert keine aktiven Organisationsmitgliedschaften im verfügbaren
+  API-Kontext. Ein anderer autorisierter Fork-Owner ist damit nicht nachgewiesen.
+  Es wurden kein Fork und kein Test-PR angelegt; Review Gate 2 bleibt offen.
+- Der Nutzer benannte anschließend `maieuticus-ci-test` als neue Testorganisation
+  und gab Fork und Test-PR dort frei. Die Organisation ist über die öffentliche API
+  sichtbar; beide Mitgliedschafts-Endpunkte lieferten für den aktuellen GitHub-
+  Zugang HTTP 403, und die öffentlichen Organisationsdaten belegen kein Recht
+  zur Fork-Erstellung. Deshalb wurde vor der Erstellung erneut gestoppt. Fork,
+  Test-PR und ihre CI-Nachweise fehlen weiterhin; keine Zugangsdaten wurden erstellt.
 - Schritt 134B abgeschlossen: PR #26 wurde am 2026-11-04 in `main` gemergt
   (Merge-Commit `069a46e`):
   Nur die eigenen Workflows `ci.yml` und `docker-validation.yml` des Generators
