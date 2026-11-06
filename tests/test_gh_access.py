@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -89,26 +90,25 @@ class GitAccess(unittest.TestCase):
         helper_directory = self.base / "helper"
         helper_directory.mkdir()
         sentinel = self.base / "credential-helper-called"
-        if os.name == "nt":
-            helper = helper_directory / "gh.cmd"
-            helper.write_text(
-                '@echo invoked > "%GH_HELPER_SENTINEL%"\n'
-                "@echo username=fixture\n"
-                "@echo password=synthetic\n",
-                encoding="utf-8",
-            )
-        else:
-            helper = helper_directory / "gh"
-            helper.write_text(
-                '#!/bin/sh\nprintf invoked > "$GH_HELPER_SENTINEL"\n'
-                "printf 'username=fixture\\npassword=synthetic\\n'\n",
-                encoding="utf-8",
-            )
-            helper.chmod(0o755)
-        helper_environment = dict(environment, PATH=str(helper_directory) + os.pathsep + environment["PATH"],
-                                  GH_HELPER_SENTINEL=str(sentinel))
+        helper = helper_directory / "credential_helper.py"
+        helper.write_text(
+            'from pathlib import Path\n'
+            'import os\n'
+            'Path(os.environ["GH_HELPER_SENTINEL"]).write_text("invoked", encoding="utf-8")\n'
+            'print("username=fixture")\n'
+            'print("password=synthetic")\n',
+            encoding="utf-8",
+        )
+        def git_shell_path(path: Path) -> str:
+            text = path.resolve().as_posix()
+            return f"/{text[0].lower()}{text[2:]}" if os.name == "nt" and text[1:3] == ":/" else text
+
+        helper_command = "!" + " ".join(
+            shlex.quote(git_shell_path(path)) for path in (Path(sys.executable), helper)
+        )
+        helper_environment = dict(environment, GH_HELPER_SENTINEL=str(sentinel))
         helper_result = subprocess.run(
-            ["git", "-c", "credential.helper=!gh auth git-credential", "credential", "fill"],
+            ["git", "-c", f"credential.helper={helper_command}", "credential", "fill"],
             input="protocol=https\nhost=example.invalid\n\n",
             capture_output=True,
             check=True,
