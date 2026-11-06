@@ -1,6 +1,6 @@
 # Implementation Plan: Private GitHub Usage
 
-**Spec**: [spec.md](spec.md) | **Status**: Inkrement 1 abgeschlossen; Review Gate 1 am 2026-11-06 menschlich freigegeben | **Architektur**: V1 (Authentifizierung an den Systemgrenzen)
+**Spec**: [spec.md](spec.md) | **Status**: Inkremente 1 und 2 abgeschlossen; Review Gates 1 und 2 am 2026-11-06 menschlich freigegeben | **Architektur**: V1 (Authentifizierung an den Systemgrenzen)
 
 ## Technical Context
 
@@ -27,7 +27,7 @@
 | # | Ziel | Technische Änderungen | Tests / Abnahmenachweis | Abhängigkeiten | Aufwand | Risiken |
 |---|------|----------------------|-------------------------|----------------|---------|---------|
 | 1 | Zugriffsgrundlage | Gemeinsame t0004-Abruf-Hilfe in `scripts/` (pro-Befehl-Credential, Fehlerklassen 401/403/404/abgelaufen/fehlend, keine Prompts und keine Token-Argumente); Leak-Scan- und Credential-Store-Isolationsprüfung; historiesicherer Kompatibilitätsnachweis | Unit-Tests je Fehlerklasse mit lokalen Bare-Repositories und Stubs, inklusive Windows-kompatibler Umgebung; kein Token und kein privates Repository; Leak-Scan, Generator-Suite und `check.py` grün; `git diff` zeigt `src/` unverändert | Keine | 1–1,5 Tage | Falsche Erfolgsmeldungen bei Fehlern; Credential in Logs |
-| 2 | CI und Integration | Gepinnte Referenz `6e8363a`, Default-Branch-Drift, Trusted/Untrusted-Trennung und Skip-Semantik; Secret nur im Abrufschritt; das t0003-Update-Skript bleibt unverändert und unabhängig | Vier grüne Hosted-Jobs (Ubuntu/Windows, Docker Linux/Windows), statischer Nachweis für Minimalrechte und ein gezielter Fork-/Untrusted-Lauf mit „übersprungen" | 1 | 1,5–2 Tage | Windows-Abweichungen; Secret-Exposition in Fork-Läufen |
+| 2 | CI und Integration | Gepinnte Referenz `6e8363a`, Default-Branch-Drift, Trusted/Untrusted-Trennung und Skip-Semantik; Secret nur im Abrufschritt; das t0003-Update-Skript bleibt unverändert und unabhängig | Vier grüne Hosted-Jobs (Ubuntu/Windows, Docker Linux/Windows), statischer Nachweis für Minimalrechte und ein gezielter untrusted Fork-PR-Lauf mit „übersprungen/nicht geprüft" | 1 | 1,5–2 Tage | Windows-Abweichungen; Secret-Exposition in Fork-Läufen |
 | 3 | Private Testkopien und Abnahme | Nutzer legt private Kopien an (geprüfte, gepinnte Commits, kein Mirror); Read-only-Credential; Matrix A–D; negative Tests (kein Zugriff, falscher Scope, abgelaufen, fehlendes Secret, Fork); echte Projekterstellung und separate private Prüfung des t0003-Updatechecks | Abnahmematrix mit Ergebnis/Datum, Berechtigungsnachweis, Leak-Scan über Logs, Konfiguration, Plan, Snapshot, Backup sowie Agenten-Secret-Isolation | 2; Nutzeraktion (Kopien, Token) | 1–2 Tage plus Wartezeit | Offene Frage zur Berechtigung bei „Use this template" mit privatem Template; Token-Handhabung |
 | 4 | Dokumentation und Sichtbarkeitsentscheidung | Berechtigungsleitfaden, Rotation/Widerruf, Hinweis auf bleibende öffentliche Forks, Umschaltplan mit Rollback; DV-Konzept-Entscheidung | Dokumentationsreview, Checkliste der Umschaltbedingungen | 3 | 0,5–1 Tag | Nicht rückholbare öffentliche Kopien |
 
@@ -41,8 +41,19 @@ credentials used in tests are synthetic. Authentication against an actual privat
 GitHub repository, credential scope verification and private update-check acceptance
 remain explicitly deferred to Increment 3 and its human gates.
 
-## Offene Entscheidungen
+## Review Gate 2 Evidence
 
-1. Deploy Key vs. Fine-Grained PAT (Vergleich und Dokumentation vor T014 in Inkrement 2).
-2. Konto/Name der privaten Testkopien (Inkrement 3).
-3. Ob private Kopie von p9999 benötigt wird oder neue Testprojekte genügen.
+The human review approved Increment 2 on 2026-11-06. The fork-PR evidence,
+four hosted jobs, unchanged generator core and remaining private-access limits
+are recorded in [tasks.md](tasks.md). Increments 3 and 4 remain open and require
+their own authorizations; this approval does not authorize a visibility change.
+
+## Entscheidungen und offene Fragen
+
+1. **D1 entschieden:** Fine-Grained PAT mit Ablaufdatum und `Contents: read` für
+   ausschließlich das Template-Repository; siehe `tasks.md`. In Inkrement 2 werden
+   weder PAT noch Secret erstellt oder konfiguriert. Ein Deploy Key ist nicht
+   gewählt; seine spätere Auswahl würde weiterhin einen dokumentierten Vergleich
+   und eine gesonderte Entscheidung erfordern.
+2. Offen: Konto/Name der privaten Testkopien (Inkrement 3).
+3. Offen: Ob private Kopie von p9999 benötigt wird oder neue Testprojekte genügen.

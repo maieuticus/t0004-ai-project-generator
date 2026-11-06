@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -57,6 +58,73 @@ class GitAccess(unittest.TestCase):
                 self.assertNotIn("compatible", result.message.lower())
                 self.assertNotIn("current", result.message.lower())
 
+    def test_os_error_diagnostic_reports_safe_process_details(self):
+        error = FileNotFoundError(
+            2, "synthetic failure do-not-log-this-value",
+            "https://example.invalid/private.git",
+        )
+        with mock.patch.object(
+            self.access.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(
+                ["git", "--version"], 0, stdout="git version 2.50.0\n", stderr=""
+            ),
+        ) as run:
+            diagnostic = self.access._process_error_diagnostic(
+                "git fetch",
+                error,
+                {"PATH": os.environ["PATH"], "GH_TOKEN": "synthetic-fixture-credential"},
+                self.base,
+            )
+
+        self.assertIn("FileNotFoundError", diagnostic)
+        self.assertIn("errno=2", diagnostic)
+        self.assertIn("winerror=None", diagnostic)
+        self.assertIn("git fetch", diagnostic)
+        self.assertIn("outcome=os-error-no-returncode", diagnostic)
+        self.assertIn("cwd_exists=True", diagnostic)
+        self.assertIn("git_version=git version 2.50.0", diagnostic)
+        self.assertNotIn("do-not-log-this-value", diagnostic)
+        self.assertNotIn("synthetic-fixture-credential", diagnostic)
+        self.assertNotIn("example.invalid", diagnostic)
+        self.assertNotIn("private.git", diagnostic)
+        probe_env = run.call_args.kwargs["env"]
+        self.assertNotIn("GH_TOKEN", probe_env)
+
+    def test_missing_git_is_safe_with_an_isolated_environment(self):
+        empty_path = self.base / "empty-path"
+        empty_path.mkdir()
+        env = {"PATH": str(empty_path), "GH_TOKEN": "synthetic-fixture-credential"}
+        destination = self.base / "destination.git"
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.object(self.access.subprocess, "run") as run,
+        ):
+            fetched = self.access.fetch_reference(
+                "local-source", destination, "HEAD", env=env, include_credential_env=True
+            )
+            resolved = self.access.resolve_default_branch(
+                "local-source", env=env, include_credential_env=True
+            )
+
+        run.assert_not_called()
+        for result in (fetched, resolved):
+            self.assertFalse(result.success)
+            self.assertIn("Git ist nicht verfügbar", result.message)
+            self.assertNotIn(env["GH_TOKEN"], result.message)
+        self.assertFalse(destination.exists())
+
+    def test_credential_bearing_source_is_rejected_without_execution(self):
+        source = "https://fixture:synthetic-fixture-credential@example.invalid/repo.git"
+        with mock.patch.object(self.access.subprocess, "run") as run:
+            fetched = self.access.fetch_reference(source, self.base / "mirror.git", "HEAD")
+            resolved = self.access.resolve_default_branch(source)
+        run.assert_not_called()
+        for result in (fetched, resolved):
+            self.assertFalse(result.success)
+            self.assertNotIn("synthetic-fixture-credential", result.message)
+            self.assertNotIn("example.invalid", result.message)
+
     def test_fetch_uses_an_isolated_noninteractive_existing_helper(self):
         source = self.base / "source"
         source.mkdir()
@@ -86,6 +154,11 @@ class GitAccess(unittest.TestCase):
         self.assertEqual(environment["GIT_CONFIG_GLOBAL"], os.devnull)
         self.assertNotIn("GH_TOKEN", environment)
         self.assertNotIn("GITHUB_TOKEN", environment)
+        credential_environment = self.access.git_environment(
+            inherited, include_credential_env=True
+        )
+        self.assertEqual(credential_environment["GH_TOKEN"], inherited["GH_TOKEN"])
+        self.assertNotIn("GITHUB_TOKEN", credential_environment)
 
         helper_directory = self.base / "helper"
         helper_directory.mkdir()
@@ -140,6 +213,34 @@ class GitAccess(unittest.TestCase):
         drift = self.access.reference_status(compatible, "different-commit")
         self.assertTrue(drift.compatible)
         self.assertTrue(drift.default_branch_drift)
+
+    def test_resolves_remote_default_branch_without_writing(self):
+        source = self.base / "source"
+        source.mkdir()
+        self.git("init", "--quiet", cwd=source)
+        self.git("config", "user.name", "Fixture", cwd=source)
+        self.git("config", "user.email", "fixture@example.invalid", cwd=source)
+        (source / "file.txt").write_text("compatible\n", encoding="utf-8")
+        self.git("add", "file.txt", cwd=source)
+        self.git("commit", "--quiet", "-m", "compatible", cwd=source)
+        (source / "file.txt").write_text("default branch drift\n", encoding="utf-8")
+        self.git("commit", "--quiet", "-am", "drift", cwd=source)
+        expected = self.git("rev-parse", "HEAD", cwd=source).stdout.strip()
+        original_config = (source / ".git/config").read_bytes()
+        original_status = self.git("status", "--porcelain", cwd=source).stdout
+
+        result = self.access.resolve_default_branch(
+            source.as_posix(),
+            env={"PATH": os.environ["PATH"], "HOME": str(self.base / "isolated-home")},
+        )
+
+        self.assertTrue(result.success, result.message)
+        self.assertEqual(result.reference, expected)
+        self.assertTrue(self.access.reference_status(
+            self.access.COMPATIBLE_REFERENCE, result.reference
+        ).default_branch_drift)
+        self.assertEqual((source / ".git/config").read_bytes(), original_config)
+        self.assertEqual(self.git("status", "--porcelain", cwd=source).stdout, original_status)
 
     def test_compatibility_uses_known_files_metadata_and_ci_state_not_history(self):
         project = self.base / "generated-project"

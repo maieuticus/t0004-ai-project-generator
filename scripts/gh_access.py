@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
 from urllib.parse import urlsplit
 
 
+T0003_SOURCE = "https://github.com/maieuticus/t0003-ai-project-template.git"
 COMPATIBLE_REFERENCE = "6e8363a7ac7d99220d743eea077dcd5cefda9042"
 RELEASE_REFERENCE = "964de8538d19cefcb483faff38f10124615a9783"
 
@@ -20,6 +23,7 @@ class AccessResult:
     success: bool
     category: str
     message: str
+    reference: str | None = None
 
 
 @dataclass(frozen=True)
@@ -70,12 +74,64 @@ def classify_error(stderr: str) -> AccessResult:
     return AccessResult(False, category, redact(messages[category]))
 
 
-def git_environment(inherited: dict[str, str] | None = None) -> dict[str, str]:
+def _process_error_diagnostic(
+    step: str,
+    error: OSError,
+    env: dict[str, str],
+    cwd: Path | None = None,
+) -> str:
+    executable = _git_executable(env)
+    executable_exists = bool(executable and Path(executable).is_file())
+    workdir = cwd if cwd is not None else Path.cwd()
+    cwd_exists = workdir.exists()
+    cwd_is_directory = workdir.is_dir()
+    version = "unavailable"
+    if executable_exists and executable is not None:
+        try:
+            probe_env = git_environment(env)
+            result = subprocess.run(
+                [executable, "--version"],
+                capture_output=True,
+                check=False,
+                env=probe_env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=5,
+            )
+            match = re.fullmatch(r"git version [A-Za-z0-9.+-]+", result.stdout.strip())
+            version = match.group(0) if result.returncode == 0 and match else f"exit:{result.returncode}"
+        except (OSError, subprocess.SubprocessError):
+            version = "unavailable"
+    return (
+        f"Git process error at {step}: outcome=os-error-no-returncode, "
+        f"exception={type(error).__name__}, "
+        f"errno={error.errno}, winerror={getattr(error, 'winerror', None)}; "
+        f"executable_resolved={executable is not None}, executable_exists={executable_exists}, "
+        f"cwd_exists={cwd_exists}, cwd_is_directory={cwd_is_directory}, "
+        f"git_version={version}, platform={sys.platform}/{os.name}."
+    )
+
+
+def _classify_process_failure(step: str, returncode: int, stderr: str) -> AccessResult:
+    result = classify_error(stderr)
+    return AccessResult(
+        False,
+        result.category,
+        f"{result.message} Process {step} exited with code {returncode}.",
+    )
+
+
+def git_environment(
+    inherited: dict[str, str] | None = None, *, include_credential_env: bool = False
+) -> dict[str, str]:
     """Return a noninteractive environment isolated from caller Git configuration."""
     source = os.environ if inherited is None else inherited
     retained = ("PATH", "HOME", "USERPROFILE", "SYSTEMROOT", "WINDIR", "PATHEXT", "TMP", "TEMP",
                 "LANG", "LC_ALL", "LC_CTYPE")
     environment = {key: source[key] for key in retained if key in source}
+    if include_credential_env and source.get("GH_TOKEN"):
+        environment["GH_TOKEN"] = source["GH_TOKEN"]
     environment.update(
         GCM_INTERACTIVE="Never",
         GIT_CONFIG_GLOBAL=os.devnull,
@@ -85,17 +141,71 @@ def git_environment(inherited: dict[str, str] | None = None) -> dict[str, str]:
     return environment
 
 
+def _git_executable(env: dict[str, str]) -> str | None:
+    path = env.get("PATH")
+    if not path:
+        return None
+    executable = shutil.which("git", path=path)
+    return os.path.abspath(executable) if executable else None
+
+
 def fetch_command(source: str, destination: Path, reference: str) -> list[str]:
     """Build the credential-helper-only fetch command without token arguments."""
+    target = fetched_ref(reference)
     return [
         "git",
         "-c",
         "credential.helper=!gh auth git-credential",
         "fetch",
         "--no-tags",
+        "--",
         source,
-        f"{reference}:refs/t0004/private-access",
+        f"+{reference}:{target}",
     ]
+
+
+def resolve_default_branch(
+    source: str, *, env: dict[str, str] | None = None, include_credential_env: bool = False
+) -> AccessResult:
+    """Resolve the remote default branch's commit without changing local state."""
+    if _credential_bearing_source(source):
+        return AccessResult(False, "unknown", "Zugriff fehlgeschlagen: Zugangsdaten in der Quelle sind nicht zulässig.")
+    process_env = git_environment(env, include_credential_env=include_credential_env)
+    executable = _git_executable(process_env)
+    if executable is None:
+        return AccessResult(False, "network", "Zugriff fehlgeschlagen: Git ist nicht verfügbar.")
+    try:
+        result = subprocess.run(
+            [executable, "-c", "credential.helper=!gh auth git-credential", "ls-remote",
+             "--symref", "--", source, "HEAD"],
+            capture_output=True,
+            check=False,
+            env=process_env,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError as error:
+        diagnostic = _process_error_diagnostic(
+            "git ls-remote", error, process_env
+        )
+        return AccessResult(
+            False, "network", f"Zugriff fehlgeschlagen: Git ist nicht verfügbar. {diagnostic}"
+        )
+    if result.returncode:
+        return _classify_process_failure("git ls-remote", result.returncode, result.stderr)
+    for line in result.stdout.splitlines():
+        if line.endswith("\tHEAD") and not line.startswith("ref: "):
+            reference = line.split("\t", 1)[0]
+            if reference and all(character in "0123456789abcdefABCDEF" for character in reference):
+                return AccessResult(True, "ok", "Default-Branch wurde aufgelöst.", reference)
+    return AccessResult(False, "not_found", "Zugriff fehlgeschlagen: Default-Branch nicht gefunden.")
+
+
+def fetched_ref(reference: str) -> str:
+    """Return a stable, safe local ref name for one fetched reference."""
+    suffix = hashlib.sha256(reference.encode("utf-8")).hexdigest()
+    return f"refs/t0004/private-access/{suffix}"
 
 
 def _credential_bearing_source(source: str) -> bool:
@@ -104,39 +214,80 @@ def _credential_bearing_source(source: str) -> bool:
 
 
 def fetch_reference(
-    source: str, destination: Path, reference: str, *, env: dict[str, str] | None = None
+    source: str,
+    destination: Path,
+    reference: str,
+    *,
+    env: dict[str, str] | None = None,
+    include_credential_env: bool = False,
 ) -> AccessResult:
     """Fetch one reference into a new bare repository without storing a remote."""
     if _credential_bearing_source(source):
         return AccessResult(False, "unknown", "Zugriff fehlgeschlagen: Zugangsdaten in der Quelle sind nicht zulässig.")
-    if destination.exists():
-        return AccessResult(False, "unknown", "Zugriff fehlgeschlagen: Ziel existiert bereits.")
+    local_env = git_environment(env)
+    executable = _git_executable(local_env)
+    if executable is None:
+        return AccessResult(False, "network", "Zugriff fehlgeschlagen: Git ist nicht verfügbar.")
+    created = not destination.exists()
+    step = "git init --bare" if created else "git rev-parse --is-bare-repository"
     try:
-        subprocess.run(
-            ["git", "init", "--bare", str(destination)],
-            capture_output=True,
-            check=True,
-            env=git_environment(env),
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-        )
+        if created:
+            subprocess.run(
+                [executable, "init", "--bare", str(destination)],
+                capture_output=True,
+                check=True,
+                env=local_env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+        else:
+            bare = subprocess.run(
+                [executable, "--git-dir", str(destination), "rev-parse", "--is-bare-repository"],
+                capture_output=True,
+                check=False,
+                env=local_env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            if bare.returncode or bare.stdout.strip() != "true":
+                message = "Zugriff fehlgeschlagen: Ziel ist kein Bare-Repository."
+                if bare.returncode:
+                    message += f" Process git rev-parse exited with code {bare.returncode}."
+                return AccessResult(False, "unknown", message)
+        step = "git fetch"
+        process_env = git_environment(env, include_credential_env=include_credential_env)
+        command = fetch_command(source, destination, reference)
+        command[0] = executable
         result = subprocess.run(
-            fetch_command(source, destination, reference),
+            command,
             cwd=destination,
             capture_output=True,
             check=False,
-            env=git_environment(env),
+            env=process_env,
             text=True,
             encoding="utf-8",
             errors="replace",
         )
-    except OSError:
-        return AccessResult(False, "network", "Zugriff fehlgeschlagen: Git ist nicht verfügbar.")
+    except OSError as error:
+        diagnostic = _process_error_diagnostic(
+            step, error, local_env, destination if step == "git fetch" else None
+        )
+        if created:
+            shutil.rmtree(destination, ignore_errors=True)
+        return AccessResult(
+            False, "network", f"Zugriff fehlgeschlagen: Git ist nicht verfügbar. {diagnostic}"
+        )
+    except subprocess.CalledProcessError as error:
+        if created:
+            shutil.rmtree(destination, ignore_errors=True)
+        return _classify_process_failure(step, error.returncode, error.stderr or "")
     if result.returncode == 0:
         return AccessResult(True, "ok", "Referenz wurde abgerufen.")
-    shutil.rmtree(destination)
-    return classify_error(result.stderr)
+    if created:
+        shutil.rmtree(destination, ignore_errors=True)
+    return _classify_process_failure("git fetch", result.returncode, result.stderr)
 
 
 def reference_status(reference: str, default_branch_reference: str) -> ReferenceStatus:

@@ -232,6 +232,8 @@ class UpdateCheck(unittest.TestCase):
         return result.stdout
 
     def test_current_outdated_and_unreachable(self):
+        source = (self.project / "scripts/update_check.py").read_text(encoding="utf-8")
+        self.assertNotIn("gh_access", source)
         self.configure(self.upstream.as_posix(), "0.2.0")
         self.assertIn("keine neue Version", self.check())
         self.configure(self.upstream.as_posix(), "0.1.0")
