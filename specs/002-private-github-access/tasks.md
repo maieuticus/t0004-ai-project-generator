@@ -19,7 +19,9 @@
 - [x] T005 [US1] Implement `scripts/gh_access.py` (per-command use of the existing credential helper, no prompts, token arguments or persisted credential, redacted messages and classified results) until T002–T003 pass.
 - [x] T006 [US1] Implement `scripts/leak_scan.py` until T004 passes.
 - [x] T007 [US1] Add local-fixture tests with an independent generated-project Git history: identify `6e8363a` as the compatible basis and `964de85` as rejected by checking existing contract-file digests, project metadata and permitted historical module/CI states; do not copy Git history. Resolve the default branch and report drift from `6e8363a` without writes (FR-008, FR-009, SC-006).
-- [ ] T008 [US1] Run the generator suite, integration suite, template tests, `python scripts/check.py`, `git diff --check`; confirm `git diff --stat -- src/` is empty and the 16 module states and eight historical byte states pass (FR-016, SC-005).
+- [x] T008 [US1] Run the generator suite, integration suite, template tests, `python scripts/check.py`, `git diff --check`; confirm `git diff --stat -- src/` is empty and the 16 module states and eight historical byte states pass (FR-016, SC-005).
+
+**T008 evidence (2026-11-06):** Draft PR #32 head `73e597b83bf326d8a800de382f7fba0a8c1734df` passed the `baseline` test suite on Ubuntu (3m17s) and Windows (11m23s). The Windows job runs `python -m unittest discover -s tests -v`, which includes `test_gh_access` and `test_leak_scan`; Docker Linux and Windows checks also passed. See the Windows job: <https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/42176664423/job/127756585944>.
 
 **Review Gate 1** (human): Review test evidence per failure category, the leak-scan results, the empty `src/` diff and the redaction behaviour. Without approval, nothing from Increment 2 starts.
 
