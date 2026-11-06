@@ -20,6 +20,12 @@
 - Q: Öffentliche Forks und Kopien? → A: Treated as already published content; later privacy does not retract them.
 - Q: Wann werden t0003/t0004 privat? → A: Only after complete acceptance, including a real end-to-end run.
 
+### Session 2026-11-06 (architecture decisions)
+
+- Q: Wo liegt die Authentifizierung? → A: Only at t0004 outer access points. The generator core remains unchanged. The inherited t0003 `update_check.py` is assessed separately and never depends on a t0004-internal helper; its private-operation evidence belongs to final acceptance.
+- Q: Wie wird Template compatibility proven for generated projects? → A: Identify the original t0003 basis by the fixed compatible commit and prove capabilities through the existing contract files, known file contents and project metadata. Generated projects have independent Git histories; no complete Git history is copied into them. Already permitted module projections remain valid.
+- Q: Welche version is authoritative? → A: `6e8363a` remains the compatible t0003 basis. `964de85` remains the older, non-automatically-compatible release state. Existing tags remain unchanged.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Use the System with a Private Template (Priority: P1)
@@ -67,6 +73,8 @@ appears in any output.
 
 A developer of a private project checks for newer template versions and retrieves a
 specific versioned base for comparison, without automatic changes or credential leaks.
+The inherited t0003 update check remains a separate external boundary and is not
+rewired to a t0004 helper.
 
 **Why this priority**: Updates need authenticated reads but stay manual by design.
 
@@ -77,7 +85,7 @@ reports versions, without access it reports "not checked", never "current".
 
 1. **Given** access, **When** the update check runs, **Then** versions are compared and no project file changes.
 2. **Given** no access, **When** it runs, **Then** it reports "not checked (access missing)" and never "up to date".
-3. **Given** a project with local changes, **When** a base is retrieved for update planning, **Then** local changes are preserved and conflicts are reported before any write.
+3. **Given** a project with local changes, **When** a versioned base is retrieved for a read-only comparison, **Then** local changes are preserved and the check performs no write.
 
 ---
 
@@ -112,20 +120,20 @@ copies and decides whether to make the production repositories private.
 
 ### Functional Requirements
 
-- **FR-001**: Authentication MUST occur only at system boundaries (helper scripts, tests, CI). The generator core, `plan`, `apply`, `restore`, `new`, `migrate` and all historical states MUST remain unchanged and network-free.
-- **FR-002**: Interactive use MUST prefer the developer's existing GitHub authentication and MUST NOT introduce a separate credential store.
+- **FR-001**: Authentication MUST occur only at t0004 system boundaries (helper scripts, tests, CI). The generator core, `plan`, `apply`, `restore`, `new`, `migrate` and all historical states MUST remain unchanged and network-free. The inherited t0003 `update_check.py` MUST remain independently runnable and MUST NOT import or depend on a t0004-internal helper.
+- **FR-002**: Interactive use MUST prefer the developer's existing GitHub authentication and MUST NOT introduce a separate credential store. Tests MUST prove that the boundary command uses only the existing credential-helper/sign-in mechanism, creates no credential files and leaves user and system Git configuration unchanged.
 - **FR-003**: Retrieval of private content MUST use a per-command credential source, MUST NOT modify global configuration or stored remote addresses, and MUST NOT prompt interactively.
 - **FR-004**: No credential MUST appear in remote addresses, logs, error messages, commits, project files, plans, snapshots, backups or repository configuration; an automated scan MUST verify this in every acceptance run.
 - **FR-005**: CI credentials MUST grant read-only content access limited to the single private template (or an equivalent read-only deploy key chosen after a documented comparison) and MUST be exposed only to the retrieval steps, never to a whole job or to untrusted runs.
 - **FR-006**: Untrusted runs MUST NOT receive secrets and MUST report template-dependent checks as skipped or not verified.
 - **FR-007**: Missing, expired or insufficient credentials, forbidden access and missing repositories MUST end non-successfully with a message naming the cause category, and MUST NEVER be reported as passed, compatible or up to date.
-- **FR-008**: Automated tests MUST use the explicitly pinned compatible reference (`6e8363a`); the release reference (`964de85`) MUST remain addressable and rejected for module installation.
-- **FR-009**: "Use this template" MUST continue to use the template's default branch; the system MUST detect and report when it differs from the pinned compatible reference.
+- **FR-008**: Automated tests MUST use the explicitly pinned compatible reference (`6e8363a`); the release reference (`964de85`) MUST remain addressable and rejected for module installation. Compatibility MUST be proven without assuming a generated project's Git history: the fixed basis is identified by its commit, and the existing contract files, known content digests, project metadata and already permitted module projections are checked.
+- **FR-009**: "Use this template" MUST continue to use the template's default branch; the system MUST detect and report when that branch resolves to a state other than the pinned compatible reference, without changing the project or silently accepting the drift.
 - **FR-010**: Private test copies MUST be created without unreviewed transfers: only reviewed, pinned commits may be placed in a copy; no bulk mirroring of arbitrary references.
 - **FR-011**: Production repositories (template, generator, existing test repository) MUST remain unchanged, including visibility, until the acceptance gate is approved.
 - **FR-012**: The requirements for creating a private repository from a template MUST be documented and verified separately from those for reading it, stating credential type and permission for each.
-- **FR-013**: No write credential MUST be introduced without a documented concrete need and explicit approval.
-- **FR-014**: Agents MUST NOT receive credentials in their context nor gain broader repository rights; credential use in agent-run commands requires an explicit user instruction.
+- **FR-013**: No write credential MUST be introduced without a documented concrete need and explicit approval. Static CI tests and acceptance evidence MUST show the configured credential is read-only, scoped to one repository and unavailable outside the retrieval step; any exception requires a separately recorded human approval.
+- **FR-014**: Agents MUST NOT receive credentials in their context nor gain broader repository rights; credential use in agent-run commands requires an explicit user instruction. Tests MUST show that helpers accept no token command-line argument, persist no credential and redact credential-like subprocess output; the human acceptance evidence MUST confirm that no agent command received a credential.
 - **FR-015**: Documentation MUST state minimal permissions per step, rotation and revocation, manual steps, and that public forks and copies made before the change remain public.
 - **FR-016**: Existing tests, the 16 module states and the eight historical CI byte states MUST pass unchanged on all supported operating systems.
 - **FR-017**: A real end-to-end acceptance on private test copies, including negative permission tests, MUST pass before any visibility change.
@@ -145,7 +153,7 @@ copies and decides whether to make the production repositories private.
 - **SC-001**: A developer with read access completes plan, apply, no-op and restore for all supported modules on a private test project with no credential entry beyond the existing sign-in.
 - **SC-002**: 100% of defined negative cases (no access, wrong scope, expired credential, missing secret, untrusted run) end non-successfully or as "not verified", with zero reports of passed, compatible or current.
 - **SC-003**: Zero credential occurrences are found by the automated scan across logs, configuration, plans, snapshots, backups and remote addresses in the full acceptance run.
-- **SC-004**: CI uses exactly one read-only credential scoped to one repository, exposed to no more than the retrieval steps.
+- **SC-004**: CI uses exactly one read-only credential scoped to one repository, exposed to no more than the retrieval steps, on Linux and Windows; fork pull-request runs receive none.
 - **SC-005**: All existing tests, the 16 module states and the eight historical byte states pass unchanged, with no change to generator core files.
 - **SC-006**: Both compatible and release references are retrievable in the acceptance run; only the compatible one is accepted.
 - **SC-007**: The maintainer can decide on the visibility change from one evidence package in one review session; production visibility is unchanged until approval.
@@ -158,6 +166,7 @@ copies and decides whether to make the production repositories private.
 - A fine-grained read-only token is the default CI credential; a deploy key only if a documented comparison shows a concrete advantage (decided at the planning gate).
 - Creating a repository from a private template depends on GitHub's rules and the creator's read access; exact permission needs are verified in acceptance, not assumed (the repository-creation API endpoint is documented separately from content reads; its fine-grained permission mapping is still to be verified).
 - Hosted GitHub Actions remains the only CI.
+- Private operation of the inherited t0003 `update_check.py` is verified only in the final private acceptance run; it does not gain a dependency on t0004 code.
 - GitHub Apps, token services and other new infrastructure are out of scope.
 - Public forks and copies made earlier cannot be retracted.
 
@@ -165,12 +174,13 @@ copies and decides whether to make the production repositories private.
 
 - Changes to generator core, engine, plan formats or historical states.
 - Changes to t0003 or the existing test repository.
+- Reworking the inherited t0003 `update_check.py` or using a t0004 helper from it.
 - Creation of tokens, keys or private repositories during specification.
 - Release automation, a `verify` command and update features beyond read-only checks.
 
 ## Planned Increments (draft)
 
-1. **Access foundation**: shared boundary retrieval with cause-classified failures and leak-scan tests, verified against the current public template without behaviour change. *Gate 1:* test evidence, unchanged core.
-2. **CI and integration**: pinned reference, trusted/untrusted separation, skip semantics; still against the public template. *Gate 2:* four green hosted jobs plus a deliberate untrusted run.
-3. **Private test copies and acceptance**: user-created private copies, read-only credential, negative permission tests, leak scan, real project creation. *Gate 3:* acceptance matrix and evidence.
+1. **Access foundation**: shared t0004 boundary retrieval with cause-classified failures, credential-store isolation, history-independent compatibility and leak-scan tests; the inherited t0003 update check stays separate. Verified against the current public template without real tokens or private repositories. *Gate 1:* test evidence, unchanged core.
+2. **CI and integration**: pinned reference, default-branch drift detection, trusted/untrusted separation and Windows-safe skip semantics; still against the public template. *Gate 2:* four green hosted jobs plus a deliberate untrusted fork run.
+3. **Private test copies and acceptance**: user-created private copies, read-only credential, negative permission tests, isolated t0003 update-check evidence, leak scan and real project creation. *Gate 3:* acceptance matrix and evidence.
 4. **Documentation and visibility decision**: minimal-permission guide, rotation/revocation, public-fork note, switch plan with rollback. *Gate 4:* approval; visibility change executed as a separate step.
