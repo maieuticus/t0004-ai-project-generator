@@ -1,6 +1,6 @@
 # Implementation Plan: Private GitHub Usage
 
-**Spec**: [spec.md](spec.md) | **Status**: Entwurf, wartet auf LOS | **Architektur**: V1 (Authentifizierung an den Systemgrenzen)
+**Spec**: [spec.md](spec.md) | **Status**: Inkrement 1 abgeschlossen; Review Gate 1 am 2026-11-06 menschlich freigegeben | **Architektur**: V1 (Authentifizierung an den Systemgrenzen)
 
 ## Technical Context
 
@@ -32,6 +32,14 @@
 | 4 | Dokumentation und Sichtbarkeitsentscheidung | Berechtigungsleitfaden, Rotation/Widerruf, Hinweis auf bleibende öffentliche Forks, Umschaltplan mit Rollback; DV-Konzept-Entscheidung | Dokumentationsreview, Checkliste der Umschaltbedingungen | 3 | 0,5–1 Tag | Nicht rückholbare öffentliche Kopien |
 
 Jedes Inkrement endet mit menschlichem Review Gate; die Sichtbarkeitsänderung ist ein separater, genehmigungspflichtiger Schritt nach Gate 4.
+
+## Review Gate 1 Evidence
+
+The human review approved T001–T008 on 2026-11-06. Draft PR #32 passed the Ubuntu
+and Windows baseline and Docker checks; the generator core remains unchanged and all
+credentials used in tests are synthetic. Authentication against an actual private
+GitHub repository, credential scope verification and private update-check acceptance
+remain explicitly deferred to Increment 3 and its human gates.
 
 ## Offene Entscheidungen
 

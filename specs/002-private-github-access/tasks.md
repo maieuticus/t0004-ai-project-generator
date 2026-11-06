@@ -23,7 +23,7 @@
 
 **T008 evidence (2026-11-06):** Draft PR #32 head `73e597b83bf326d8a800de382f7fba0a8c1734df` passed the `baseline` test suite on Ubuntu (3m17s) and Windows (11m23s). The Windows job runs `python -m unittest discover -s tests -v`, which includes `test_gh_access` and `test_leak_scan`; Docker Linux and Windows checks also passed. See the Windows job: <https://github.com/maieuticus/t0004-ai-project-generator/actions/runs/42176664423/job/127756585944>.
 
-**Review Gate 1** (human): Review test evidence per failure category, the leak-scan results, the empty `src/` diff and the redaction behaviour. Without approval, nothing from Increment 2 starts.
+**Review Gate 1** (human, approved 2026-11-06): Test evidence per failure category, leak-scan results, the empty `src/` diff and redaction behaviour were reviewed and accepted. This approval authorizes Increment 2 only; authentication against actual private GitHub repositories remains deferred to Increment 3 and its separate human gates.
 
 ---
 
