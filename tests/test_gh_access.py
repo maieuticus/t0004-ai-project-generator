@@ -86,6 +86,11 @@ class GitAccess(unittest.TestCase):
         self.assertEqual(environment["GIT_CONFIG_GLOBAL"], os.devnull)
         self.assertNotIn("GH_TOKEN", environment)
         self.assertNotIn("GITHUB_TOKEN", environment)
+        credential_environment = self.access.git_environment(
+            inherited, include_credential_env=True
+        )
+        self.assertEqual(credential_environment["GH_TOKEN"], inherited["GH_TOKEN"])
+        self.assertNotIn("GITHUB_TOKEN", credential_environment)
 
         helper_directory = self.base / "helper"
         helper_directory.mkdir()
@@ -140,6 +145,34 @@ class GitAccess(unittest.TestCase):
         drift = self.access.reference_status(compatible, "different-commit")
         self.assertTrue(drift.compatible)
         self.assertTrue(drift.default_branch_drift)
+
+    def test_resolves_remote_default_branch_without_writing(self):
+        source = self.base / "source"
+        source.mkdir()
+        self.git("init", "--quiet", cwd=source)
+        self.git("config", "user.name", "Fixture", cwd=source)
+        self.git("config", "user.email", "fixture@example.invalid", cwd=source)
+        (source / "file.txt").write_text("compatible\n", encoding="utf-8")
+        self.git("add", "file.txt", cwd=source)
+        self.git("commit", "--quiet", "-m", "compatible", cwd=source)
+        (source / "file.txt").write_text("default branch drift\n", encoding="utf-8")
+        self.git("commit", "--quiet", "-am", "drift", cwd=source)
+        expected = self.git("rev-parse", "HEAD", cwd=source).stdout.strip()
+        original_config = (source / ".git/config").read_bytes()
+        original_status = self.git("status", "--porcelain", cwd=source).stdout
+
+        result = self.access.resolve_default_branch(
+            source.as_posix(),
+            env={"PATH": os.environ["PATH"], "HOME": str(self.base / "isolated-home")},
+        )
+
+        self.assertTrue(result.success, result.message)
+        self.assertEqual(result.reference, expected)
+        self.assertTrue(self.access.reference_status(
+            self.access.COMPATIBLE_REFERENCE, result.reference
+        ).default_branch_drift)
+        self.assertEqual((source / ".git/config").read_bytes(), original_config)
+        self.assertEqual(self.git("status", "--porcelain", cwd=source).stdout, original_status)
 
     def test_compatibility_uses_known_files_metadata_and_ci_state_not_history(self):
         project = self.base / "generated-project"

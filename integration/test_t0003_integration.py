@@ -20,10 +20,34 @@ import unittest
 from unittest import mock
 
 
-SOURCE = "https://github.com/maieuticus/t0003-ai-project-template.git"
-COMPATIBLE = "6e8363a7ac7d99220d743eea077dcd5cefda9042"
-RELEASE = "964de8538d19cefcb483faff38f10124615a9783"
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+import gh_access
+
+SOURCE = gh_access.T0003_SOURCE
+COMPATIBLE = gh_access.COMPATIBLE_REFERENCE
+RELEASE = gh_access.RELEASE_REFERENCE
+
+
+def fetch_pinned_reference(source, destination, reference, env):
+    fetched = gh_access.fetch_reference(source, destination, reference, env=env)
+    if not fetched.success:
+        message = f"t0003 reference not verified ({fetched.category}): {fetched.message}"
+        if fetched.category in {"missing", "expired", "forbidden", "not_found"}:
+            raise unittest.SkipTest(message)
+        raise RuntimeError(message)
+    result = subprocess.run(
+        ["git", "--git-dir", str(destination), "rev-parse",
+         f"{gh_access.fetched_ref(reference)}^{{commit}}"],
+        cwd=destination.parent,
+        env=gh_access.git_environment(env),
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    if result.stdout.strip() != reference:
+        raise AssertionError("Fetched t0003 commit does not match the pinned commit")
 
 
 class T0003Integration(unittest.TestCase):
@@ -324,8 +348,13 @@ class T0003Integration(unittest.TestCase):
         cls.temp = tempfile.TemporaryDirectory(prefix="t0004-integration-")
         cls.addClassCleanup(cls.temp.cleanup)
         cls.base = Path(cls.temp.name)
-        cls.git_env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_CONFIG_NOSYSTEM="1",
-                           GIT_CONFIG_GLOBAL=os.devnull)
+        gh_home = cls.base / "gh-home"
+        gh_config = cls.base / "gh-config"
+        gh_home.mkdir()
+        gh_config.mkdir()
+        cls.git_env = dict(os.environ, HOME=str(gh_home), USERPROFILE=str(gh_home),
+                           GH_CONFIG_DIR=str(gh_config), GIT_TERMINAL_PROMPT="0",
+                           GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
         for key in ("GIT_CONFIG_COUNT", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE",
                     "GIT_ASKPASS", "SSH_ASKPASS", "GH_TOKEN", "GITHUB_TOKEN", "T0004_REPO_TOKEN"):
             cls.git_env.pop(key, None)
@@ -337,15 +366,20 @@ class T0003Integration(unittest.TestCase):
                 raise ValueError("T0004_T0003_MIRROR must be an absolute local Git repository path")
             source = str(path.resolve())
         cls.source = cls.base / "source.git"
-        cls.git("init", "--quiet", "--bare", str(cls.source), cwd=cls.base)
-        cls.git("-C", str(cls.source), "fetch", "--quiet", "--no-tags", "--depth=1", source,
-                f"{COMPATIBLE}:refs/heads/compatible", f"{RELEASE}:refs/heads/release",
-                cwd=cls.base)
-        for commit in (COMPATIBLE, RELEASE):
-            resolved = cls.git("-C", str(cls.source), "rev-parse", f"{commit}^{{commit}}",
-                               cwd=cls.base).stdout.strip()
-            if resolved != commit:
-                raise AssertionError("Fetched t0003 commit does not match the pinned commit")
+        for reference in (COMPATIBLE, RELEASE):
+            fetch_pinned_reference(source, cls.source, reference, cls.git_env)
+        default_branch = gh_access.resolve_default_branch(source, env=cls.git_env)
+        if not default_branch.success or default_branch.reference is None:
+            message = f"t0003 default branch not verified ({default_branch.category}): {default_branch.message}"
+            if default_branch.category in {"missing", "expired", "forbidden", "not_found"}:
+                raise unittest.SkipTest(message)
+            raise RuntimeError(message)
+        cls.default_branch_reference = default_branch.reference
+        cls.default_branch_status = gh_access.reference_status(
+            COMPATIBLE, cls.default_branch_reference
+        )
+        state = "drift detected" if cls.default_branch_status.default_branch_drift else "compatible"
+        print(f"t0003 default branch {cls.default_branch_reference}: {state} (pinned {COMPATIBLE})")
         executable = "t0004-generator.exe" if os.name == "nt" else "t0004-generator"
         cls.cli_path = Path(sysconfig.get_path("scripts")) / executable
         if not cls.cli_path.is_file() and site.USER_BASE:
@@ -529,6 +563,22 @@ class T0003Integration(unittest.TestCase):
         self.assertTrue(plan["conflicts"])
         self.assertEqual(before, self.files())
         self.assertFalse(self.data.exists())
+
+    def test_pinned_reference_and_default_branch_drift_contract(self):
+        self.assertEqual(COMPATIBLE, "6e8363a7ac7d99220d743eea077dcd5cefda9042")
+        self.assertEqual(RELEASE, "964de8538d19cefcb483faff38f10124615a9783")
+        compatible = gh_access.reference_status(COMPATIBLE, COMPATIBLE)
+        self.assertTrue(compatible.compatible)
+        self.assertFalse(compatible.default_branch_drift)
+        release = gh_access.reference_status(RELEASE, COMPATIBLE)
+        self.assertFalse(release.compatible)
+        drift = gh_access.reference_status(COMPATIBLE, "different-default-branch-commit")
+        self.assertTrue(drift.compatible)
+        self.assertTrue(drift.default_branch_drift)
+        self.assertEqual(
+            self.default_branch_status.default_branch_drift,
+            self.default_branch_reference != COMPATIBLE,
+        )
 
     def test_changed_contract_is_rejected_before_and_after_planning(self):
         for name in (".github/workflows/ci.yml", "scripts/check.py", "scripts/projectcfg.py"):

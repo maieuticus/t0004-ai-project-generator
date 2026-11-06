@@ -12,8 +12,11 @@ import sys
 import tempfile
 import time
 
-COMMIT = "6e8363a7ac7d99220d743eea077dcd5cefda9042"
-SOURCE = "https://github.com/maieuticus/t0003-ai-project-template.git"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import gh_access
+
+COMMIT = gh_access.COMPATIBLE_REFERENCE
+SOURCE = gh_access.T0003_SOURCE
 POSTGRES_IMAGE = "postgres:18.6@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81"
 
 
@@ -35,6 +38,18 @@ def run_binary(command, *, cwd, env, expected=0):
     return result.stdout
 
 
+def checkout_template(base: Path, project: Path, source: str, env: dict[str, str]) -> None:
+    """Fetch the pinned t0003 base through the isolated boundary, then check it out locally."""
+    cache = base / "t0003-template.git"
+    fetched = gh_access.fetch_reference(source, cache, COMMIT, env=env)
+    if not fetched.success:
+        raise RuntimeError(f"t0003 template not verified ({fetched.category}): {fetched.message}")
+    safe_env = gh_access.git_environment(env)
+    run(["git", "clone", "--no-checkout", str(cache), str(project)], cwd=base, env=safe_env)
+    run(["git", "-c", "core.autocrlf=false", "checkout", "--detach", COMMIT],
+        cwd=project, env=safe_env)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config-only", action="store_true")
@@ -45,8 +60,7 @@ def main():
         env = dict(os.environ, T0004_BACKUP_HOME=str(base / "backup"), PYTHONUTF8="1",
                    PYTHONDONTWRITEBYTECODE="1", GIT_TERMINAL_PROMPT="0")
         source = os.environ.get("T0004_T0003_MIRROR", SOURCE)
-        run(["git", "clone", "--no-checkout", source, str(project)], cwd=base, env=env)
-        run(["git", "-c", "core.autocrlf=false", "checkout", "--detach", COMMIT], cwd=project, env=env)
+        checkout_template(base, project, source, env)
         index = (project / ".git/index").read_bytes()
         plan_file = base / "plan.json"
         sentinel = base / "docker-called"
