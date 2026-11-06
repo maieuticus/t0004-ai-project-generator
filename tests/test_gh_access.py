@@ -91,6 +91,40 @@ class GitAccess(unittest.TestCase):
         probe_env = run.call_args.kwargs["env"]
         self.assertNotIn("GH_TOKEN", probe_env)
 
+    def test_missing_git_is_safe_with_an_isolated_environment(self):
+        empty_path = self.base / "empty-path"
+        empty_path.mkdir()
+        env = {"PATH": str(empty_path), "GH_TOKEN": "synthetic-fixture-credential"}
+        destination = self.base / "destination.git"
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.object(self.access.subprocess, "run") as run,
+        ):
+            fetched = self.access.fetch_reference(
+                "local-source", destination, "HEAD", env=env, include_credential_env=True
+            )
+            resolved = self.access.resolve_default_branch(
+                "local-source", env=env, include_credential_env=True
+            )
+
+        run.assert_not_called()
+        for result in (fetched, resolved):
+            self.assertFalse(result.success)
+            self.assertIn("Git ist nicht verfügbar", result.message)
+            self.assertNotIn(env["GH_TOKEN"], result.message)
+        self.assertFalse(destination.exists())
+
+    def test_credential_bearing_source_is_rejected_without_execution(self):
+        source = "https://fixture:synthetic-fixture-credential@example.invalid/repo.git"
+        with mock.patch.object(self.access.subprocess, "run") as run:
+            fetched = self.access.fetch_reference(source, self.base / "mirror.git", "HEAD")
+            resolved = self.access.resolve_default_branch(source)
+        run.assert_not_called()
+        for result in (fetched, resolved):
+            self.assertFalse(result.success)
+            self.assertNotIn("synthetic-fixture-credential", result.message)
+            self.assertNotIn("example.invalid", result.message)
+
     def test_fetch_uses_an_isolated_noninteractive_existing_helper(self):
         source = self.base / "source"
         source.mkdir()

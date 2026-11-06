@@ -78,10 +78,17 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
         return False
 
     local_env = gh_access.git_environment(env)
+    executable = gh_access._git_executable(local_env)
+    if executable is None:
+        not_verified(
+            "Public template retrieval: FAILED; private authentication: NOT VERIFIED. "
+            "Git ist nicht verfügbar."
+        )
+        return False
     default_ref = gh_access.fetched_ref(default_branch.reference)
     branch = "refs/heads/t0004-ci-default"
     subprocess.run(
-        ["git", "--git-dir", str(mirror), "update-ref", branch, default_ref],
+        [executable, "--git-dir", str(mirror), "update-ref", branch, default_ref],
         check=True,
         capture_output=True,
         env=local_env,
@@ -89,7 +96,7 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
         encoding="utf-8",
     )
     subprocess.run(
-        ["git", "--git-dir", str(mirror), "symbolic-ref", "HEAD", branch],
+        [executable, "--git-dir", str(mirror), "symbolic-ref", "HEAD", branch],
         check=True,
         capture_output=True,
         env=local_env,

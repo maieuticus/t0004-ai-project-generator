@@ -80,7 +80,7 @@ def _process_error_diagnostic(
     env: dict[str, str],
     cwd: Path | None = None,
 ) -> str:
-    executable = shutil.which("git", path=env.get("PATH"))
+    executable = _git_executable(env)
     executable_exists = bool(executable and Path(executable).is_file())
     workdir = cwd if cwd is not None else Path.cwd()
     cwd_exists = workdir.exists()
@@ -107,7 +107,7 @@ def _process_error_diagnostic(
         f"Git process error at {step}: outcome=os-error-no-returncode, "
         f"exception={type(error).__name__}, "
         f"errno={error.errno}, winerror={getattr(error, 'winerror', None)}; "
-        f"resolved_executable={executable or 'not-found'}, executable_exists={executable_exists}, "
+        f"executable_resolved={executable is not None}, executable_exists={executable_exists}, "
         f"cwd_exists={cwd_exists}, cwd_is_directory={cwd_is_directory}, "
         f"git_version={version}, platform={sys.platform}/{os.name}."
     )
@@ -141,6 +141,14 @@ def git_environment(
     return environment
 
 
+def _git_executable(env: dict[str, str]) -> str | None:
+    path = env.get("PATH")
+    if not path:
+        return None
+    executable = shutil.which("git", path=path)
+    return os.path.abspath(executable) if executable else None
+
+
 def fetch_command(source: str, destination: Path, reference: str) -> list[str]:
     """Build the credential-helper-only fetch command without token arguments."""
     target = fetched_ref(reference)
@@ -162,20 +170,24 @@ def resolve_default_branch(
     """Resolve the remote default branch's commit without changing local state."""
     if _credential_bearing_source(source):
         return AccessResult(False, "unknown", "Zugriff fehlgeschlagen: Zugangsdaten in der Quelle sind nicht zulässig.")
+    process_env = git_environment(env, include_credential_env=include_credential_env)
+    executable = _git_executable(process_env)
+    if executable is None:
+        return AccessResult(False, "network", "Zugriff fehlgeschlagen: Git ist nicht verfügbar.")
     try:
         result = subprocess.run(
-            ["git", "-c", "credential.helper=!gh auth git-credential", "ls-remote",
+            [executable, "-c", "credential.helper=!gh auth git-credential", "ls-remote",
              "--symref", "--", source, "HEAD"],
             capture_output=True,
             check=False,
-            env=git_environment(env, include_credential_env=include_credential_env),
+            env=process_env,
             text=True,
             encoding="utf-8",
             errors="replace",
         )
     except OSError as error:
         diagnostic = _process_error_diagnostic(
-            "git ls-remote", error, git_environment(env, include_credential_env=include_credential_env)
+            "git ls-remote", error, process_env
         )
         return AccessResult(
             False, "network", f"Zugriff fehlgeschlagen: Git ist nicht verfügbar. {diagnostic}"
@@ -212,26 +224,29 @@ def fetch_reference(
     """Fetch one reference into a new bare repository without storing a remote."""
     if _credential_bearing_source(source):
         return AccessResult(False, "unknown", "Zugriff fehlgeschlagen: Zugangsdaten in der Quelle sind nicht zulässig.")
+    local_env = git_environment(env)
+    executable = _git_executable(local_env)
+    if executable is None:
+        return AccessResult(False, "network", "Zugriff fehlgeschlagen: Git ist nicht verfügbar.")
     created = not destination.exists()
-    process_env = git_environment(env, include_credential_env=include_credential_env)
     step = "git init --bare" if created else "git rev-parse --is-bare-repository"
     try:
         if created:
             subprocess.run(
-                ["git", "init", "--bare", str(destination)],
+                [executable, "init", "--bare", str(destination)],
                 capture_output=True,
                 check=True,
-                env=process_env,
+                env=local_env,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
             )
         else:
             bare = subprocess.run(
-                ["git", "--git-dir", str(destination), "rev-parse", "--is-bare-repository"],
+                [executable, "--git-dir", str(destination), "rev-parse", "--is-bare-repository"],
                 capture_output=True,
                 check=False,
-                env=process_env,
+                env=local_env,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
@@ -242,8 +257,11 @@ def fetch_reference(
                     message += f" Process git rev-parse exited with code {bare.returncode}."
                 return AccessResult(False, "unknown", message)
         step = "git fetch"
+        process_env = git_environment(env, include_credential_env=include_credential_env)
+        command = fetch_command(source, destination, reference)
+        command[0] = executable
         result = subprocess.run(
-            fetch_command(source, destination, reference),
+            command,
             cwd=destination,
             capture_output=True,
             check=False,
@@ -253,9 +271,11 @@ def fetch_reference(
             errors="replace",
         )
     except OSError as error:
+        diagnostic = _process_error_diagnostic(
+            step, error, local_env, destination if step == "git fetch" else None
+        )
         if created:
             shutil.rmtree(destination, ignore_errors=True)
-        diagnostic = _process_error_diagnostic(step, error, process_env, destination if step == "git fetch" else None)
         return AccessResult(
             False, "network", f"Zugriff fehlgeschlagen: Git ist nicht verfügbar. {diagnostic}"
         )
