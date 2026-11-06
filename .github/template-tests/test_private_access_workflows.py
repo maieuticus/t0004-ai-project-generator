@@ -72,6 +72,22 @@ class PrivateAccessWorkflows(unittest.TestCase):
         self.assertIn("run: python scripts/docker_ci.py", docker)
         self.assertIn("run: python scripts/docker_ci.py --config-only", docker)
 
+    def test_local_fixture_checks_are_not_secret_gated(self):
+        ci = WORKFLOWS[0].read_text(encoding="utf-8")
+        docker = WORKFLOWS[1].read_text(encoding="utf-8")
+        self.assertIn(
+            "- name: Generator and local fixture tests\n"
+            "        run: python -m unittest discover -s tests -v", ci
+        )
+        self.assertIn(
+            "- name: Docker and PostgreSQL validation (local fixture)\n"
+            "        run: python tests/docker_fixture_ci.py", docker
+        )
+        self.assertIn(
+            "- name: Docker configuration validation (local fixture)\n"
+            "        run: python tests/docker_fixture_ci.py --config-only", docker
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

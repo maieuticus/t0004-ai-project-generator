@@ -40,7 +40,7 @@ def not_verified(message: str) -> None:
 def prepare(mirror: Path, env: dict[str, str]) -> bool:
     if not env.get("GH_TOKEN"):
         not_verified(
-            "Public generator checks continue without a secret; "
+            "Pinned-template integration and Docker validation: NOT VERIFIED (read credential is not configured). "
             "private authentication: NOT VERIFIED (read credential is not configured)."
         )
         return False
@@ -120,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.untrusted:
         not_verified(
-            "Public generator checks run without a credential; "
+            "Pinned-template integration and Docker validation: NOT VERIFIED (untrusted event). "
             "private authentication: NOT VERIFIED (untrusted event)."
         )
         return 0

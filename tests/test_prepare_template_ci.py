@@ -32,22 +32,33 @@ class PrepareTemplateCi(unittest.TestCase):
         ).stdout.strip()
 
     def test_missing_credential_marks_template_not_verified(self):
-        with mock.patch.dict(os.environ, {"GITHUB_OUTPUT": str(self.output)}, clear=True):
+        log = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"GITHUB_OUTPUT": str(self.output)}, clear=True),
+            contextlib.redirect_stdout(log),
+        ):
             self.assertFalse(prepare_template_ci.prepare(self.base / "mirror.git", {}))
         output = self.output.read_text(encoding="utf-8")
         self.assertIn("template_ready=false", output)
         self.assertIn("private_auth=not_verified", output)
+        self.assertIn("Pinned-template integration and Docker validation: NOT VERIFIED", log.getvalue())
         self.assertFalse((self.base / "mirror.git").exists())
 
     def test_untrusted_mode_never_uses_an_inherited_credential(self):
-        with mock.patch.dict(os.environ, {
-            "GITHUB_OUTPUT": str(self.output),
-            "GH_TOKEN": "synthetic-fixture-credential",
-        }, clear=True):
+        log = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {
+                "GITHUB_OUTPUT": str(self.output),
+                "GH_TOKEN": "synthetic-fixture-credential",
+            }, clear=True),
+            contextlib.redirect_stdout(log),
+        ):
             self.assertEqual(prepare_template_ci.main(["--untrusted"]), 0)
         output = self.output.read_text(encoding="utf-8")
         self.assertIn("template_ready=false", output)
         self.assertIn("private_auth=not_verified", output)
+        self.assertIn("Pinned-template integration and Docker validation: NOT VERIFIED", log.getvalue())
+        self.assertNotIn("synthetic-fixture-credential", log.getvalue())
         self.assertFalse((self.base / "mirror.git").exists())
 
     def test_fetch_failure_is_non_success_and_not_private_auth_success(self):
