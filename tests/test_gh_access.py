@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -56,6 +57,39 @@ class GitAccess(unittest.TestCase):
                 self.assertNotIn("ghp_abcdefghijklmnopqrstuvwxyz0123456789", result.message)
                 self.assertNotIn("compatible", result.message.lower())
                 self.assertNotIn("current", result.message.lower())
+
+    def test_os_error_diagnostic_reports_safe_process_details(self):
+        error = FileNotFoundError(
+            2, "synthetic failure do-not-log-this-value",
+            "https://example.invalid/private.git",
+        )
+        with mock.patch.object(
+            self.access.subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(
+                ["git", "--version"], 0, stdout="git version 2.50.0\n", stderr=""
+            ),
+        ) as run:
+            diagnostic = self.access._process_error_diagnostic(
+                "git fetch",
+                error,
+                {"PATH": os.environ["PATH"], "GH_TOKEN": "synthetic-fixture-credential"},
+                self.base,
+            )
+
+        self.assertIn("FileNotFoundError", diagnostic)
+        self.assertIn("errno=2", diagnostic)
+        self.assertIn("winerror=None", diagnostic)
+        self.assertIn("git fetch", diagnostic)
+        self.assertIn("outcome=os-error-no-returncode", diagnostic)
+        self.assertIn("cwd_exists=True", diagnostic)
+        self.assertIn("git_version=git version 2.50.0", diagnostic)
+        self.assertNotIn("do-not-log-this-value", diagnostic)
+        self.assertNotIn("synthetic-fixture-credential", diagnostic)
+        self.assertNotIn("example.invalid", diagnostic)
+        self.assertNotIn("private.git", diagnostic)
+        probe_env = run.call_args.kwargs["env"]
+        self.assertNotIn("GH_TOKEN", probe_env)
 
     def test_fetch_uses_an_isolated_noninteractive_existing_helper(self):
         source = self.base / "source"
