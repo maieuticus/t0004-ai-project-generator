@@ -348,6 +348,17 @@ class DockerInfrastructure(unittest.TestCase):
         self.restore_all([python["backup"]["id"], typescript["backup"]["id"], docker_backup])
         self.assertEqual(self.files(), original)
 
+    def test_postgresql_general_check_after_install(self):
+        self.install("python")
+        self.install_docker()
+        self.install_postgresql()
+        result = self.cli("check", "--json")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(result.stdout)
+        self.assertTrue(data["valid"], data["conflicts"])
+        self.assertEqual(data["conflicts"], [])
+
+
     def test_public_postgresql_plan_apply_noop_java_and_reverse_restore(self):
         original = self.files()
         python = self.install("python")

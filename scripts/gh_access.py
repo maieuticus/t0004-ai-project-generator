@@ -13,7 +13,7 @@ import sys
 from urllib.parse import urlsplit
 
 
-T0003_SOURCE = "https://github.com/maieuticus/t0003-ai-project-template.git"
+T0003_SOURCE = "https://github.com/maieuticus/t0003-private-access-test.git"
 COMPATIBLE_REFERENCE = "6e8363a7ac7d99220d743eea077dcd5cefda9042"
 RELEASE_REFERENCE = "964de8538d19cefcb483faff38f10124615a9783"
 

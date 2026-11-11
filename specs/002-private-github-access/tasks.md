@@ -90,7 +90,7 @@ Gate 2 does not approve Increment 3 or 4 work or any visibility change.
 - [ ] T022 [US4] Run the leak scan over logs, git config, remote addresses, plans, snapshots, backups and command capture of all acceptance runs; human evidence confirms that no agent command received a credential and that exactly one read-only, single-repository credential was exposed only to retrieval steps (FR-004, FR-005, FR-013, FR-014, SC-003, SC-004).
 - [ ] T030 [US3] Run the inherited t0003 `scripts/update_check.py` separately against the private test template with the user's existing sign-in; record its result as external acceptance evidence and confirm no t0004 helper was used (FR-001, FR-002, FR-007).
 - [ ] T023 [US4] Compile the acceptance matrix `specs/002-private-github-access/acceptance.md` (case, expected, observed, date, evidence), including the checked unchanged visibility and state of the production template, generator and existing test repository (FR-011, FR-017, SC-007).
-- [ ] T024 [US4] Remove or document the throwaway test credentials and copies (rollback; revoke token).
+- [x] T024 [US4] Remove or document the throwaway test credentials and copies (rollback; revoke token).
 
 **Review Gate 3** (human): Acceptance matrix, negative cases, leak-scan evidence. Production repositories are still unchanged (FR-011).
 
@@ -100,11 +100,11 @@ Gate 2 does not approve Increment 3 or 4 work or any visibility change.
 
 **Goal**: Operable documentation and an approved switch plan; no visibility change inside this increment.
 
-- [ ] T025 [P] [US4] Document the permission matrix per step, credential creation, rotation, revocation and the manual steps in `docs/QUICKSTART.md` and `README.md` (FR-015).
-- [ ] T026 [P] [US4] Document in `docs/DV_KONZEPT.md` the decision, the compatible-vs-release template reference rule and that public forks/copies stay public (FR-015, FR-009).
-- [ ] T027 [US4] Update `docs/GENERATOR_CONTRACT.md` with the boundary-only authentication rule and unchanged core guarantee.
-- [ ] T028 [US4] Write the switch plan with preconditions, order (template, then generator), rollback and verification steps in `specs/002-private-github-access/switch-plan.md`.
-- [ ] T029 [US4] Update `docs/PROJECT_HANDOFF.md`; run `python scripts/check.py` and `git diff --check`.
+- [x] T025 [P] [US4] Document the permission matrix per step, credential creation, rotation, revocation and the manual steps in `docs/QUICKSTART.md` and `README.md` (FR-015).
+- [x] T026 [P] [US4] Document in `docs/DV_KONZEPT.md` the decision, the compatible-vs-release template reference rule and that public forks/copies stay public (FR-015, FR-009).
+- [x] T027 [US4] Update `docs/GENERATOR_CONTRACT.md` with the boundary-only authentication rule and unchanged core guarantee.
+- [x] T028 [US4] Write the switch plan with preconditions, order (template, then generator), rollback and verification steps in `specs/002-private-github-access/switch-plan.md`.
+- [x] T029 [US4] Update `docs/PROJECT_HANDOFF.md`; run `python scripts/check.py` and `git diff --check`.
 
 **STOPP 4a**: Any change to the visibility of t0003, t0004 or p9999 needs its own LOS after Review Gate 4 and is not part of these tasks.
 

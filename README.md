@@ -266,3 +266,24 @@ sie als Konflikt. Vor Git-Operationen müssen sie geschützt außerhalb gesicher
 
 Details zu Versionsgrenzen, Konflikten, Fingerabdruck und Exitcodes stehen im
 [Generator-Vertrag](docs/GENERATOR_CONTRACT.md).
+
+## Privates Template und Zugriff (T025)
+
+`t0003-ai-project-template` kann als privates Quell-Template verwendet werden.
+Der Generator muss dafür mit einer GitHub-Identität arbeiten, die auf das
+Quell-Repository zugreifen darf. Die Berechtigung zur Erstellung eines privaten
+Ziel-Repositories ist separat sicherzustellen.
+
+Grundregeln:
+
+- Nur die tatsächlich erforderlichen GitHub-Berechtigungen vergeben.
+- Zugriffstokens niemals in Git, Logs, Prompts oder Agenten-Kontext ablegen.
+- Temporäre Zugriffstokens nach der Abnahme widerrufen.
+- Rotation: neuen Zugriff einrichten, Funktion prüfen, alten Zugriff widerrufen.
+- Fehlende Berechtigungen müssen zum Abbruch führen, nicht zu einem öffentlichen Fallback.
+- Repository-Sichtbarkeit und GitHub-Sicherheitseinstellungen nach Erstellung prüfen.
+- Lokale Security-Hooks für jeden neuen Arbeitsbaum ausdrücklich einrichten und prüfen.
+
+Die manuellen Schritte stehen in `docs/QUICKSTART.md`.
+Die produktive Umstellung erfolgt ausschließlich gemäß dem freigegebenen
+Switch-Plan; der Generator darf die Original-Repositories nicht ungeprüft verändern.
