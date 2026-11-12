@@ -18,17 +18,21 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 - Ursprüngliche Konfiguration anschließend mit `git restore` wiederhergestellt
 - Nachweise beruhen auf den während des Tests kontrollierten Terminalausgaben
 
-## Noch offen
+## Noch offen (Stand 2026-11-12)
 
-- T019-B: formalen GitHub-Template-Erstellungsnachweis abschliessen.
-- T019-A: manuellen PostgreSQL-Check nach Korrektur wiederholen
-- T020-D: automatischer Vergleich nicht nachgewiesen
-- T021: verbleibende Negativ- und Plattformtests
-- T022: Prüfung auf Zugangsdaten-Leaks
-- T023: vollständige Abnahmematrix
-- T024: Bereinigung der Testressourcen
-- Entscheidung über private Original-Repositories
-
+- T019-A: manueller PostgreSQL-Check nach Korrektur offen;
+  automatisierter Regressionstest bestanden.
+- T019-B: formaler Nachweis der GitHub-Template-Erstellung
+  gesondert zu bewerten; sechs Modulvarianten bestanden.
+- T020-D: manueller Vergleich bestanden; Automatisierung
+  nicht nachgewiesen.
+- T021: Live-Negativfaelle und Fork-Credential-Isolation
+  nicht vollstaendig nachgewiesen.
+- SC-005: Freigabe der CLI-Fehlerkorrektur als Abweichung offen.
+- SC-006: Live-Ablehnung der Release-Referenz offen.
+- T023: vollstaendige Freigabe und CI-Abnahme offen.
+- T024: finale Bereinigung nach Produktivabnahme.
+- Privatisierung: noch nicht freigegeben.
 ## T020-D – Private versioned-base comparison
 
 - Datum: 2026-11-09
@@ -164,7 +168,7 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 | Lokale Hook-Einrichtung | Wiederholbar, ohne fremde Hooks zu ersetzen | PASS MANUELL | 2026-11-11 | setup_security.py; frischer Klon |
 | T022 | Secret-Pruefung und Token-Kontrolle | PASS IM PRUEFUMFANG | 2026-11-11 | 21 Ordner, 36 Git-Historien, 11 Dateien, Nutzerbestaetigung |
 
-### Unveraenderte Ausgangs-Repositories
+### Historische Ausgangs-Snapshots (2026-11-11)
 
 - `t0003-ai-project-template`: aktuell `6e8363a7ac7d`; erwartete Sichtbarkeit, Template-Rolle und Actions-Einstellung bestaetigt.
 - `t0004-ai-project-generator`: aktuell `c8d8d1fd165f`; erwartete Sichtbarkeit, Template-Rolle und Actions-Einstellung bestaetigt.
@@ -204,3 +208,24 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
   Live-Ablehnung der Release-Referenz bei
   Modulinstallation noch nicht nachgewiesen.
   Status: PARTIAL.
+
+## T023 - Aktualisierte Bestandsaufnahme (2026-11-12)
+
+| Repository | Privat | Template | Default | HEAD |
+|---|---|---|---|---|
+| t0003-ai-project-template | Nein | Ja | main | 4319e05abca3fe4362d94bf1a0f4e39966dbbef7 |
+| t0004-ai-project-generator | Nein | Nein | main | c8d8d1fd165fc2d3ea01b88ab1702db24261179e |
+| t0004-private-e2e-test | Ja | Nein | main | 27acb9fe9021a5d668efb52bf7a5e297da581640 |
+
+- t0003 PR #4 wurde am 2026-11-11 gemergt.
+- Die kompatible Referenz 6e8363a ist ein gepinnter
+  Basiscommit und nicht der aktuelle t0003-main-HEAD.
+- t0004 PR #35 bleibt offen und mergekonfliktfrei.
+  Baseline Linux/Windows und Docker Windows waren erfolgreich;
+  Docker Linux ist fehlgeschlagen.
+- Neue CI-Laeufe sind derzeit nicht verlaesslich ausfuehrbar.
+  Eine Budgetaenderung wurde nicht vorgenommen.
+- T021 und SC-006 bleiben teilweise offen.
+- SC-005 benoetigt eine formale Abweichungsentscheidung.
+- T023 ist dokumentiert, aber noch nicht final freigegeben.
+- Keine Privatisierung und keine finale T024-Bereinigung.
