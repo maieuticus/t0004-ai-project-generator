@@ -103,7 +103,7 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 - Workflow review: untrusted events use --untrusted
 - Live wrong-repository-scope credential: not verified
 - Live expired credential: not verified
-- Actual fork pull-request execution: not verified
+- Actual fork pull-request execution: PR #34 from maieuticus-ci-test confirmed; CI runs 42207460291 and 42207460019 successful. Explicit private_auth=not_verified log evidence remains unavailable (GitHub API error).
 - Status: PARTIAL; T021 is not fully accepted
 
 ### Gitleaks-CI-E2E (2026-11-11)
@@ -155,7 +155,7 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 | T019-B | 6 Module inkl. No-op/Restore | PASS | 2026-11-11 | t019-b-acceptance-20261111-124401-555280/report.json |
 | Sicherheitsdateien | 3 Dateien in 6 Kopien identisch | PASS | 2026-11-11 | 18 SHA-256-Vergleiche |
 | T020-C | Privater Template-Abruf in CI | PASS | bis 2026-11-11 | CI-Runs 42600283741 / 42600283876 |
-| T020-D | Versionierter privater Basisvergleich | TEILWEISE | bis 2026-11-11 | Manueller Vergleich; Automatisierung offen |
+| T020-D | Versionierter privater Basisvergleich | PASS (manueller Vergleich, AC3) | bis 2026-11-11 | Gepinnte Basis abgerufen; lokaler README-Unterschied erkannt und erhalten; keine automatisierte Generatorfunktion nachgewiesen |
 | T030 | Privater update_check-Zugriff | PASS | bis 2026-11-11 | T030-Nachweis in acceptance.md |
 | T021 | 5 Negativfaelle Windows/Linux | TEILWEISE | 2026-11-11 | Tests bestanden; einzelne Live-Faelle nicht nachgewiesen |
 | Gitleaks lokal | Secret blockiert; harmlose Commits erlaubt | PASS | 2026-11-11 | Echte Commit-Tests |
@@ -173,3 +173,34 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 - Fuer `t0004-private-e2e-test` ist kein unabhaengiger historischer HEAD-Vergleich belegt.
 - Original-Repositories bleiben bis Gate 3 und der Freigabe unveraendert.
 - Offene Punkte: T021-Restnachweise, Merge-Restrisiko, T024 und Gate 3.
+
+## A2 - Nachweisabgleich (2026-11-12)
+
+- T019-A: Der Regressionstest
+  test_postgresql_general_check_after_install
+  prueft valid=true und conflicts=[].
+  Manueller Check nach Restore nicht wiederholt.
+  Kein Docker/PostgreSQL-Laufzeittest.
+
+- SC-002 / T021: Synthetische Fehler fuer
+  abgelaufenen Token und verweigerten Zugriff
+  werden als nicht erfolgreich klassifiziert.
+  Live-Tests fuer abgelaufene und falsch
+  berechtigte Tokens fehlen. Fork-PR #34
+  erfolgreich; expliziter Credential-Isolations-
+  Lognachweis fehlt. Status: PARTIAL.
+
+- SC-005: Commit 877df96 aendert genau eine
+  Zeile in cli.py (allow_postgresql=True).
+  Technisch notwendige Fehlerkorrektur mit
+  Regressionstest; formale Abweichung von
+  der Vorgabe unveraenderter Kerndateien.
+  Freigabe der Abweichung noch offen.
+
+- SC-006: Privater GitHub-API-Abruf erfolgreich:
+  COMPATIBLE 6e8363a7ac7d99220d743eea077dcd5cefda9042
+  RELEASE 964de8538d19cefcb483faff38f10124615a9783
+  Unit-Test unterscheidet beide Referenzen.
+  Live-Ablehnung der Release-Referenz bei
+  Modulinstallation noch nicht nachgewiesen.
+  Status: PARTIAL.
