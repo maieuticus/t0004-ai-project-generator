@@ -39,15 +39,19 @@ jobs:
       - run: t0004-generator plan
       - run: t0004-generator new
       - run: t0004-generator migrate --json
-      - name: Fetch pinned template refs (trusted push only)
+      - name: Fetch pinned template refs (manual main only)
         id: prepare_template
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.T0003_READ_TOKEN }}
           T0004_T0003_MIRROR: ${{ runner.temp }}/t0003-template.git
         run: python scripts/prepare_template_ci.py
+      - name: Report private auth not verified on standard main push
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          python -c "print('Private template authentication: NOT VERIFIED (standard main push). Manual authenticated validation requires workflow_dispatch on main.')"
       - name: Report template checks not verified for untrusted events
-        if: github.event_name != 'push' || github.ref != 'refs/heads/main'
+        if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'
         run: python scripts/prepare_template_ci.py --untrusted
       - name: Integration suite
         if: steps.prepare_template.outputs.template_ready == 'true'
