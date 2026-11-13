@@ -1,5 +1,35 @@
 # T028 – Produktiver Umstellungs- und Rollback-Plan
 
+## B12 - Neuer Zielzustand 2026-11-13
+
+Dieser Beschluss ersetzt die urspruenglich geplante
+Privatisierung der beiden Original-Repositories.
+
+### Verbindlicher Zielzustand
+
+- t0003-ai-project-template: PUBLIC, isTemplate=true.
+- t0004-ai-project-generator: PUBLIC.
+- GitHub-Tarif: Free.
+- Fuer beide: geschuetzter main-Branch, verpflichtende
+  Pull-Request- und CI-Pruefungen inklusive Secret-Scan.
+- Neue konkrete Projekte: standardmaessig PRIVATE als Zielvorgabe;
+  Generatorverhalten und GitHub-Berechtigungen praktisch pruefen.
+- Keine geplante Sichtbarkeitsumstellung der Originale.
+
+### Abnahmebedingungen
+
+1. Oeffentliche Inhalte und Historien auf
+   vertrauliche Informationen pruefen.
+2. Branch Protection fuer beide Originale einrichten.
+3. Required Checks und Merge-Sperren praktisch verifizieren.
+4. Ausstehende T019-Nachweise und T023 abschliessen.
+5. Integrations-PR erst nach Freigabe und erfolgreicher CI mergen.
+6. Privates E2E-Testprojekt erstellen und Generator pruefen.
+7. T024-Bereinigung erst nach gesicherter Abnahme durchfuehren.
+
+Die frueheren Phasen zur Privatisierung sind historisch
+dokumentiert, aber nicht mehr zur Ausfuehrung freigegeben.
+
 Stand: 2026-11-11
 Status: Entwurf zur Abnahme. Keine Ausführungsfreigabe.
 

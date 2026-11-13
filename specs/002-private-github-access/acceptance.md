@@ -1,4 +1,30 @@
-﻿# Private GitHub Access – Acceptance Evidence
+# Private GitHub Access – Acceptance Evidence
+
+## B12 - Architekturentscheidung 2026-11-13
+
+Status: Verbindliche Architekturentscheidung; T023 noch offen.
+
+- t0003-ai-project-template bleibt PUBLIC und GitHub-Template.
+- t0004-ai-project-generator bleibt PUBLIC.
+- GitHub Free bleibt bestehen; kein GitHub Pro erforderlich.
+- Neue Anwendungsprojekte sollen standardmaessig PRIVATE sein.
+  Die tatsaechliche Umsetzung dieser Vorgabe ist zu pruefen.
+- Beide Original-Repositories benoetigen verbindliche
+  Branch Protection und erforderliche CI-/Secret-Scan-Checks.
+- Durchsetzung der Merge-Sperren muss praktisch verifiziert werden.
+- Vor finaler Abnahme sind oeffentliche Inhalte und Git-Historien
+  auf Secrets, interne Informationen und personenbezogene Daten
+  zu pruefen.
+- Die fruehere GitHub-HTTP-403-Einschraenkung bezog sich auf
+  private Repositories; sie ist kein Nachweis fuer einen
+  erfolgreich eingerichteten Schutz der oeffentlichen Originale.
+- T021: PASS im dokumentierten Pruefumfang.
+- SC-005: Getestete PostgreSQL-Korrektur als Ausnahme genehmigt.
+- SC-006: E2E-Nachweis PASS.
+- Noch offene T019-Nachweise und T023 sind getrennt zu bewerten.
+- T024 erfolgt erst nach erfolgreicher Abnahme.
+- Die datierten frueheren Statusangaben bleiben als
+  historische Zwischenstaende erhalten.
 
 Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 
@@ -229,3 +255,116 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 - SC-005 benoetigt eine formale Abweichungsentscheidung.
 - T023 ist dokumentiert, aber noch nicht final freigegeben.
 - Keine Privatisierung und keine finale T024-Bereinigung.
+
+## B8 - Ergaenzende E2E-Nachweise (2026-11-12)
+
+### SC-006 - Release-Ablehnung
+
+- Beide private Git-Referenzen zuvor erfolgreich abgerufen.
+- Gezielt ausgefuehrt:
+  test_original_release_is_rejected
+- Ergebnis: Ran 1 test, OK, TEST_EXIT=0.
+- Test wurde nicht uebersprungen.
+- Kompatibler Basiscommit bleibt unveraendert gepinnt.
+- SC-006: PASS im dokumentierten E2E-Pruefumfang.
+
+### T021 / SC-004 - Echter Fork-PR
+
+- Fork-PR #34 von maieuticus-ci-test bestaetigt.
+- CI-Runs: 42207460291 und 42207460019.
+- Vier Jobs erfolgreich: Baseline Ubuntu/Windows,
+  Docker Linux/Windows.
+- In allen vier Jobs:
+  Fetch pinned template refs (trusted push only)
+  = skipped.
+- In allen vier Jobs:
+  Report template checks not verified for untrusted events
+  = success.
+- Workflowseitige Fork-Isolation damit nachgewiesen.
+- Konkreter Inhalt der Report-Logs nicht separat verifiziert.
+- Live-Negativtests fuer expired und wrong scope
+  bleiben offen; synthetische Tests bestanden.
+- T021 war bei B8 noch PARTIAL; Abschluss siehe B10.
+
+### PR #35 - CI
+
+- Commit fcdd994c329c8e8cfd167b731edd4568352ed0f5
+- Alle 8 GitHub-Actions-Checks erfolgreich.
+- Docker-Linux zuvor zeitweise durch DNS-Fehler gestoert.
+- Kein Dockerfile-Fix erforderlich gewesen.
+- SC-005-Abweichungsfreigabe und finale T023-Abnahme offen.
+
+## B9 - Reale Negativtests und SC-005-Freigabe
+
+### T021 - Realer anonymer Zugriff
+
+- Privates Repository: t0003-private-access-test.
+- Git-Zugriff ohne Zugangsdaten ausgefuehrt.
+- Ergebnis: ACCESS_BLOCKED=True, GIT_EXIT=128.
+- Bewertung: PASS fuer reale anonyme Zugriffsverweigerung.
+
+### T021 - Realer falscher Repository-Umfang
+
+- Separater Fine-grained-Test-Token.
+- Erlaubtes Repository: t0004-private-generator-test.
+- Nicht erlaubtes Repository: t0003-private-access-test.
+- Autorisierter API-Zugriff: HTTP 200.
+- Nicht autorisierter API-Zugriff: HTTP 404.
+- Ergebnis: WRONG_SCOPE_ACCESS=DENIED, RESULT=PASS.
+- Bewertung: PASS fuer reale Repository-Zugriffsbeschraenkung.
+- Kein Tokenwert in dieser Abnahmedokumentation.
+
+### SC-005 - Ausdruecklich genehmigte Ausnahme
+
+- Benutzerentscheidung vom 2026-11-12: Ausnahme genehmigt.
+- Betroffen: src/project_generator/cli.py.
+- Korrektur: allow_postgresql=True.
+- Bestehender Korrekturcommit: 877df96.
+- Begruendung: PostgreSQL-Unterstuetzung muss korrekt
+  an die Generator-Konfiguration weitergegeben werden.
+- Die getestete Korrektur bleibt bestehen.
+- Keine pauschale Freigabe weiterer Generator-Core-Aenderungen.
+- Bewertung: Genehmigte, dokumentierte SC-005-Ausnahme.
+
+### Verbleibende Freigabesperre
+
+- T021: Realer Ablauf eines zuvor gueltigen Tokens
+  noch nicht nachgewiesen.
+- Synthetische Expired-Token-Tests bereits bestanden.
+- Ein Token-Widerruf ersetzt keinen echten Ablauf.
+- T021 war bei B9 noch PARTIAL; Abschluss siehe B10.
+- T023 bleibt offen.
+- PR #35 bleibt bis zur vollstaendigen Freigabe ungemergt.
+
+## B10 - T021 Abschluss (2026-11-13)
+
+### Abgelaufener Test-Token - realer Nachweis
+
+- Die Testzugangskennung lautete `t021-negative-scope-20261112` (kein Authentifizierungswert).
+- 2026-11-12: Erlaubtes privates Repository lieferte HTTP 200.
+- Ablaufdatum laut GitHub: 2026-11-13.
+- 2026-11-13: GitHub zeigte "This token has expired".
+- 2026-11-13: Derselbe Token lieferte HTTP 401
+  beim Zugriff auf das zuvor erlaubte Repository.
+- Token wurde fuer diesen Nachweis nicht vorzeitig widerrufen.
+- Ergebnis: EXPIRED_TOKEN=PASS.
+- Kein Tokenwert im Repository oder in diesem Nachweis.
+
+### T021 - Abschlussbewertung
+
+- Fehlende Anmeldung: realer Negativtest PASS.
+- Falscher Repository-Umfang: realer Negativtest PASS.
+- Abgelaufener Token: realer Negativtest PASS.
+- Untrusted Fork-PR: Workflow-Isolation real bestaetigt.
+- Automatisierte Negativtests: zuvor bestanden.
+- T021: PASS im dokumentierten Pruefumfang.
+- Die frueheren PARTIAL-Angaben sind Zwischenstaende
+  und durch diese Abschlussbewertung ueberholt.
+
+### Weiterhin offen
+
+- T023: Formale Gesamtabnahme.
+- PR #35: Dokumentation noch nicht gepusht oder gemergt.
+- GitHub-Branch-Protection-Einschraenkung bleibt dokumentiert.
+- Sichtbarkeitswechsel beider Original-Repositories
+  erfordert separate ausdrueckliche Freigabe.
