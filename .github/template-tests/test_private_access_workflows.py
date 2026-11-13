@@ -31,7 +31,7 @@ class PrivateAccessWorkflows(unittest.TestCase):
                 self.assertEqual(text.count("persist-credentials: false"),
                                  text.count("uses: actions/checkout@"))
                 self.assertIn(
-                    "if: github.event_name != 'push' || github.ref != 'refs/heads/main'", text
+                    "if: github.event_name == 'pull_request' || github.ref != 'refs/heads/main'", text
                 )
                 self.assertIn("Report template checks not verified for untrusted events", text)
                 self.assertIn("run: python scripts/prepare_template_ci.py --untrusted", text)
@@ -53,14 +53,28 @@ class PrivateAccessWorkflows(unittest.TestCase):
                         if re.match(r"^      - name:", lines[i])
                     )
                     step = "\n".join(lines[step_start:index + 1])
-                    self.assertIn("Fetch pinned template refs (trusted push only)", step)
+                    self.assertIn("Fetch pinned template refs (manual main only)", step)
                     self.assertIn(
-                        "if: github.event_name == 'push' && github.ref == 'refs/heads/main'", step
+                        "if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'", step
                     )
                     self.assertIn("GH_TOKEN: ${{ secrets.T0003_READ_TOKEN }}", step)
                 self.assertNotRegex(
                     "\n".join(lines), r"(?m)^if:.*secrets\.|^  env:.*secrets\.|^    env:.*secrets\."
                 )
+
+
+    def test_main_push_explicitly_reports_private_auth_not_verified(self):
+        for path in WORKFLOWS:
+            with self.subTest(workflow=path.name):
+                text = path.read_text(encoding="utf-8")
+                expected_count = 1 if path.name == "ci.yml" else 2
+                start = (
+                    "      - name: Report private auth not verified on standard main push\n"
+                    "        if: github.event_name == 'push' && github.ref == 'refs/heads/main'\n"
+                    "        run: |\n"
+                    "          python -c \"print('Private template authentication: NOT VERIFIED"
+                )
+                self.assertEqual(text.count(start), expected_count)
 
     def test_template_dependent_jobs_run_only_after_successful_retrieval(self):
         ci = WORKFLOWS[0].read_text(encoding="utf-8")
