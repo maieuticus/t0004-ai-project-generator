@@ -71,3 +71,39 @@ nicht behauptet.
 Geprüft: Python-Skripte unter Linux/Codespaces. Windows und macOS sind nicht manuell geprüft (CI
 prüft Windows). Keine Agenten-E2E-Tests; welche Agenten welche Startdatei lesen, ist je Werkzeug
 unterschiedlich.
+
+## Privates Template einrichten (T025)
+
+1. In GitHub prüfen, dass die verwendete Identität Leserechte auf das private
+   Quell-Template besitzt und private Ziel-Repositories erstellen darf.
+2. GitHub-Authentifizierung lokal prüfen (`gh auth status`). Keine Tokens oder
+   vollständigen Authentifizierungsdetails in Agenten-Prompts kopieren.
+3. Falls ein separater Lesezugriff erforderlich ist, ein zeitlich begrenztes
+   Token mit minimalen Berechtigungen verwenden. Für entsprechende CI-Abläufe
+   wird das vereinbarte Secret `T0003_READ_TOKEN` verwendet.
+4. Ein benötigtes CI-Secret über die GitHub-Oberfläche oder einen sicheren
+   Administrationsweg hinterlegen; niemals in Workflow-Dateien eintragen.
+5. Den Generator zunächst mit `plan`, anschließend nach Prüfung mit `apply`
+   verwenden. Dabei private Quellreferenz und private Zielsichtbarkeit prüfen.
+6. Nach Erstellung kontrollieren: Repository ist privat, Vorlage und erwartete
+   Dateien sind vorhanden, es wurden keine Secrets übernommen.
+7. GitHub Actions und Schutzmechanismen bewusst konfigurieren. Fehlende
+   Branch-Protection-Funktionen aufgrund des GitHub-Plans dokumentieren.
+8. Bei jeder neuen lokalen Arbeitskopie die vorgesehene Security-Einrichtung
+   ausführen und ihre Wirksamkeit prüfen.
+
+### Token-Rotation und Widerruf
+
+Für eine Rotation zunächst neuen Zugriff mit minimalen Rechten einrichten,
+den privaten Lesezugriff überprüfen und erst danach den alten Zugriff widerrufen.
+Nach dem Widerruf kontrollieren, dass der alte Zugang nicht weiter nutzbar ist.
+
+Bei temporären Abnahmetokens: nach Abschluss widerrufen, nicht mehr benötigte
+CI-Secrets entfernen und den Abschluss im Abnahmeprotokoll dokumentieren.
+
+Private Inhalte oder Tokens dürfen weder in öffentliche Repositories noch an
+nicht ausdrücklich freigegebene KI-Dienste übertragen werden. Ein gescheiterter
+privater Zugriff darf keine automatische öffentliche Ersatzquelle verwenden.
+
+Die endgültige Umstellung und spätere Bereinigung erfolgen nur nach
+erfolgreicher Abnahme und gemäß `specs/002-private-github-access/switch-plan.md`.

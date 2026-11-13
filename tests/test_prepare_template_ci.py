@@ -41,8 +41,12 @@ class PrepareTemplateCi(unittest.TestCase):
         output = self.output.read_text(encoding="utf-8")
         self.assertIn("template_ready=false", output)
         self.assertIn("private_auth=not_verified", output)
-        self.assertIn("Pinned-template integration and Docker validation: NOT VERIFIED", log.getvalue())
+        self.assertIn("Private template retrieval: FAILED", log.getvalue())
         self.assertFalse((self.base / "mirror.git").exists())
+
+    def test_missing_credential_fails_trusted_command(self):
+        with mock.patch.dict(os.environ, {"GITHUB_OUTPUT": str(self.output)}, clear=True):
+            self.assertEqual(prepare_template_ci.main(["--mirror", str(self.base / "mirror.git")]), 1)
 
     def test_untrusted_mode_never_uses_an_inherited_credential(self):
         log = io.StringIO()
@@ -57,7 +61,7 @@ class PrepareTemplateCi(unittest.TestCase):
         output = self.output.read_text(encoding="utf-8")
         self.assertIn("template_ready=false", output)
         self.assertIn("private_auth=not_verified", output)
-        self.assertIn("Pinned-template integration and Docker validation: NOT VERIFIED", log.getvalue())
+        self.assertIn("untrusted event", log.getvalue())
         self.assertNotIn("synthetic-fixture-credential", log.getvalue())
         self.assertFalse((self.base / "mirror.git").exists())
 
@@ -82,6 +86,145 @@ class PrepareTemplateCi(unittest.TestCase):
         self.assertIn("template_ready=false", output)
         self.assertIn("private_auth=not_verified", output)
         self.assertNotIn("private_auth=passed", output)
+
+    def test_rejected_credential_fails_and_never_reports_private_authentication(self):
+        failure = prepare_template_ci.gh_access.AccessResult(
+            False, "forbidden", "Zugriff fehlgeschlagen: Berechtigung fehlt."
+        )
+        log = io.StringIO()
+        with (
+            mock.patch.object(prepare_template_ci.gh_access, "fetch_reference", return_value=failure),
+            mock.patch.dict(os.environ, {
+                "GH_TOKEN": self.env["GH_TOKEN"], "GITHUB_OUTPUT": str(self.output),
+            }, clear=True),
+            contextlib.redirect_stdout(log),
+        ):
+            self.assertEqual(prepare_template_ci.main(["--mirror", str(self.base / "mirror.git")]), 1)
+        output = self.output.read_text(encoding="utf-8")
+        self.assertIn("template_ready=false", output)
+        self.assertIn("private_auth=not_verified", output)
+        self.assertNotIn("private_auth=passed", output)
+        self.assertIn("FAILED (forbidden)", log.getvalue())
+        self.assertNotIn(self.env["GH_TOKEN"], log.getvalue())
+
+    def test_default_branch_resolution_failure_is_not_private_auth_success(self):
+        success = prepare_template_ci.gh_access.AccessResult(
+            True, "ok", "Referenz wurde abgerufen."
+        )
+        failure = prepare_template_ci.gh_access.AccessResult(
+            False, "forbidden", "Zugriff fehlgeschlagen: Berechtigung fehlt."
+        )
+        log = io.StringIO()
+        with (
+            mock.patch.object(
+                prepare_template_ci.gh_access, "fetch_reference", return_value=success
+            ),
+            mock.patch.object(
+                prepare_template_ci.gh_access, "resolve_default_branch", return_value=failure
+            ),
+            mock.patch.dict(os.environ, {
+                "GH_TOKEN": self.env["GH_TOKEN"], "GITHUB_OUTPUT": str(self.output),
+            }, clear=True),
+            contextlib.redirect_stdout(log),
+        ):
+            self.assertEqual(prepare_template_ci.main(["--mirror", str(self.base / "mirror.git")]), 1)
+        output = self.output.read_text(encoding="utf-8")
+        self.assertIn("template_ready=false", output)
+        self.assertIn("private_auth=not_verified", output)
+        self.assertNotIn("private_auth=passed", output)
+        self.assertIn("FAILED (forbidden)", log.getvalue())
+        self.assertNotIn(self.env["GH_TOKEN"], output + log.getvalue())
+
+    def test_default_branch_fetch_failure_is_not_private_auth_success(self):
+        success = prepare_template_ci.gh_access.AccessResult(
+            True, "ok", "Referenz wurde abgerufen."
+        )
+        failure = prepare_template_ci.gh_access.AccessResult(
+            False, "forbidden", "Zugriff fehlgeschlagen: Berechtigung fehlt."
+        )
+        default_reference = "a" * 40
+        log = io.StringIO()
+        with (
+            mock.patch.object(
+                prepare_template_ci.gh_access,
+                "fetch_reference",
+                side_effect=(success, success, failure),
+            ) as fetch,
+            mock.patch.object(
+                prepare_template_ci.gh_access,
+                "resolve_default_branch",
+                return_value=prepare_template_ci.gh_access.AccessResult(
+                    True, "ok", "Default-Branch wurde aufgelöst.", default_reference
+                ),
+            ),
+            mock.patch.dict(os.environ, {
+                "GH_TOKEN": self.env["GH_TOKEN"], "GITHUB_OUTPUT": str(self.output),
+            }, clear=True),
+            contextlib.redirect_stdout(log),
+        ):
+            self.assertEqual(prepare_template_ci.main(["--mirror", str(self.base / "mirror.git")]), 1)
+        output = self.output.read_text(encoding="utf-8")
+        self.assertEqual(fetch.call_args_list[-1].args[2], default_reference)
+        self.assertIn("template_ready=false", output)
+        self.assertIn("private_auth=not_verified", output)
+        self.assertNotIn("private_auth=passed", output)
+        self.assertIn("FAILED (forbidden)", log.getvalue())
+        self.assertNotIn(self.env["GH_TOKEN"], output + log.getvalue())
+
+    def test_private_source_and_original_pins_are_fixed(self):
+        self.assertEqual(
+            prepare_template_ci.gh_access.T0003_SOURCE,
+            "https://github.com/maieuticus/t0003-private-access-test.git",
+        )
+        self.assertEqual(
+            prepare_template_ci.gh_access.COMPATIBLE_REFERENCE,
+            "6e8363a7ac7d99220d743eea077dcd5cefda9042",
+        )
+        self.assertEqual(
+            prepare_template_ci.gh_access.RELEASE_REFERENCE,
+            "964de8538d19cefcb483faff38f10124615a9783",
+        )
+
+    def test_simulated_private_fetch_reports_authentication_passed(self):
+        self.git("init", "--quiet", cwd=self.source)
+        self.git("config", "user.name", "Fixture", cwd=self.source)
+        self.git("config", "user.email", "fixture@example.invalid", cwd=self.source)
+        (self.source / "fixture.txt").write_text("compatible\n", encoding="utf-8")
+        self.git("add", ".", cwd=self.source)
+        self.git("commit", "--quiet", "-m", "compatible", cwd=self.source)
+        compatible = self.git("rev-parse", "HEAD", cwd=self.source)
+        (self.source / "fixture.txt").write_text("release\n", encoding="utf-8")
+        self.git("commit", "--quiet", "-am", "release", cwd=self.source)
+        release = self.git("rev-parse", "HEAD", cwd=self.source)
+        output = io.StringIO()
+        real_fetch = prepare_template_ci.gh_access.fetch_reference
+        private_source = prepare_template_ci.gh_access.T0003_SOURCE
+
+        def fetch_private_simulation(source, destination, reference, **kwargs):
+            self.assertEqual(source, private_source)
+            return real_fetch(self.source.as_posix(), destination, reference, **kwargs)
+
+        def resolve_private_simulation(source, **kwargs):
+            self.assertEqual(source, private_source)
+            return prepare_template_ci.gh_access.AccessResult(
+                True, "ok", "Default-Branch wurde aufgelöst.", release
+            )
+
+        with (
+            mock.patch.object(prepare_template_ci, "SOURCE", prepare_template_ci.gh_access.T0003_SOURCE),
+            mock.patch.object(prepare_template_ci.gh_access, "COMPATIBLE_REFERENCE", compatible),
+            mock.patch.object(prepare_template_ci.gh_access, "RELEASE_REFERENCE", release),
+            mock.patch.object(prepare_template_ci.gh_access, "fetch_reference", side_effect=fetch_private_simulation),
+            mock.patch.object(prepare_template_ci.gh_access, "resolve_default_branch", side_effect=resolve_private_simulation),
+            mock.patch.dict(os.environ, {"GITHUB_OUTPUT": str(self.output)}, clear=True),
+            contextlib.redirect_stdout(output),
+        ):
+            self.assertTrue(prepare_template_ci.prepare(self.base / "private-mirror.git", self.env))
+        result = self.output.read_text(encoding="utf-8")
+        self.assertIn("template_ready=true", result)
+        self.assertIn("private_auth=passed", result)
+        self.assertIn("Private template retrieval: PASS", output.getvalue())
+        self.assertNotIn(self.env["GH_TOKEN"], result + output.getvalue())
 
     def test_fetches_pins_and_default_branch_without_persisting_credential(self):
         self.git("init", "--quiet", cwd=self.source)
@@ -147,8 +290,8 @@ class PrepareTemplateCi(unittest.TestCase):
         summary = (self.base / "step-summary").read_text(encoding="utf-8")
         self.assertIn("template_ready=true", output)
         self.assertIn("private_auth=not_verified", output)
-        self.assertIn("Public template retrieval: PASS", summary)
-        self.assertIn("Private authentication: NOT VERIFIED", summary)
+        self.assertIn("Local fixture retrieval: PASS", summary)
+        self.assertIn("private authentication: NOT VERIFIED", summary)
         self.assertEqual(self.git("--git-dir", str(self.base / "mirror.git"), "rev-parse", "HEAD",
                                   cwd=self.base), release)
         config = (self.base / "mirror.git" / "config").read_text(encoding="utf-8")

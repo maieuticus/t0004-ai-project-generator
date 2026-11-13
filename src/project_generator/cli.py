@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
         content, missing = read_target(args.target)
         version = installed_version()
         if args.command == "check":
-            _, conflicts, warnings = assess(content, version, missing)
+            _, conflicts, warnings = assess(content, version, missing, allow_postgresql=True)
             conflicts.extend(check_prerequisites())
             result = {"valid": not conflicts, "conflicts": conflicts, "warnings": warnings}
         elif args.infrastructure:

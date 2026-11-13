@@ -114,3 +114,63 @@ Template nur nach expliziter Auswahl eingerichtet.
 | 2026-11-05 | Schritt 134D als abnahmefähig bewertet; historische Template-Erstellung, p9999-CI und Main-Integrationstests gelten als ausreichende Nachweise. Der lokale Docker-/BuildKit-Fehler bleibt separat dokumentiert. | Nutzer |
 | 2026-11-05 | React als optionale feste Frontend-Erweiterung mit eigener Projektion freigegeben. Bestehende TypeScript-Zustände bleiben bytegleich; die erste Abnahme startet lokal und umfasst kein Docker-Frontend. | Nutzer |
 | 2026-11-05 | React-Kennung `react@0.1.0`, TSX/Node 24/React/ReactDOM/Vite, manuelle Browserinteraktion zusätzlich zu automatisierten Starterprüfungen sowie Koexistenz mit bestehendem Docker/PostgreSQL ohne React-Service bestätigt. Exakte Paketversionen wurden vor dem Startercode in `specs/001-react-frontend/research.md` gepinnt und geprüft. | Nutzer |
+
+## Architekturentscheidung: privater Template-Zugriff (T026)
+
+**Entscheidung vom 2026-11-11.**
+Der Generator unterstützt private GitHub-Template-Quellen über eine
+isolierte Zugriffsschicht. Die bestehenden Generator-Verträge,
+Sicherheitsprüfungen und Freigabegrenzen bleiben maßgeblich.
+
+### Authentifizierungsgrenze
+
+- GitHub-Authentifizierung findet an der Zugriffsschicht statt
+  (`scripts/gh_access.py`), nicht in der fachlichen Generator-Core-Logik.
+- Fehlender oder abgelehnter Zugriff führt zu einem erkennbaren
+  Nicht-Erfolgszustand. Es gibt keinen automatischen öffentlichen Fallback.
+- Ein GitHub-Actions-Secret `T0003_READ_TOKEN` wird in den betreffenden
+  Workflows als Umgebungsvariable `GH_TOKEN` bereitgestellt.
+- Lesezugriff auf die Template-Quelle und Berechtigungen zum Erstellen
+  eines Ziel-Repositories sind getrennt zu betrachten.
+- Secrets und Zugriffstokens dürfen weder in Repository-Inhalte noch
+  in Protokolle oder nicht freigegebene Agenten-Kontexte gelangen.
+
+### COMPATIBLE und RELEASE unterscheiden (FR-009)
+
+- `RELEASE` bezeichnet eine nachweisbare, ausdrücklich festgelegte
+  Release-Referenz. Eine historische Kompatibilitätsfeststellung
+  ist kein Ersatz für diesen Release-Nachweis.
+- `COMPATIBLE` bezeichnet eine unabhängig geprüfte historische
+  Template-Basis. Die Prüfung berücksichtigt den gepinnten Commit,
+  Vertragsdatei-Digests, Projektmetadaten sowie die erlaubten
+  historischen Modul- und CI-Dateistände.
+- Für die geprüfte historische Basis gilt `6e8363a` als kompatibel.
+  Die Referenz `964de85` wurde in der entsprechenden Prüfung verworfen.
+  Daraus entsteht keine pauschale Freigabe anderer Commits.
+- Der Default-Branch wird separat aufgelöst. Abweichungen von der
+  geprüften Basis werden gemeldet, nicht stillschweigend übernommen.
+- Fehlender Zugriff oder unzureichender Nachweis darf nicht als
+  erfolgreich geprüfte Kompatibilität oder Release gelten.
+- Es wird keine fremde Git-Historie kopiert oder umgeschrieben.
+
+Die bestehende Regel zu `template.release: 0.1.0` bleibt erhalten.
+Ebenso bleibt die separat beschlossene Migrationsstrategie mit
+`template.origin: migration`, `release: null` und gepinntem
+Basis-Commit unverändert. Diese Fälle dürfen nicht vermischt werden.
+
+### Sichtbarkeit und öffentliche Kopien (FR-015)
+
+Die Privatisierung des ursprünglichen t0003-Repositories macht
+bereits vorhandene öffentliche Forks, Kopien oder exportierte Inhalte
+nicht automatisch privat. Vor der produktiven Sichtbarkeitsänderung
+sind solche Veröffentlichungen gesondert zu berücksichtigen.
+
+Die Original-Repositories werden erst nach dokumentierter Abnahme
+und ausdrücklicher Freigabe in einer separaten Umstellungsphase
+geändert. Reihenfolge, Verifikationen und Rollback sind im
+Switch-Plan festzulegen.
+
+Referenzen:
+- `specs/002-private-github-access/spec.md`
+- `specs/002-private-github-access/tasks.md`
+- `docs/GENERATOR_CONTRACT.md`

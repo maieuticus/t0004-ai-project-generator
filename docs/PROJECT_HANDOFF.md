@@ -602,3 +602,88 @@ ein automatisches Überschreiben erfolgt nicht.
 Apply und Restore setzen während des Aufrufs exklusiven Projektzugriff voraus. Nach
 abruptem Abbruch oder fehlgeschlagener Protokollierung kann manuelle Wiederherstellung
 erforderlich sein. `verify` als eigener Generatorbefehl und Releases bleiben offen.
+
+## Private GitHub-Repositories – Handoff 2026-11-11
+
+### Ziel
+
+`t0003-ai-project-template` und `t0004-ai-project-generator`
+sollen nach kontrollierter Integration, Abnahme und ausdrücklicher
+Freigabe dauerhaft privat betrieben werden.
+
+### Bisheriger Stand
+
+- T019-A: Öffentliche Template-Quelle mit sechs Modulen getestet.
+- T019-B: Private Template-Quelle mit sechs Modulen getestet.
+- T020: Privater CI-Zugriff und historische Referenzprüfung
+  im dokumentierten Umfang erprobt.
+- T021: Negative Zugriffsfälle geprüft; einzelne reale GitHub-
+  Szenarien bleiben als teilweise verifiziert dokumentiert.
+- T022: Secret-Scans, lokale Commit-Sperre und CI-Positiv-/
+  Negativtest im dokumentierten Umfang geprüft.
+- T023: Abnahmematrix in `acceptance.md` dokumentiert.
+- T024: Bereinigungsplan vorhanden; endgültige Löschung
+  ausdrücklich bis nach erfolgreicher Integration verschoben.
+- T025: README und QUICKSTART um privaten Zugriff ergänzt.
+- T026: Architekturentscheidung und Referenzregeln dokumentiert.
+- T027: Authentifizierungsgrenze und Safety-Core dokumentiert.
+- T028: Produktiver Switch- und Rollback-Plan dokumentiert.
+
+### Isolierte Entwicklungsstände
+
+- Template-Test: `maieuticus/t0003-private-access-test`.
+- Generator-Test: `maieuticus/t0004-private-generator-test`.
+- Lokaler Generator-Branch: `feature/private-access-acceptance`.
+- T025-Commit: `8e50abb`.
+- T026-Commit: `a21e8c9`.
+- T027-Commit: `410c179`.
+- T028-Commit: `0e9aada`.
+
+Die Änderungen sind noch nicht als produktive Übernahme
+freigegeben. Die Original-Repositories bleiben zunächst
+unverändert und öffentlich.
+
+### Bekannte Einschränkungen
+
+- Einzelne reale Negativszenarien sind nicht vollständig E2E
+  nachgewiesen; die Abnahmematrix ist maßgeblich.
+- GitHub-Schutzfunktionen können durch den verwendeten Plan
+  eingeschränkt sein. Einschränkungen sind nicht stillschweigend
+  als bestandene Sicherheitsmaßnahmen zu bewerten.
+- Ein vollständiger Sichtbarkeits-Rollback ist nicht garantiert.
+- Backup und Wiederherstellbarkeit sind vor der Umstellung
+  ausdrücklich nachzuweisen.
+- Neue lokale Arbeitskopien benötigen die vorgesehene
+  Security-Hook-Einrichtung.
+
+### Nächste Schritte
+
+1. T029: Abschlussprüfungen bestanden; Handoff versionieren.
+2. Gate-3-Dokumentation abschließend abnehmen.
+3. Änderungen aus den isolierten Test-Repositories
+   kontrolliert in die Original-Repositories integrieren.
+4. Vollständige Produktivtests und wiederherstellbare
+   Backups nachweisen.
+5. Ausdrückliche Benutzerfreigabe einholen.
+6. Zuerst t0003, anschließend t0004 privat schalten.
+7. Neue private Projektanlage und Generatorfunktion testen.
+8. Test-Repositories und lokale Artefakte erst nach
+   Nachweissicherung kontrolliert bereinigen.
+
+### Verbindliche Referenzen
+
+- `specs/002-private-github-access/acceptance.md`
+- `specs/002-private-github-access/cleanup-plan.md`
+- `specs/002-private-github-access/switch-plan.md`
+- `docs/DV_KONZEPT.md`
+- `docs/GENERATOR_CONTRACT.md`
+### T029 – Abschlussprüfung vom 2026-11-11
+
+- `python scripts/check.py`: PASS.
+- Dokumentlinks, Pflichtdateien und Dateisyntax: OK.
+- `git diff --check`: PASS.
+- Gitleaks-Scan der Handoff-Datei: PASS.
+- Keine projektspezifischen Prüfungen in `config/project.yaml`
+  konfiguriert; vollständige E2E-Abnahme bleibt separat erforderlich.
+- Produktive Integration, Sichtbarkeitsumstellung und endgültige
+  Bereinigung sind weiterhin ausstehend.

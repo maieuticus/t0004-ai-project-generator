@@ -530,3 +530,49 @@ löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
 - `verify` prüft abschließend die Integrationskompatibilität von t0003 und t0004 sowie die
   verpflichtenden Praxistests für `new` und `migrate` unter Linux und Windows.
 - Stabile Releases von t0003 und t0004 werden getrennt versioniert und veröffentlicht.
+
+## Private GitHub-Zugriffe: Vertragsgrenze (T027)
+
+### Authentifizierung nur an der Zugriffsgrenze
+
+Der Zugriff auf private GitHub-Template-Quellen wird durch die
+isolierte Zugriffsschicht (`scripts/gh_access.py`) abgewickelt.
+
+- Zugangsdaten dienen nur den erforderlichen GitHub-/Git-Operationen.
+- Der Generator-Safety-Core verwaltet keine GitHub-Zugriffstokens.
+- Tokens dürfen nicht in Pläne, generierte Dateien, Logs oder
+  Agenten-Kontexte übernommen werden.
+- Fehlende, abgelaufene oder unzureichende Berechtigungen sowie
+  Netzwerkfehler müssen als Nicht-Erfolg behandelt werden.
+- Nicht verifizierbare Quellen dürfen nicht als `COMPATIBLE`,
+  `RELEASE` oder erfolgreich geprüft gemeldet werden.
+- Es erfolgt kein automatischer Fallback auf öffentliche Quellen.
+
+In GitHub Actions kann `T0003_READ_TOKEN` als Secret hinterlegt
+und für den betreffenden Prozess auf `GH_TOKEN` abgebildet werden.
+Daraus folgt keine Berechtigung, Tokens in Projektdateien abzulegen.
+
+### Unveränderter Safety-Core
+
+Die Unterstützung privater Quellen verändert nicht den
+bestehenden Generatorvertrag.
+
+Insbesondere bleiben verbindlich:
+
+- `plan` ist lesend und begründet die geplanten Änderungen.
+- `apply` benötigt die bestehende explizite Planbestätigung.
+- Die Planbindung und Prüfungen gegen zwischenzeitliche Änderungen
+  dürfen durch Authentifizierung nicht umgangen werden.
+- Bestehende Datei-, Modul-, Check-, CI- und Restore-Regeln gelten
+  für private und öffentliche Quellen gleichermaßen.
+- Fehler müssen vor einer unzulässigen Änderung zum Abbruch führen.
+- `COMPATIBLE` und `RELEASE` bleiben unterschiedliche Nachweisarten.
+- Der Generator darf keine fremde Git-Historie stillschweigend
+  übernehmen oder umschreiben.
+
+Die zusätzliche GitHub-Authentifizierung ist eine
+Infrastrukturvoraussetzung, keine neue Freigabestufe und keine
+Ausnahme von Sicherheitsprüfungen.
+
+Die produktive Umstellung erfolgt separat nach dem freigegebenen
+Switch-Plan und der vollständigen Abnahme.

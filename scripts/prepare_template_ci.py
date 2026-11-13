@@ -40,8 +40,8 @@ def not_verified(message: str) -> None:
 def prepare(mirror: Path, env: dict[str, str]) -> bool:
     if not env.get("GH_TOKEN"):
         not_verified(
-            "Pinned-template integration and Docker validation: NOT VERIFIED (read credential is not configured). "
-            "private authentication: NOT VERIFIED (read credential is not configured)."
+            "Private template retrieval: FAILED (required credential is not configured); "
+            "private authentication: NOT VERIFIED."
         )
         return False
 
@@ -53,7 +53,7 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
         )
         if not result.success:
             not_verified(
-                f"Public template fetch: FAILED ({result.category}); "
+                f"Template retrieval: FAILED ({result.category}); "
                 f"private authentication: NOT VERIFIED. {result.message}"
             )
             return False
@@ -63,7 +63,7 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
     )
     if not default_branch.success or default_branch.reference is None:
         not_verified(
-            f"Public template fetch: FAILED ({default_branch.category}); "
+            f"Template retrieval: FAILED ({default_branch.category}); "
             f"private authentication: NOT VERIFIED. {default_branch.message}"
         )
         return False
@@ -72,7 +72,7 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
     )
     if not result.success:
         not_verified(
-            f"Public template fetch: FAILED ({result.category}); "
+            f"Template retrieval: FAILED ({result.category}); "
             f"private authentication: NOT VERIFIED. {result.message}"
         )
         return False
@@ -81,7 +81,7 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
     executable = gh_access._git_executable(local_env)
     if executable is None:
         not_verified(
-            "Public template retrieval: FAILED; private authentication: NOT VERIFIED. "
+            "Template retrieval: FAILED; private authentication: NOT VERIFIED. "
             "Git ist nicht verfügbar."
         )
         return False
@@ -104,12 +104,15 @@ def prepare(mirror: Path, env: dict[str, str]) -> bool:
         encoding="utf-8",
     )
     set_output("template_ready", "true")
-    set_output("private_auth", "not_verified")
     set_output("mirror", str(mirror))
-    report_status(
-        "Public template retrieval: PASS; pinned local mirror is ready. "
-        "Private authentication: NOT VERIFIED (the source is public)."
-    )
+    if SOURCE == gh_access.T0003_SOURCE:
+        set_output("private_auth", "passed")
+        report_status("Private template retrieval: PASS; private authentication: PASS.")
+    else:
+        set_output("private_auth", "not_verified")
+        report_status(
+            "Local fixture retrieval: PASS; private authentication: NOT VERIFIED (fixture source)."
+        )
     return True
 
 
@@ -133,10 +136,10 @@ def main(argv: list[str] | None = None) -> int:
     else:
         mirror = runner_temp / "t0003-template.git"
     try:
-        return 0 if prepare(mirror, dict(os.environ)) else (0 if not os.environ.get("GH_TOKEN") else 1)
+        return 0 if prepare(mirror, dict(os.environ)) else 1
     except (OSError, subprocess.SubprocessError) as error:
         not_verified(
-            f"Public template retrieval: FAILED; private authentication: NOT VERIFIED. "
+            f"Template retrieval: FAILED; private authentication: NOT VERIFIED. "
             f"{gh_access.redact(str(error))}"
         )
         return 1
