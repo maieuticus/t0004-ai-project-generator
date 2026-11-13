@@ -368,3 +368,44 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 - GitHub-Branch-Protection-Einschraenkung bleibt dokumentiert.
 - Sichtbarkeitswechsel beider Original-Repositories
   erfordert separate ausdrueckliche Freigabe.
+
+## B19 - Required-Check-Merge-Sperren (2026-11-13)
+
+### t0003 - Realer Negativtest
+
+- Repository: maieuticus/t0003-ai-project-template (PUBLIC).
+- Test-PR: #5, Testcommit cdea4369747c.
+- Commit mit [skip ci]; kein erforderlicher Check ausgefuehrt.
+- Erforderlich: gitleaks, template (ubuntu-latest),
+  template (windows-latest).
+- GitHub GraphQL: MERGEABLE=MERGEABLE, MERGE_STATE=BLOCKED.
+- GitHub REST: mergeable=true, mergeable_state=blocked.
+- HEAD_CHECK_COUNT=0.
+- Ergebnis: T0003_MERGE_GUARD=PASS.
+
+### t0004 - Realer Negativtest
+
+- Repository: maieuticus/t0004-ai-project-generator (PUBLIC).
+- Test-PR: #36, Testcommit a06533de52a6.
+- Commit mit [skip ci]; kein erforderlicher Check ausgefuehrt.
+- Erforderlich: gitleaks, baseline (ubuntu-latest),
+  baseline (windows-latest), docker-linux, docker-windows.
+- GitHub GraphQL: MERGEABLE=MERGEABLE, MERGE_STATE=BLOCKED.
+- GitHub REST: mergeable_state=blocked.
+- HEAD_CHECK_COUNT=0.
+- Ergebnis: T0004_MERGE_GUARD=PASS.
+
+### Bewertung und Grenzen
+
+- Branch Protection fuer beide Original-Repositories
+  zuvor per GitHub-API konfiguriert und verifiziert.
+- Sperre bei fehlenden Required Checks fuer beide
+  Repositories praktisch nachgewiesen.
+- Es wurde kein Test-Merge ausgefuehrt.
+- Ein absichtlich fehlgeschlagener CI-Check wurde
+  nicht separat getestet.
+- PR #35 hatte auf Commit 92676d8 alle
+  zehn GitHub-Actions-Checks erfolgreich bestanden.
+- Die Test-PRs #5 und #36 sind nach Sicherung
+  dieser Nachweise kontrolliert zu bereinigen.
+- T023 bleibt bis zur Gesamtabnahme offen.
