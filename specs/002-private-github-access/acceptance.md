@@ -409,3 +409,86 @@ Status: Teilnachweise; vollständige Abnahme T023 noch offen.
 - Die Test-PRs #5 und #36 sind nach Sicherung
   dieser Nachweise kontrolliert zu bereinigen.
 - T023 bleibt bis zur Gesamtabnahme offen.
+
+## B25 - Abschlussnachweise (2026-11-13)
+
+### T019-A - Manueller PostgreSQL-Check
+
+- Isolierte lokale Kopie des gepinnten t0003-Templates.
+- Python, Docker Compose und PostgreSQL erfolgreich installiert.
+- Allgemeiner CLI-Check nach Installation ausgefuehrt.
+- Ergebnis: valid=true, conflicts=[].
+- T019_A_MANUAL=PASS.
+- Temporaere Projektkopie entfernt.
+- Kein laufender PostgreSQL-Datenbankserver getestet.
+
+### T019-B - Echte GitHub-Template-Erstellung
+
+- Quelle: maieuticus/t0003-ai-project-template (PUBLIC).
+- Quelle ist ein aktiviertes GitHub-Template.
+- Ziel: maieuticus/t019b-template-private-e2e-20261113.
+- Zielrepository ist PRIVATE und kein Fork.
+- Git-Tree Quelle und Ziel identisch:
+  9e59b202b99e.
+- T019_B_GITHUB_TEMPLATE_CREATION=PASS.
+- Die private Sichtbarkeit wurde bei Erstellung
+  explizit ueber die GitHub-API gesetzt.
+
+### T019-B - Privater Generator-End-to-End-Test
+
+- Authentifizierter Clone des privaten Testprojekts.
+- React-Installationsplan erfolgreich.
+- React-Installation erfolgreich.
+- Allgemeiner Generator-Check: valid=true.
+- Konflikte: [].
+- Vorhandene Sicherheitsdateien unveraendert.
+- Lokaler Git-HEAD unveraendert.
+- Temporaere Arbeitskopie entfernt.
+- Kein Push der installierten Projektdateien.
+- T019_B_PRIVATE_GENERATOR_E2E=PASS.
+- Die anderen fuenf Modulvarianten wurden
+  bereits in frueheren Testlaeufen abgenommen.
+
+### T020-D - Bewertung der urspruenglichen Anforderung
+
+- Authentifizierter versionierter Basisabruf belegt.
+- Manueller Read-only-Vergleich bestanden.
+- Lokale README-Aenderung erkannt und erhalten.
+- Das gezeigte AC3 verlangt keine ausdrueckliche
+  automatisierte Generator-Vergleichsfunktion.
+- PASS im dokumentierten manuellen Pruefumfang.
+- Keine neue Generatorfunktion implementiert.
+
+### Branch Protection und CI
+
+- t0003: drei erforderliche Checks konfiguriert.
+- t0004: fuenf erforderliche Checks konfiguriert.
+- Pull-Request-Pflicht und Admin-Durchsetzung
+  fuer beide Original-Repositories aktiviert.
+- Negativtests mit ausstehenden Pflichtchecks:
+  t0003 PR #5 und t0004 PR #36, jeweils BLOCKED.
+- Beide Test-PRs danach geschlossen.
+- Beide temporaeren Remote-Testbranches geloescht.
+- PR #35 auf Commit 92676d8: 10/10 CI PASS.
+- Kein separater Negativtest mit absichtlich
+  fehlgeschlagenem Check ausgefuehrt.
+
+### Aktuelle Abnahmebewertung
+
+- T019-A: PASS im funktionalen Pruefumfang.
+- T019-B: PASS inklusive GitHub-Erstellung und E2E.
+- T020-D: PASS im manuellen Read-only-Pruefumfang.
+- T021: PASS im dokumentierten Pruefumfang.
+- SC-005: Genehmigte PostgreSQL-Korrekturausnahme.
+- SC-006: PASS im dokumentierten E2E-Pruefumfang.
+- T022: PASS im dokumentierten Sicherheitsumfang.
+- B19: Branch-Protection-Negativtests PASS.
+- Historische PARTIAL- und Tarifangaben
+  werden durch die datierten spaeteren
+  Nachweise und Architekturentscheidungen ergaenzt.
+- Die Original-Repositories bleiben PUBLIC.
+- Neue Projekte sollen standardmaessig PRIVATE sein;
+  der gepruefte GitHub-API-Aufruf setzte dies explizit.
+- T023: READY_FOR_SIGNOFF, noch nicht freigegeben.
+- PR #35: noch nicht gemergt.
+- T024: noch offen, Testartefakte gesichert.
