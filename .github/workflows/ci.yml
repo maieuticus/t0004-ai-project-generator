@@ -48,6 +48,10 @@ jobs:
         env:
           T0004_T0003_CANDIDATE_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
         run: python -m unittest integration.test_t0003_integration.CandidateTemplateIntegration -v
+      - name: Historical pinned template integration (credential-free)
+        env:
+          T0004_T0003_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
+        run: python -m unittest integration.test_t0003_integration.T0003Integration -v
       - name: Fetch pinned template refs (manual main only)
         id: prepare_template
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'

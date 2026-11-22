@@ -12,7 +12,18 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = "https://github.com/maieuticus/t0003-ai-project-template.git"
+HISTORICAL_COMMIT = "6e8363a7ac7d99220d743eea077dcd5cefda9042"
+RELEASE_COMMIT = "964de8538d19cefcb483faff38f10124615a9783"
 CANDIDATE_COMMIT = "8ee48ed15eea629e51c8e4a64102c6a06cf8726a"
+HISTORICAL_FILES = {
+    "scripts/check.py": "08be5d0fc5bddb6bbd9209c659a77456c785bfaa3ee24ebb06c20d390d6a2d4e",
+    "scripts/projectcfg.py": "f446580597e0c3e7c46ab20cd31e8bbc609316a5a8ae65696da8814244832d20",
+    ".github/workflows/ci.yml": "f54914e7f43f14acde14b33693abdbc303784c90c84c87e6bdd7f385e22731cd",
+}
+RELEASE_FILES = {
+    **HISTORICAL_FILES,
+    ".github/workflows/ci.yml": "18a51ef1b44f6b7bb2347c289b2195a4e3744f910a40f3a0378cf03b2c8c0a21",
+}
 CANDIDATE_FILES = {
     "scripts/check.py": "4a9dd7519b7973442d570743685eaa5184242d80b7554f6d26645ae599b1721b",
     "scripts/projectcfg.py": "f446580597e0c3e7c46ab20cd31e8bbc609316a5a8ae65696da8814244832d20",
@@ -54,6 +65,22 @@ def _git(mirror: Path, args: list[str], env: dict[str, str], *, binary: bool = F
     )
 
 
+def _fetch_verified(mirror: Path, commit: str, files: dict[str, str],
+                    env: dict[str, str]) -> None:
+    _git(mirror, [
+        "fetch", "--no-tags", "--no-recurse-submodules", SOURCE, commit,
+    ], env)
+    actual_commit = _git(
+        mirror, ["rev-parse", "--verify", "FETCH_HEAD^{commit}"], env
+    ).stdout.strip()
+    if actual_commit != commit:
+        raise CandidatePreparationError("Fetched template commit does not match the pinned commit")
+    for name, expected in files.items():
+        content = _git(mirror, ["cat-file", "blob", f"{commit}:{name}"], env, binary=True).stdout
+        if hashlib.sha256(content).hexdigest() != expected:
+            raise CandidatePreparationError(f"Template capability hash mismatch: {name}")
+
+
 def prepare(mirror: Path, env: dict[str, str]) -> Path:
     if not mirror.is_absolute():
         raise ValueError("Candidate mirror path must be absolute")
@@ -81,25 +108,16 @@ def prepare(mirror: Path, env: dict[str, str]) -> Path:
             cwd=ROOT, env=git_env, check=True, capture_output=True, text=True, encoding="utf-8",
         )
 
-    _git(mirror, [
-        "fetch", "--no-tags", "--no-recurse-submodules", SOURCE, CANDIDATE_COMMIT,
-    ], git_env)
-    actual_commit = _git(
-        mirror, ["rev-parse", "--verify", "FETCH_HEAD^{commit}"], git_env
-    ).stdout.strip()
-    if actual_commit != CANDIDATE_COMMIT:
-        raise CandidatePreparationError("Fetched candidate commit does not match the pinned commit")
-
-    for name, expected in CANDIDATE_FILES.items():
-        content = _git(
-            mirror, ["cat-file", "blob", f"{CANDIDATE_COMMIT}:{name}"], git_env, binary=True
-        ).stdout
-        actual = hashlib.sha256(content).hexdigest()
-        if actual != expected:
-            raise CandidatePreparationError(f"Candidate capability hash mismatch: {name}")
-    pinned_ref = f"refs/heads/t0004-candidate-{CANDIDATE_COMMIT}"
-    _git(mirror, ["update-ref", pinned_ref, CANDIDATE_COMMIT], git_env)
-    _git(mirror, ["symbolic-ref", "HEAD", pinned_ref], git_env)
+    for label, commit, files in (
+        ("historical", HISTORICAL_COMMIT, HISTORICAL_FILES),
+        ("release", RELEASE_COMMIT, RELEASE_FILES),
+        ("candidate", CANDIDATE_COMMIT, CANDIDATE_FILES),
+    ):
+        _fetch_verified(mirror, commit, files, git_env)
+        pinned_ref = f"refs/heads/t0004-{label}-{commit}"
+        _git(mirror, ["update-ref", pinned_ref, commit], git_env)
+        if label == "candidate":
+            _git(mirror, ["symbolic-ref", "HEAD", pinned_ref], git_env)
     return mirror
 
 

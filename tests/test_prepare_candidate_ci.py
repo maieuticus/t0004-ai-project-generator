@@ -22,30 +22,59 @@ class PrepareCandidateCi(unittest.TestCase):
         self.source = self.root / "source"
         self.source.mkdir()
         subprocess.run(["git", "init", "-q", str(self.source)], check=True)
+        self.historical_contents = {
+            "scripts/check.py": b"historical check\n",
+            "scripts/projectcfg.py": b"historical config parser\n",
+            ".github/workflows/ci.yml": b"historical workflow\n",
+        }
+        self.release_contents = {
+            **self.historical_contents,
+            ".github/workflows/ci.yml": b"released workflow\n",
+        }
         self.contents = {
             "scripts/check.py": b"candidate check\n",
             "scripts/projectcfg.py": b"candidate config parser\n",
             "scripts/diagrams.py": b"candidate diagram checker\n",
             ".github/workflows/ci.yml": b"candidate workflow\n",
         }
-        for name, content in self.contents.items():
-            path = self.source / name
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(content)
-        subprocess.run(["git", "-C", str(self.source), "add", "."], check=True)
-        subprocess.run([
-            "git", "-C", str(self.source), "-c", "user.name=Candidate fixture",
-            "-c", "user.email=candidate@example.invalid", "commit", "-qm", "candidate",
-        ], check=True)
-        self.commit = subprocess.run(
-            ["git", "-C", str(self.source), "rev-parse", "HEAD"],
-            check=True, capture_output=True, text=True,
-        ).stdout.strip()
+        def commit_files(files, message):
+            for name, content in files.items():
+                path = self.source / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+            subprocess.run(["git", "-C", str(self.source), "add", "."], check=True)
+            subprocess.run([
+                "git", "-C", str(self.source), "-c", "user.name=Candidate fixture",
+                "-c", "user.email=candidate@example.invalid", "commit", "-qm", message,
+            ], check=True)
+            return subprocess.run(
+                ["git", "-C", str(self.source), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+
+        self.historical_commit = commit_files(self.historical_contents, "historical")
+        self.release_commit = commit_files(
+            {".github/workflows/ci.yml": self.release_contents[".github/workflows/ci.yml"]},
+            "release",
+        )
+        self.commit = commit_files(self.contents, "candidate")
+        self.historical_hashes = {
+            name: hashlib.sha256(content).hexdigest()
+            for name, content in self.historical_contents.items()
+        }
+        self.release_hashes = {
+            name: hashlib.sha256(content).hexdigest()
+            for name, content in self.release_contents.items()
+        }
         self.hashes = {name: hashlib.sha256(value).hexdigest()
                        for name, value in self.contents.items()}
         self.patches = [
             mock.patch.object(prepare_candidate_ci, "SOURCE", str(self.source)),
+            mock.patch.object(prepare_candidate_ci, "HISTORICAL_COMMIT", self.historical_commit),
+            mock.patch.object(prepare_candidate_ci, "RELEASE_COMMIT", self.release_commit),
             mock.patch.object(prepare_candidate_ci, "CANDIDATE_COMMIT", self.commit),
+            mock.patch.object(prepare_candidate_ci, "HISTORICAL_FILES", self.historical_hashes),
+            mock.patch.object(prepare_candidate_ci, "RELEASE_FILES", self.release_hashes),
             mock.patch.object(prepare_candidate_ci, "CANDIDATE_FILES", self.hashes),
         ]
         for patch in self.patches:
@@ -87,6 +116,17 @@ class PrepareCandidateCi(unittest.TestCase):
             check=True, capture_output=True, text=True,
         ).stdout.strip()
         self.assertEqual(default, self.commit)
+        for label, commit in (
+            ("historical", self.historical_commit),
+            ("release", self.release_commit),
+            ("candidate", self.commit),
+        ):
+            actual = subprocess.run(
+                ["git", "--git-dir", str(mirror), "rev-parse",
+                 f"refs/heads/t0004-{label}-{commit}^{{commit}}"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            self.assertEqual(actual, commit)
 
     def test_unavailable_commit_fails_without_branch_fallback(self):
         with mock.patch.object(prepare_candidate_ci, "CANDIDATE_COMMIT", "0" * 40):
@@ -100,6 +140,22 @@ class PrepareCandidateCi(unittest.TestCase):
                 prepare_candidate_ci.CandidatePreparationError, "scripts/diagrams.py"
             ):
                 prepare_candidate_ci.prepare(self.root / "candidate.git", dict(os.environ))
+
+    def test_historical_and_release_hash_mismatches_fail_closed(self):
+        for label, field, expected, path in (
+            ("historical", "HISTORICAL_FILES", self.historical_hashes, "scripts/check.py"),
+            ("release", "RELEASE_FILES", self.release_hashes, ".github/workflows/ci.yml"),
+        ):
+            with self.subTest(reference=label):
+                wrong = dict(expected)
+                wrong[path] = "0" * 64
+                with mock.patch.object(prepare_candidate_ci, field, wrong):
+                    with self.assertRaisesRegex(
+                        prepare_candidate_ci.CandidatePreparationError, path.replace(".", r"\.")
+                    ):
+                        prepare_candidate_ci.prepare(
+                            self.root / f"{label}-mismatch.git", dict(os.environ)
+                        )
 
     def test_relative_mirror_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "absolute"):

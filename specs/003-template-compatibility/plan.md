@@ -106,19 +106,17 @@ on 2026-11-22 the public GitHub API confirmed that candidate commit
 `8ee48ed15eea629e51c8e4a64102c6a06cf8726a` is reachable in the canonical
 `maieuticus/t0003-ai-project-template` repository.
 
-Use that canonical public repository as a **test-only** candidate source.
-Integration setup must fetch the full pinned commit ID, verify the resulting
-commit ID and the required capability-file hashes above, and fail closed if
-retrieval or verification fails; it must not fall back to a branch or tag.
-This retrieval is confined to integration setup: generator plan/apply remains
-offline. Do not change `scripts/gh_access.py`, the existing private retrieval
-path, `GH_TOKEN` handling, or private-authentication status reporting. Keep the
-private source's HTTP 404 explicitly unresolved. For offline local verification,
-`T0004_T0003_MIRROR` must contain all three exact public Git objects. Public
-commit reachability and the credential-free, hash-verified test-only acquisition
-path are verified locally. Historical and candidate behavior passed the pinned
-integration suite on Linux; the workflow has not yet run on hosted Linux or
-Windows.
+Use that canonical public repository as a **test-only** source. The separate
+credential-free mirror helper fetches the exact historical, release and candidate
+commit IDs, verifies each commit and its capability-file hashes, and fails closed
+without branch/tag fallback. The baseline workflow uses this mirror for pinned
+historical and candidate integrations on Linux and Windows; generator plan/apply
+remains offline. Do not change `scripts/gh_access.py`, the existing private
+retrieval path, `GH_TOKEN` handling, or private-authentication status reporting.
+Keep the private source's HTTP 404 explicitly unresolved. The local mirror and all
+38 pinned integration tests pass. Hosted candidate integration passed on Linux
+and Windows. The workflow now schedules the historical pinned suite against the
+same credential-free mirror; hosted results for that added step are pending.
 
 ## Affected Areas
 
@@ -135,12 +133,12 @@ Windows.
   `tests/test_prepare_candidate_ci.py`,
   `integration/test_t0003_integration.py`, and the baseline job in
   `.github/workflows/ci.yml`:
-  fetch the candidate into a separate credential-free mirror, verify its
-  pinned commit and capability hashes, and pass that mirror to candidate
-  integration tests on Linux and Windows. Do not modify
-  `scripts/gh_access.py` or the existing private `scripts/prepare_template_ci.py`
-  path. The current private integration source is the separate
-  `t0003-private-access-test` repository; do not assume it contains the candidate.
+  fetch and verify all three exact public commits into a credential-free mirror;
+  pass it to the historical and candidate integration tests on Linux and Windows.
+  Do not modify `scripts/gh_access.py` or the existing private
+  `scripts/prepare_template_ci.py` path. The current private integration source
+  is the separate `t0003-private-access-test` repository; do not assume it
+  contains the candidate.
 - `tests/test_python_compat.py` and existing integration/security tests: add
   focused positive, negative, stale-plan and restore cases.
 - `docs/GENERATOR_CONTRACT.md`, `README.md`, and the handoff: document only
