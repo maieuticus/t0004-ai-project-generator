@@ -191,6 +191,107 @@ class PythonModule(unittest.TestCase):
         self.assertFalse((self.project / "pyproject.toml").exists())
         self.assertFalse((self.base / "data").exists())
 
+    def test_renewed_profile_plan_binds_diagrams_without_side_effects(self):
+        check = b"candidate check capability\n"
+        diagrams = b"candidate diagram-check capability\n"
+        (self.project / "scripts/check.py").write_bytes(check)
+        (self.project / "scripts/diagrams.py").write_bytes(diagrams)
+        before = {p.relative_to(self.project): p.read_bytes()
+                  for p in self.project.rglob("*") if p.is_file()}
+        with (mock.patch.object(python_compat, "RENEWED_CHECK_SHA256",
+                                hashlib.sha256(check).hexdigest()),
+              mock.patch.object(python_compat, "DIAGRAMS_SHA256",
+                                hashlib.sha256(diagrams).hexdigest()),
+              mock.patch("subprocess.run", side_effect=AssertionError("subprocess invoked")),
+              mock.patch("socket.create_connection", side_effect=AssertionError("network invoked")),
+              mock.patch("urllib.request.urlopen", side_effect=AssertionError("network invoked"))):
+            plan, changes = python_module.module_plan_target(
+                str(self.project), installed_version(), "python"
+            )
+        self.assertEqual(plan["conflicts"], [])
+        self.assertTrue(changes)
+        self.assertIn("scripts/diagrams.py",
+                      [state["path"] for state in plan["preconditions"]["files"]])
+        self.assertEqual(before, {p.relative_to(self.project): p.read_bytes()
+                                  for p in self.project.rglob("*") if p.is_file()})
+
+    def test_renewed_dependency_change_rejects_apply_before_writes(self):
+        check = b"candidate check capability\n"
+        diagrams = b"candidate diagram-check capability\n"
+        diagram_path = self.project / "scripts/diagrams.py"
+        (self.project / "scripts/check.py").write_bytes(check)
+        diagram_path.write_bytes(diagrams)
+        with (mock.patch.object(python_compat, "RENEWED_CHECK_SHA256",
+                                hashlib.sha256(check).hexdigest()),
+              mock.patch.object(python_compat, "DIAGRAMS_SHA256",
+                                hashlib.sha256(diagrams).hexdigest()),
+              mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")})):
+            plan, _ = python_module.module_plan_target(
+                str(self.project), installed_version(), "python"
+            )
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            diagram_path.write_bytes(b"changed diagram capability\n")
+            with self.assertRaises(transaction.TransactionError):
+                transaction.apply(
+                    str(self.project), str(self.plan_file), plan["plan_id"], installed_version()
+                )
+        self.assertFalse((self.project / "pyproject.toml").exists())
+        self.assertFalse((self.base / "data").exists())
+
+    def test_renewed_dependency_attributes_and_snapshot_changes_reject_apply(self):
+        check = b"candidate check capability\n"
+        diagrams = b"candidate diagram-check capability\n"
+        diagram_path = self.project / "scripts/diagrams.py"
+        check_path = self.project / "scripts/check.py"
+        check_path.write_bytes(check)
+        diagram_path.write_bytes(diagrams)
+        original_mode = stat.S_IMODE(diagram_path.stat().st_mode)
+
+        with (mock.patch.object(python_compat, "RENEWED_CHECK_SHA256",
+                                hashlib.sha256(check).hexdigest()),
+              mock.patch.object(python_compat, "DIAGRAMS_SHA256",
+                                hashlib.sha256(diagrams).hexdigest()),
+              mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "data")})):
+            plan, _ = python_module.module_plan_target(
+                str(self.project), installed_version(), "python"
+            )
+            self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+            diagram_path.chmod(original_mode ^ stat.S_IWUSR)
+            with self.assertRaises(transaction.TransactionError):
+                transaction.apply(
+                    str(self.project), str(self.plan_file), plan["plan_id"], installed_version()
+                )
+            self.assertFalse((self.project / "pyproject.toml").exists())
+            diagram_path.chmod(original_mode)
+
+            for change in ("file", "attributes"):
+                with self.subTest(change=change):
+                    plan, _ = python_module.module_plan_target(
+                        str(self.project), installed_version(), "python"
+                    )
+                    self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+                    real_progress = transaction._multi_progress
+
+                    def mutate_after_snapshot(backup, progress):
+                        real_progress(backup, progress)
+                        if change == "file":
+                            diagram_path.write_bytes(diagrams + b"# changed\n")
+                        else:
+                            diagram_path.chmod(original_mode ^ stat.S_IWUSR)
+
+                    try:
+                        with mock.patch.object(transaction, "_multi_progress",
+                                                side_effect=mutate_after_snapshot):
+                            with self.assertRaises(transaction.TransactionError):
+                                transaction.apply(
+                                    str(self.project), str(self.plan_file), plan["plan_id"],
+                                    installed_version()
+                                )
+                    finally:
+                        diagram_path.chmod(original_mode)
+                        diagram_path.write_bytes(diagrams)
+                    self.assertFalse((self.project / "pyproject.toml").exists())
+
     @unittest.skipIf(os.name == "nt", "POSIX mode test")
     def test_changed_capability_permissions_reject_stale_plan(self):
         plan = self.save_plan()

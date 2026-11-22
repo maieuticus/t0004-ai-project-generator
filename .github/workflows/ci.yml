@@ -39,6 +39,15 @@ jobs:
       - run: t0004-generator plan
       - run: t0004-generator new
       - run: t0004-generator migrate --json
+      - name: Fetch pinned public candidate template (credential-free)
+        id: prepare_candidate
+        env:
+          T0004_T0003_CANDIDATE_MIRROR: ${{ runner.temp }}/t0003-candidate.git
+        run: python scripts/prepare_candidate_ci.py
+      - name: Candidate template integration
+        env:
+          T0004_T0003_CANDIDATE_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
+        run: python -m unittest integration.test_t0003_integration.CandidateTemplateIntegration -v
       - name: Fetch pinned template refs (manual main only)
         id: prepare_template
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -57,4 +66,6 @@ jobs:
         if: steps.prepare_template.outputs.template_ready == 'true'
         env:
           T0004_T0003_MIRROR: ${{ steps.prepare_template.outputs.mirror }}
+          T0004_T0003_CANDIDATE_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
+          T0004_SKIP_CANDIDATE_INTEGRATION: "1"
         run: python -m unittest discover -s integration -v

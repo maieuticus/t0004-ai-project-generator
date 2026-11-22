@@ -12,16 +12,25 @@ VERIFIED_FILES = {
     "scripts/projectcfg.py": "f446580597e0c3e7c46ab20cd31e8bbc609316a5a8ae65696da8814244832d20",
     ".github/workflows/ci.yml": "f54914e7f43f14acde14b33693abdbc303784c90c84c87e6bdd7f385e22731cd",
 }
+RENEWED_CHECK_SHA256 = "4a9dd7519b7973442d570743685eaa5184242d80b7554f6d26645ae599b1721b"
+DIAGRAMS_SHA256 = "79b7482172ba7460b057a94ed9dcf31d13109ed098f267a7e28546f13fd06ee7"
 PYTHON_CI_SHA256 = "098dfdcb0c8981568a415e4a67c92b35f58b10b445589ec8bb856440fa412d79"
 
 
 def python_capabilities(target: str) -> dict[str, object]:
     """Return conflicts and raw file/access fingerprints without exposing contents."""
     root = Path(target).expanduser().resolve(strict=True)
-    directories = _directory_states(root, list(VERIFIED_FILES))
+    check_content, _ = _operation_state(root, "scripts/check.py")
+    check_digest = hashlib.sha256(check_content).hexdigest() if check_content is not None else None
+    renewed = check_digest == RENEWED_CHECK_SHA256
+    required_files = dict(VERIFIED_FILES)
+    if renewed:
+        required_files["scripts/check.py"] = RENEWED_CHECK_SHA256
+        required_files["scripts/diagrams.py"] = DIAGRAMS_SHA256
+    directories = _directory_states(root, list(required_files))
     states = []
     conflicts = []
-    for name, known_digest in VERIFIED_FILES.items():
+    for name, known_digest in required_files.items():
         content, attributes = _operation_state(root, name)
         digest = hashlib.sha256(content).hexdigest() if content is not None else None
         states.append({"path": name, "sha256": digest, "attributes": attributes})

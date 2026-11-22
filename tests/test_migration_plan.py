@@ -1,4 +1,5 @@
 """Strategy A planning remains bounded, reproducible and read-only."""
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import unittest
 from unittest import mock
 
 import test_python_module
-from project_generator import migration_plan
+from project_generator import migration_plan, python_compat
 from project_generator.plan import PathSafetyError
 from project_generator.transaction import TransactionError, apply, restore
 from project_generator import transaction
@@ -221,6 +222,56 @@ class MigrationPlan(unittest.TestCase):
                 with self.assertRaises(TransactionError):
                     apply(str(self.project), str(self.plan_file), plan["plan_id"], "0.1.0", str(self.source))
         self.assertFalse((self.project / "src").exists())
+
+    def test_migration_revalidates_both_template_profiles_before_and_after_snapshot(self):
+        check_path = self.project / "scripts/check.py"
+        diagrams_path = self.project / "scripts/diagrams.py"
+        historical_check = check_path.read_bytes()
+        candidate_check = b"candidate check capability\n"
+        candidate_diagrams = b"candidate diagram-check capability\n"
+
+        def configure(profile):
+            check_path.write_bytes(historical_check)
+            diagrams_path.unlink(missing_ok=True)
+            if profile == "candidate":
+                check_path.write_bytes(candidate_check)
+                diagrams_path.write_bytes(candidate_diagrams)
+
+        with (mock.patch.object(python_compat, "RENEWED_CHECK_SHA256",
+                                hashlib.sha256(candidate_check).hexdigest()),
+              mock.patch.object(python_compat, "DIAGRAMS_SHA256",
+                                hashlib.sha256(candidate_diagrams).hexdigest()),
+              mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.base / "backups")})):
+            for profile, capability_path, changed_content in (
+                ("historical", check_path, historical_check + b"# changed\n"),
+                ("candidate", diagrams_path, candidate_diagrams + b"# changed\n"),
+            ):
+                with self.subTest(profile=profile):
+                    configure(profile)
+                    plan = self.plan(["src/app.py"])
+                    self.assertEqual(plan["conflicts"], [])
+                    self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+                    capability_path.write_bytes(changed_content)
+                    with self.assertRaises(TransactionError):
+                        apply(str(self.project), str(self.plan_file), plan["plan_id"],
+                              "0.1.0", str(self.source))
+                    self.assertFalse((self.project / "src/app.py").exists())
+
+                    configure(profile)
+                    plan = self.plan(["src/app.py"])
+                    self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+                    real_progress = transaction._multi_progress
+
+                    def change_after_snapshot(backup, progress):
+                        real_progress(backup, progress)
+                        capability_path.write_bytes(changed_content)
+
+                    with mock.patch.object(transaction, "_multi_progress",
+                                            side_effect=change_after_snapshot):
+                        with self.assertRaises(TransactionError):
+                            apply(str(self.project), str(self.plan_file), plan["plan_id"],
+                                  "0.1.0", str(self.source))
+                    self.assertFalse((self.project / "src/app.py").exists())
 
     def test_existing_directory_change_rejects_plan(self):
         (self.project / "src").mkdir()
