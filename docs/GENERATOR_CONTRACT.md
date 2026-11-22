@@ -271,20 +271,37 @@ abweicht. Die Hashprüfung lehnt diesen Fall ab; sie darf nicht deaktiviert werd
   Beispielaufruf. Ein neu einzutragender Testcheck folgt den vorhandenen Checks, deren
   Reihenfolge erhalten bleibt. Die Namen `project-app` und `project_app` sind feste Starter-Namen
   und müssen bei Bedarf vom Projekt angepasst werden.
-- Zusätzlich zum weiterhin erforderlichen `template.release: 0.1.0` müssen
-  `scripts/check.py`, `scripts/projectcfg.py` und `.github/workflows/ci.yml` den bytegenau
-  geprüften t0003-Dateiständen von Commit `6e8363a` entsprechen. Der Check muss konfigurierte
-  Prüfungen ausführen, die CI muss Template-Tests auf das Template-Repository beschränken.
-  Der ursprüngliche Release-Stand erfüllt Letzteres nicht und wird abgelehnt. Nach Einrichtung
-  ist auch der exakt vom Modul erweiterte CI-Stand zulässig. Andere, eventuell gleichwertige
-  Varianten werden vorsorglich abgelehnt; es wird kein neues t0003-Release behauptet.
-- Modulpläne binden Rohbyte- und Zugriffs-Fingerabdrücke dieser drei Dateien sowie ihrer
-  Verzeichnisse als Voraussetzungen ein. `apply` prüft sie bei der Planneuberechnung und
-  nach dem Snapshot vor dem ersten Projekt-Schreibzugriff erneut. Einzelne Konflikte liefern
-  keine Operationen. Bereits korrekt eingerichtete Module liefern einen No-op; fehlende oder
-  inhaltlich veränderte Moduldateien, geänderte CI oder ein fehlender Projektcheck sind
-  Konflikte. Nach Einrichtung vergleicht der No-op-Test die Inhalte, nicht frühere
-  Zugriffsmetadaten der generierten Dateien.
+- Zusätzlich zum weiterhin erforderlichen `template.release: 0.1.0` werden zwei
+  bytegenau geprüfte t0003-Fähigkeitsprofile akzeptiert:
+  - Historisch: Commit `6e8363a7ac7d99220d743eea077dcd5cefda9042`, mit
+    `scripts/check.py` SHA-256 `08be5d0fc5bddb6bbd9209c659a77456c785bfaa3ee24ebb06c20d390d6a2d4e`.
+  - Kandidat: Commit `8ee48ed15eea629e51c8e4a64102c6a06cf8726a`, mit
+    `scripts/check.py` SHA-256 `4a9dd7519b7973442d570743685eaa5184242d80b7554f6d26645ae599b1721b`
+    und der erforderlichen `scripts/diagrams.py` SHA-256
+    `79b7482172ba7460b057a94ed9dcf31d13109ed098f267a7e28546f13fd06ee7`.
+  Beide Profile benötigen außerdem `scripts/projectcfg.py` SHA-256
+  `f446580597e0c3e7c46ab20cd31e8bbc609316a5a8ae65696da8814244832d20` sowie
+  einen bekannten CI-Dateistand, der zum installierten Modulzustand passt.
+  Das ursprüngliche Release `964de8538d19cefcb483faff38f10124615a9783` wird
+  abgelehnt, weil seine CI Template-Tests nicht auf das Template-Repository beschränkt.
+  Andere, eventuell gleichwertige Varianten werden vorsorglich abgelehnt; es wird kein
+  neues t0003-Release behauptet.
+- Modulpläne binden Rohbyte- und Zugriffs-Fingerabdrücke aller Dateien des erkannten
+  Profils sowie ihrer Verzeichnisse als Voraussetzungen ein. Beim Kandidaten gehört
+  `scripts/diagrams.py` dazu; nutzergepflegte Diagrammquellen und -ausgaben werden
+  nicht auf ursprüngliche Templatebytes festgelegt. `apply` prüft die Voraussetzungen
+  bei der Planneuberechnung und nach dem Snapshot vor dem ersten Projekt-Schreibzugriff
+  erneut. Einzelne Konflikte liefern keine Operationen. Bereits korrekt eingerichtete
+  Module liefern einen No-op; fehlende oder inhaltlich veränderte Moduldateien,
+  geänderte CI oder ein fehlender Projektcheck sind Konflikte. Nach Einrichtung
+  vergleicht der No-op-Test die Inhalte, nicht frühere Zugriffsmetadaten der generierten
+  Dateien.
+- Die historischen und Kandidatenprofile wurden mit gepinnten öffentlichen t0003-
+  Commits auf Linux und Windows integriert geprüft. Der credential-freie Testabruf
+  prüft Commit-IDs und erforderliche Datei-Hashes, verändert aber nicht den getrennten
+  privaten Authentifizierungspfad. Private Authentifizierung und das tatsächliche
+  Erstellen eines Repositories über GitHub „Use this template“ sind damit nicht
+  nachgewiesen.
 - Die JSON-Ausgabe enthält Dateipfade, Zustands- und Ergebnis-Hashes sowie Konflikte, aber keine
   Dateiinhalte oder textuellen Diffs der Mehrdatei-Operationen. Ein bestehender fremder
   Dateipfad ist auch bei identischem Inhalt ein Konflikt, solange das Modul nicht eingetragen ist.

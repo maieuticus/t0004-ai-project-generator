@@ -94,7 +94,8 @@ class PrepareCandidateCi(unittest.TestCase):
                    GITHUB_TOKEN="must-not-be-forwarded",
                    T0004_REPO_TOKEN="must-not-be-forwarded",
                    GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="credential.helper",
-                   GIT_CONFIG_VALUE_0="store")
+                   GIT_CONFIG_VALUE_0="store", GIT_CONFIG_PARAMETERS="credential.helper=store",
+                   GIT_TEMPLATE_DIR=str(self.root / "untrusted-template"))
         with mock.patch.object(prepare_candidate_ci.subprocess, "run", side_effect=capture_run):
             result = prepare_candidate_ci.prepare(mirror, env)
 
@@ -105,6 +106,8 @@ class PrepareCandidateCi(unittest.TestCase):
             self.assertNotIn("GITHUB_TOKEN", child_env)
             self.assertNotIn("T0004_REPO_TOKEN", child_env)
             self.assertNotIn("GIT_CONFIG_COUNT", child_env)
+            self.assertNotIn("GIT_CONFIG_PARAMETERS", child_env)
+            self.assertNotIn("GIT_TEMPLATE_DIR", child_env)
             self.assertEqual(child_env["GIT_TERMINAL_PROMPT"], "0")
         actual = subprocess.run(
             ["git", "--git-dir", str(mirror), "rev-parse", "FETCH_HEAD^{commit}"],
@@ -160,6 +163,18 @@ class PrepareCandidateCi(unittest.TestCase):
     def test_relative_mirror_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "absolute"):
             prepare_candidate_ci.prepare(Path("relative-candidate.git"), dict(os.environ))
+
+    def test_existing_mirror_is_rejected_before_git_is_invoked(self):
+        mirror = self.root / "existing.git"
+        subprocess.run(["git", "init", "--bare", "-q", str(mirror)], check=True)
+        with mock.patch.object(
+            prepare_candidate_ci.subprocess, "run",
+            side_effect=AssertionError("existing mirror must not be used"),
+        ):
+            with self.assertRaisesRegex(
+                prepare_candidate_ci.CandidatePreparationError, "fresh path"
+            ):
+                prepare_candidate_ci.prepare(mirror, dict(os.environ))
 
 
 if __name__ == "__main__":

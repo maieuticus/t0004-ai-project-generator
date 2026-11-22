@@ -114,9 +114,11 @@ historical and candidate integrations on Linux and Windows; generator plan/apply
 remains offline. Do not change `scripts/gh_access.py`, the existing private
 retrieval path, `GH_TOKEN` handling, or private-authentication status reporting.
 Keep the private source's HTTP 404 explicitly unresolved. The local mirror and all
-38 pinned integration tests pass. Hosted candidate integration passed on Linux
-and Windows. The workflow now schedules the historical pinned suite against the
-same credential-free mirror; hosted results for that added step are pending.
+38 pinned integration tests pass. Hosted run `45052518437` passed on both Linux
+and Windows, with five candidate and 33 historical pinned integrations per
+platform; Docker validation `45052518454` and secret scan `45052518444` also
+passed on the same head. Private authentication remains **NOT VERIFIED**. The
+candidate remains pending the human Review gate.
 
 ## Affected Areas
 
@@ -164,7 +166,7 @@ same credential-free mirror; hosted results for that added step are pending.
 ## Scope and Open Gates
 
 - The candidate remains unaccepted as a supported or released template reference
-  until hosted Linux/Windows evidence and the human Review gate are complete.
+  until the human Review gate is complete; hosted Linux/Windows evidence is complete.
 - A strategy-B baseline update and adoption of the new diagram standard in this
   generator repository are separate scope decisions.
 - Human Analyze approval is recorded; implementation and human Review remain

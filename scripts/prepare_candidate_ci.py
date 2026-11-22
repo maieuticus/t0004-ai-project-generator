@@ -42,7 +42,7 @@ def _git_environment(source: dict[str, str]) -> dict[str, str]:
         "GH_TOKEN", "GITHUB_TOKEN", "T0004_REPO_TOKEN", "GIT_CONFIG_COUNT",
         "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR",
         "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-        "GIT_ASKPASS", "SSH_ASKPASS",
+        "GIT_ASKPASS", "SSH_ASKPASS", "GIT_CONFIG_PARAMETERS", "GIT_TEMPLATE_DIR",
     }
     for key in removed:
         env.pop(key, None)
@@ -93,20 +93,15 @@ def prepare(mirror: Path, env: dict[str, str]) -> Path:
 
     git_env = _git_environment(env)
     if mirror.exists():
-        if not mirror.is_dir():
-            raise CandidatePreparationError("Candidate mirror path is not a directory")
-        bare = subprocess.run(
-            ["git", "--git-dir", str(mirror), "rev-parse", "--is-bare-repository"],
-            cwd=ROOT, env=git_env, check=True, capture_output=True, text=True, encoding="utf-8",
-        ).stdout.strip()
-        if bare != "true":
-            raise CandidatePreparationError("Candidate mirror is not a bare Git repository")
-    else:
-        mirror.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            ["git", "init", "--bare", "--quiet", str(mirror)],
-            cwd=ROOT, env=git_env, check=True, capture_output=True, text=True, encoding="utf-8",
+        raise CandidatePreparationError(
+            "Candidate mirror path already exists; choose a fresh path to avoid untrusted Git configuration"
         )
+    mirror.parent.mkdir(parents=True, exist_ok=True)
+    mirror.mkdir()
+    subprocess.run(
+        ["git", "init", "--bare", "--quiet", str(mirror)],
+        cwd=ROOT, env=git_env, check=True, capture_output=True, text=True, encoding="utf-8",
+    )
 
     for label, commit, files in (
         ("historical", HISTORICAL_COMMIT, HISTORICAL_FILES),

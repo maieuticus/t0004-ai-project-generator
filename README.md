@@ -28,22 +28,36 @@ python -m unittest discover -s .github/template-tests -v
 python -m unittest discover -s tests -v
 ```
 
-## Integration mit t0003
+## Integration mit maieuticus/t0003-ai-project-template
 
-Nach `python -m pip install --no-deps .` führt
-`python -m unittest discover -s integration -v` die installierte CLI in temporären
-Projekten gegen die echten t0003-Commits `6e8363a7ac7d99220d743eea077dcd5cefda9042`
-und `964de8538d19cefcb483faff38f10124615a9783` (ursprüngliches Release) aus. Git und
-Netzzugriff auf das öffentliche t0003-Repository sind erforderlich; pip benötigt bei Bedarf
-Zugriff auf seine Build-Abhängigkeiten. Die CI führt dies unter Linux und Windows aus.
-Backups liegen ausschließlich in einem temporären, von der CLI geschützten Speicher
-außerhalb des Projekt-Repositories und werden nach den Tests entfernt.
+Nach `python -m pip install --no-deps .` kann ein credential-freier Mirror mit den
+drei gepinnten öffentlichen t0003-Commits vorbereitet werden:
 
-Offline kann `T0004_T0003_MIRROR` auf den absoluten Pfad eines zuvor beschafften lokalen
-Git-Repositories gesetzt werden, das **beide** vollständigen Commit-Objekte samt zugehöriger
-Bäume und Dateien enthält. Die fest gepinnten Commit-IDs bleiben unverändert; fehlen
-Objekte, schlägt der Test fehl. Für eine vollständig netzlose Ausführung müssen auch
-Pythons Build-Abhängigkeiten lokal verfügbar sein.
+```text
+python scripts/prepare_candidate_ci.py --mirror /absoluter/pfad/t0003.git
+```
+
+Der Zielpfad muss neu sein und darf noch nicht existieren; so kann keine lokale
+Git-Konfiguration des Mirrors Zugangsdaten oder Abrufe beeinflussen. Danach denselben
+Mirror für die Integrationstests wiederverwenden, ohne das Vorbereitungsskript erneut
+aufzurufen.
+
+Der Abruf prüft die exakten Commit-IDs und benötigten SHA-256-Dateihashes; er folgt
+weder Branches noch Tags. Für die vollständigen historischen und Kandidaten-
+Integrationstests setze `T0004_T0003_MIRROR` und
+`T0004_T0003_CANDIDATE_MIRROR` auf diesen Mirror und führe
+`python -m unittest discover -s integration -v` aus. Die CI tut dies auf Linux und
+Windows. Die private Authentifizierung über den getrennten privaten Test-Quellpfad
+wird durch diesen öffentlichen Mirror nicht geprüft. Backups liegen ausschließlich
+in einem temporären, von der CLI geschützten Speicher außerhalb des Projekt-
+Repositories und werden nach den Tests entfernt.
+
+Offline können `T0004_T0003_MIRROR` und `T0004_T0003_CANDIDATE_MIRROR` auf denselben
+absoluten Pfad eines zuvor beschafften lokalen Git-Repositories gesetzt werden, das
+**alle drei** vollständigen Commit-Objekte samt zugehöriger Bäume und Dateien enthält.
+Die fest gepinnten Commit-IDs bleiben unverändert; fehlen Objekte, schlägt der Test
+fehl. Für eine vollständig netzlose Ausführung müssen auch Pythons Build-Abhängigkeiten
+lokal verfügbar sein.
 
 Die Testprojekte werden aus Git-Quellständen ausgecheckt. Sie belegen **nicht** das
 tatsächliche Anlegen eines GitHub-Repositories über „Use this template“; dieser Schritt
@@ -79,12 +93,19 @@ und `docs/PYTHON.md`. Es ergänzt den Projektcheck und die bestehende GitHub Act
 das Modul in `config/project.yaml` ein. Vorhandene oder nachträglich veränderte Moduldateien
 werden nicht überschrieben; ein vollständig unverändertes Modul ergibt einen No-op.
 
-Voraussetzung ist `template.release: 0.1.0` **und** der bytegenau geprüfte t0003-Dateistand
-der Check- und CI-Dateien aus Commit `6e8363a`. Der ursprüngliche Release-Stand erfüllt die
-CI-Voraussetzung nicht. Auch andere möglicherweise kompatible Änderungen werden vorsorglich
-abgelehnt; `6e8363a` ist kein behauptetes neues offizielles Release. Dateiinhalte und
-Zugriffsmetadaten der Voraussetzungen sind an den Plan gebunden und werden vor dem ersten
-Projekt-Schreibzugriff erneut geprüft.
+Voraussetzung ist `template.release: 0.1.0` **und** ein exakt geprüfter
+t0003-Kompatibilitätszustand: entweder der historische Commit
+`6e8363a7ac7d99220d743eea077dcd5cefda9042` oder der Kandidat
+`8ee48ed15eea629e51c8e4a64102c6a06cf8726a`. Beim Kandidaten muss zusätzlich
+`scripts/diagrams.py` bytegenau dem geprüften Check-Abhängigkeitshash entsprechen;
+Projektinhalte und Diagrammdaten werden nicht auf Vorlagenbytes festgelegt. Das
+ursprüngliche Release `964de8538d19cefcb483faff38f10124615a9783` erfüllt die
+CI-Voraussetzung nicht. Andere, auch möglicherweise kompatible Änderungen werden
+vorsorglich abgelehnt; es wird kein neues t0003-Release behauptet. Dateiinhalte und
+Zugriffsmetadaten aller benötigten Voraussetzungen sind an den Plan gebunden und
+werden vor dem ersten Projekt-Schreibzugriff erneut geprüft. Die gepinnten Zustände
+wurden auf Linux und Windows getestet; die private Authentifizierung und das tatsächliche
+Erstellen eines Repositories über „Use this template“ bleiben davon unberührt.
 
 Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades
 und das vollständige technologieabhängige `verify` sind nicht verfügbar.

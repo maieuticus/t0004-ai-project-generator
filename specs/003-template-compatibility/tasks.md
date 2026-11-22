@@ -73,8 +73,8 @@ and after plan approval; confirm conflict and no target write.
 ## Phase 6: Cross-Cutting Verification and Review
 
 - [x] T020 Run `python scripts/check.py`, focused tests in `tests/`, and real-pinned integration in `integration/test_t0003_integration.py`; record exact results and skips in `docs/PROJECT_HANDOFF.md`.
-- [ ] T021 Obtain Linux and Windows CI evidence for both supported bases and document missing or blocked evidence in `docs/PROJECT_HANDOFF.md`; publication requires separate approval.
-- [ ] T022 Update supported states and verification limits in `docs/GENERATOR_CONTRACT.md` and `README.md` only after evidence exists; update `docs/DV_KONZEPT.md` only for an approved decision.
+- [ ] T021 Obtain Linux and Windows CI evidence for both supported bases and document missing or blocked evidence in `docs/PROJECT_HANDOFF.md`; publication requires separate approval. Hosted run `45052518437` passed on Ubuntu and Windows on `9e3f09b00ff84855ef531a0f7dc089b69562c7e1`, including five candidate and 33 historical pinned integrations per platform. Docker validation `45052518454` and secret scan `45052518444` also passed on that head, but the later mirror-hardening change is local and has not been run in hosted CI. Private authentication remains **NOT VERIFIED**; no PR, merge or release was performed.
+- [x] T022 Update supported states and verification limits in `docs/GENERATOR_CONTRACT.md` and `README.md` only after evidence exists; update `docs/DV_KONZEPT.md` only for an approved decision. The docs describe the historical and candidate profiles, exact verification boundaries, and the still-unverified private-authentication and GitHub template-creation paths.
 - [ ] T023 Review the final diff, converge outstanding requirements and record human Review-gate outcome in `docs/PROJECT_HANDOFF.md`; do not merge without explicit separate approval.
 
 ## Dependencies and Execution Order
