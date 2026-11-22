@@ -114,11 +114,16 @@ historical and candidate integrations on Linux and Windows; generator plan/apply
 remains offline. Do not change `scripts/gh_access.py`, the existing private
 retrieval path, `GH_TOKEN` handling, or private-authentication status reporting.
 Keep the private source's HTTP 404 explicitly unresolved. The local mirror and all
-38 pinned integration tests pass. Hosted run `45052518437` passed on both Linux
-and Windows, with five candidate and 33 historical pinned integrations per
-platform; Docker validation `45052518454` and secret scan `45052518444` also
-passed on the same head. Private authentication remains **NOT VERIFIED**. The
-candidate remains pending the human Review gate.
+38 pinned integration tests pass. Review identified that reusing a bare mirror
+could load repository-local Git configuration; the helper now requires a fresh
+destination and removes `GIT_CONFIG_PARAMETERS` and `GIT_TEMPLATE_DIR`. Six
+focused mirror tests pass locally. Commit
+`3571d283b66da966899be0b94a7e20865471128c` passed hosted run `45056806327` on
+Linux and Windows, with 308 generator tests per platform (7/17 skipped), five
+candidate and 33 historical pinned integrations per platform. Docker validation
+`45056806293` and secret scan `45056806307` also passed on that head. Private
+authentication remains **NOT VERIFIED**. The candidate remains pending the
+human Review gate.
 
 ## Affected Areas
 
@@ -165,8 +170,10 @@ candidate remains pending the human Review gate.
 
 ## Scope and Open Gates
 
-- The candidate remains unaccepted as a supported or released template reference
-  until the human Review gate is complete; hosted Linux/Windows evidence is complete.
+- The human Review gate was approved on 2026-11-22 after the final diff and
+  verification evidence were reviewed. PR creation was authorized on 2026-11-22;
+  merge and release were not authorized. The branch review alone does not claim
+  a published support or release state.
 - A strategy-B baseline update and adoption of the new diagram standard in this
   generator repository are separate scope decisions.
 - Human Analyze approval is recorded; implementation and human Review remain

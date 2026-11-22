@@ -16,8 +16,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   scheitert abhängig von der Importreihenfolge; mit vorab importiertem
   `module_states` und innerhalb der Gesamtsuite besteht er. Dies ist ein
   bestehender, von der Tooling-Korrektur getrennter Befund.
-- **Template-Kompatibilität 003 — Basis-CI bestanden; Mirror-Härtung lokal:**
-  Branch `feature/template-compatibility-003`; T005–T020 und T022 sind abgeschlossen.
+- **Template-Kompatibilität 003 — Mirror-Härtung und Cross-Platform-CI bestanden:**
+  Branch `feature/template-compatibility-003`; T005–T023 sind abgeschlossen.
   Der historische Kompatibilitätszustand und seine CI-Projektionen bleiben
   bytegenau erhalten. Der Kandidat
   `8ee48ed15eea629e51c8e4a64102c6a06cf8726a` wird über
@@ -37,10 +37,18 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   wiederverwendeter Bare-Mirror lokale Git-Konfiguration einbringen konnte.
   `scripts/prepare_candidate_ci.py` lehnt nun bereits vorhandene Zielpfade ab
   und entfernt zusätzlich `GIT_CONFIG_PARAMETERS` sowie `GIT_TEMPLATE_DIR`;
-  ein Regressionstest prüft das fail-closed Verhalten. Die sechs gezielten
-  Mirror-Tests und `git diff --check` bestehen lokal. Diese Arbeitsbaumkorrektur
-  ist noch nicht gepusht oder in Hosted-CI geprüft; T021 und das menschliche
-  Review-Gate T023 bleiben deshalb offen.
+  ein Regressionstest prüft das fail-closed Verhalten. Commit `3571d283b66da966899be0b94a7e20865471128c`
+  ist auf den Feature-Branch gepusht. Die Hosted-CI `45056806327` bestand auf
+  Ubuntu und Windows: je Plattform 308 Generator-Tests (7 bzw. 17 übersprungen),
+  fünf Kandidaten- und 33 historische gepinnte Integrationstests sowie je 22
+  Template-/Workflowtests. Docker-Validierung `45056806293` und Secret-Scan
+  `45056806307` bestanden ebenfalls. Lokal bestanden sechs gezielte Mirror-Tests,
+  die gesamte Suite mit 312 Tests (7 übersprungen) sowie `git diff --check`.
+  T021 und T022 sind abgeschlossen. Der Nutzer hat T023 am 2026-11-22 nach
+  Review des Commits `3571d28` und der lokalen Dokumentationsänderungen
+  freigegeben und am 2026-11-22 die PR-Erstellung beauftragt. Private
+  Authentifizierung bleibt **NOT VERIFIED**; Merge und Release sind nicht
+  freigegeben.
 - **Ausgangsbefund des Template-Abgleichs 2026-11-22 (vor Implementierung):**
   `maieuticus/t0003-ai-project-template` `main` stand auf
   `8ee48ed15eea629e51c8e4a64102c6a06cf8726a` (Diagrammstandard, PR #8); das
@@ -635,9 +643,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Separate Freigabe für den Push der lokalen Mirror-Härtung einholen, damit T021
-erneut auf Linux und Windows ausgeführt werden kann. Danach folgt das menschliche
-Review-Gate T023; kein Merge oder Release ohne separate ausdrückliche Freigabe.
+Keine offenen Implementierungsaufgaben für Feature 003. PR-Erstellung ist
+freigegeben; Merge und Release benötigen separate ausdrückliche Freigabe.
 
 ## Risiken
 
