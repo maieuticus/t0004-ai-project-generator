@@ -87,18 +87,18 @@ class PythonCompatibility(unittest.TestCase):
 
     def test_candidate_profile_rejects_unreadable_and_mixed_dependencies(self):
         _, diagrams = self.candidate_profile()
-        diagrams_path = self.root / "scripts/diagrams.py"
-        real_open = os.open
+        real_state = python_compat._operation_state
 
-        def deny_diagrams(path, *args, **kwargs):
-            if Path(path) == diagrams_path:
+        def deny_diagrams(root, name):
+            if name == "scripts/diagrams.py":
                 raise PermissionError("injected unreadable capability")
-            return real_open(path, *args, **kwargs)
+            return real_state(root, name)
 
-        with mock.patch("project_generator.plan.os.open", side_effect=deny_diagrams):
+        with mock.patch.object(python_compat, "_operation_state", side_effect=deny_diagrams):
             with self.assertRaises(PermissionError):
                 python_compat.python_capabilities(str(self.root))
 
+        diagrams_path = self.root / "scripts/diagrams.py"
         diagrams_path.write_bytes(diagrams)
         (self.root / "scripts/projectcfg.py").write_bytes(b"mixed historical dependency\n")
         result = python_compat.python_capabilities(str(self.root))
