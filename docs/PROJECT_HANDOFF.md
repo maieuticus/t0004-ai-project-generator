@@ -5,6 +5,60 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
+- **Spec-Kit-Tooling 2026-11-22:** Die drei Bash-Aufrufe zur Plan-, Aufgaben-
+  und Analysevorbereitung setzen Featurepfade nun direkt statt dynamisches
+  `eval` auszuführen. Die bisherige Ausgabe von `get_feature_paths` bleibt
+  erhalten. Vier gezielte Pfadtests, der Projektcheck, 22 Offline-Template-
+  tests (3 übersprungen) und die gesamte Generator-Testsuite (292 Tests,
+  7 übersprungen) bestanden unter Linux. Der Aufgaben-Setup und der
+  Analyse-Voraussetzungscheck liefen erfolgreich; Windows und echte private
+  Authentifizierung wurden nicht geprüft. `test_python_compat.py` allein
+  scheitert abhängig von der Importreihenfolge; mit vorab importiertem
+  `module_states` und innerhalb der Gesamtsuite besteht er. Dies ist ein
+  bestehender, von der Tooling-Korrektur getrennter Befund.
+- **Template-Kompatibilität 003 — Mirror-Härtung und Cross-Platform-CI bestanden:**
+  Branch `feature/template-compatibility-003`; T005–T023 sind abgeschlossen.
+  Der historische Kompatibilitätszustand und seine CI-Projektionen bleiben
+  bytegenau erhalten. Der Kandidat
+  `8ee48ed15eea629e51c8e4a64102c6a06cf8726a` wird über
+  `scripts/prepare_candidate_ci.py` credential-frei und mit exakter Commit- und
+  SHA-256-Prüfung abgerufen. Die Hosted-CI `45052518437` bestand auf Ubuntu und
+  Windows: je Plattform 307 Generator-Tests (7 bzw. 17 übersprungen), fünf
+  Kandidaten- und 33 historische gepinnte Integrationstests sowie je 22
+  Template-/Workflowtests. Docker-Validierung `45052518454` und Secret-Scan
+  `45052518444` bestanden ebenfalls, jeweils auf Commit
+  `9e3f09b00ff84855ef531a0f7dc089b69562c7e1`. Lokal bestanden `python
+  scripts/check.py`, 310 Generator-Tests (7 übersprungen), 22
+  Template-/Workflowtests, 38 gepinnte Integrationen sowie `git diff --check`.
+  Die private Test-Repository-Quelle bleibt ungeklärt (HTTP 404); private
+  Authentifizierung ist **NOT VERIFIED**. Der Feature-Branch mit Commits
+  `5feab57`, `8bade65` und `9e3f09b` ist gepusht; es wurde kein PR erstellt,
+  gemergt oder Release veröffentlicht. Im Review wurde festgestellt, dass ein
+  wiederverwendeter Bare-Mirror lokale Git-Konfiguration einbringen konnte.
+  `scripts/prepare_candidate_ci.py` lehnt nun bereits vorhandene Zielpfade ab
+  und entfernt zusätzlich `GIT_CONFIG_PARAMETERS` sowie `GIT_TEMPLATE_DIR`;
+  ein Regressionstest prüft das fail-closed Verhalten. Commit `3571d283b66da966899be0b94a7e20865471128c`
+  ist auf den Feature-Branch gepusht. Die Hosted-CI `45056806327` bestand auf
+  Ubuntu und Windows: je Plattform 308 Generator-Tests (7 bzw. 17 übersprungen),
+  fünf Kandidaten- und 33 historische gepinnte Integrationstests sowie je 22
+  Template-/Workflowtests. Docker-Validierung `45056806293` und Secret-Scan
+  `45056806307` bestanden ebenfalls. Lokal bestanden sechs gezielte Mirror-Tests,
+  die gesamte Suite mit 312 Tests (7 übersprungen) sowie `git diff --check`.
+  T021 und T022 sind abgeschlossen. Der Nutzer hat T023 am 2026-11-22 nach
+  Review des Commits `3571d28` und der lokalen Dokumentationsänderungen
+  freigegeben und am 2026-11-22 die PR-Erstellung beauftragt. Private
+  Authentifizierung bleibt **NOT VERIFIED**; Merge und Release sind nicht
+  freigegeben.
+- **Ausgangsbefund des Template-Abgleichs 2026-11-22 (vor Implementierung):**
+  `maieuticus/t0003-ai-project-template` `main` stand auf
+  `8ee48ed15eea629e51c8e4a64102c6a06cf8726a` (Diagrammstandard, PR #8); das
+  letzte veröffentlichte Tag blieb `v0.1.0`. Gegenüber der geprüften Basis
+  `6e8363a` war unter anderem `scripts/check.py` geändert. Die erste Prüfung
+  bestätigte vier planbare Module auf der alten Basis und Konflikte auf dem
+  Kandidaten. Das erklärte den Implementierungsbedarf; die späteren Apply-,
+  Restore- und Integrationsergebnisse stehen im aktuellen Feature-Status oben.
+  Windows und Hosted-CI waren zu diesem Zeitpunkt noch offen. Keine Template-Pins
+  geändert.
 - **Review Gate 2 am 2026-11-06 vom Nutzer freigegeben; Inkrement 2 abgeschlossen.**
   Die Abnahmenachweise einschließlich Fork-PR #34 und aller vier erfolgreichen
   Hosted-Jobs stehen in `specs/002-private-github-access/tasks.md`. Kein echter
@@ -589,8 +643,8 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Nächster Schritt
 
-Das React-Feature ist abgeschlossen. Weitere Arbeit erst nach neuer Nutzerfreigabe;
-kein Schritt ist offen.
+Keine offenen Implementierungsaufgaben für Feature 003. PR-Erstellung ist
+freigegeben; Merge und Release benötigen separate ausdrückliche Freigabe.
 
 ## Risiken
 

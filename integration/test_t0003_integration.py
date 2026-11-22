@@ -23,6 +23,7 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 import gh_access
+import prepare_candidate_ci
 
 SOURCE = gh_access.T0003_SOURCE
 COMPATIBLE = gh_access.COMPATIBLE_REFERENCE
@@ -405,7 +406,9 @@ class T0003Integration(unittest.TestCase):
         self.plan_file = self.case / "plan.json"
         self.env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1",
                         T0004_BACKUP_HOME=str(self.data))
-        for key in ("PYTHONPATH", "PYTHONHOME", "GH_TOKEN", "GITHUB_TOKEN", "T0004_REPO_TOKEN"):
+        if not os.environ.get("T0004_TEST_CLI_MODULE"):
+            self.env.pop("PYTHONPATH", None)
+        for key in ("PYTHONHOME", "GH_TOKEN", "GITHUB_TOKEN", "T0004_REPO_TOKEN"):
             self.env.pop(key, None)
         self.checkout(COMPATIBLE)
 
@@ -1102,6 +1105,183 @@ class T0003Integration(unittest.TestCase):
         self.assertTrue(plan["conflicts"])
         self.assertEqual(before, self.files())
         self.assertFalse(self.data.exists())
+
+
+class CandidateTemplateIntegration(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        if os.environ.get("T0004_SKIP_CANDIDATE_INTEGRATION") == "1":
+            raise unittest.SkipTest("Candidate integration ran in its dedicated CI step")
+        configured = os.environ.get("T0004_T0003_CANDIDATE_MIRROR")
+        if not configured:
+            raise unittest.SkipTest("Candidate template mirror was not prepared")
+        cls.source = Path(configured)
+        if not cls.source.is_absolute() or not cls.source.is_dir():
+            raise ValueError("T0004_T0003_CANDIDATE_MIRROR must be an absolute Git repository")
+        cls.git_env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_CONFIG_NOSYSTEM="1",
+                           GIT_CONFIG_GLOBAL=os.devnull)
+        for key in ("GH_TOKEN", "GITHUB_TOKEN", "T0004_REPO_TOKEN", "GIT_CONFIG_COUNT",
+                    "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"):
+            cls.git_env.pop(key, None)
+        commit = subprocess.run(
+            ["git", "--git-dir", str(cls.source), "rev-parse", "FETCH_HEAD^{commit}"],
+            cwd=ROOT, env=cls.git_env, check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        if commit != prepare_candidate_ci.CANDIDATE_COMMIT:
+            raise AssertionError("Candidate mirror does not contain the pinned commit")
+        cls.temp = tempfile.TemporaryDirectory(prefix="candidate-integration-")
+        cls.addClassCleanup(cls.temp.cleanup)
+        cls.base = Path(cls.temp.name)
+        executable = "t0004-generator.exe" if os.name == "nt" else "t0004-generator"
+        cls.cli_path = Path(sysconfig.get_path("scripts")) / executable
+        if not cls.cli_path.is_file() and site.USER_BASE:
+            user_scripts = Path(site.USER_BASE) / ("Scripts" if os.name == "nt" else "bin") / executable
+            if user_scripts.is_file():
+                cls.cli_path = user_scripts
+        if not cls.cli_path.is_file() and not os.environ.get("T0004_TEST_CLI_MODULE"):
+            raise RuntimeError("Install the generator into the test Python environment first")
+        cls.cli_command = ([sys.executable, "-m", "project_generator"]
+                           if os.environ.get("T0004_TEST_CLI_MODULE") else [str(cls.cli_path)])
+
+    def setUp(self):
+        self.temp_project = tempfile.TemporaryDirectory(prefix="candidate-case-", dir=self.base)
+        self.addCleanup(self.temp_project.cleanup)
+        self.case = Path(self.temp_project.name)
+        self.project = self.case / "project"
+        self.data = self.case / "data"
+        self.plan_file = self.case / "plan.json"
+        self.env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1", PYTHONUTF8="1",
+                        T0004_BACKUP_HOME=str(self.data))
+        if not os.environ.get("T0004_TEST_CLI_MODULE"):
+            self.env.pop("PYTHONPATH", None)
+        for key in ("PYTHONHOME", "GH_TOKEN", "GITHUB_TOKEN", "T0004_REPO_TOKEN"):
+            self.env.pop(key, None)
+        self.git("clone", "--quiet", "--no-checkout", "--no-hardlinks",
+                 str(self.source), str(self.project), cwd=self.case)
+        self.git("-c", "core.autocrlf=false", "checkout", "--quiet", "--detach",
+                 prepare_candidate_ci.CANDIDATE_COMMIT, cwd=self.project)
+        self.assertEqual(
+            self.git("rev-parse", "HEAD", cwd=self.project).stdout.strip(),
+            prepare_candidate_ci.CANDIDATE_COMMIT,
+        )
+
+    @classmethod
+    def git(cls, *args, cwd):
+        return subprocess.run(["git", *args], cwd=cwd, env=cls.git_env, check=True,
+                              capture_output=True, text=True, encoding="utf-8")
+
+    def run_command(self, command, *, cwd=None, env=None):
+        result = subprocess.run(command, cwd=cwd or self.project, env=env or self.env,
+                                capture_output=True, text=True, encoding="utf-8", errors="replace")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def cli(self, *args, expected=0):
+        result = subprocess.run([*self.cli_command, *args], cwd=self.project, env=self.env,
+                                capture_output=True, text=True, encoding="utf-8", errors="replace")
+        self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+        return result
+
+    def files(self):
+        excluded = {".git", "node_modules", "__pycache__", "target", "dist", "build"}
+        return {
+            path.relative_to(self.project).as_posix(): path.read_bytes()
+            for path in self.project.rglob("*")
+            if path.is_file() and not excluded.intersection(path.relative_to(self.project).parts)
+        }
+
+    def exercise_module(self, module):
+        before = self.files()
+        planned = self.cli("plan", "--module", module, "--json")
+        plan = json.loads(planned.stdout)
+        self.assertEqual(plan["conflicts"], [])
+        self.assertIn("scripts/diagrams.py",
+                      [state["path"] for state in plan["preconditions"]["files"]])
+        self.assertEqual(before, self.files())
+        self.plan_file.write_text(planned.stdout, encoding="utf-8")
+        self.cli("apply", "--plan", str(self.plan_file), "--confirm", plan["plan_id"])
+
+        noop = json.loads(self.cli("plan", "--module", module, "--json").stdout)
+        self.assertEqual(noop["operations"], [])
+        self.assertIsNone(noop["backup"])
+
+        check_copy = self.case / "check-copy"
+        shutil.copytree(self.project, check_copy, ignore=shutil.ignore_patterns(".git"))
+        environment = dict(self.env, npm_config_cache=str(self.case / "npm-cache"))
+        if module in {"typescript", "react"}:
+            npm = "npm.cmd" if os.name == "nt" else "npm"
+            self.run_command(
+                [npm, "ci", "--ignore-scripts", "--prefix", module, "--no-audit", "--no-fund"],
+                cwd=check_copy, env=environment,
+            )
+        self.run_command([sys.executable, "scripts/check.py"], cwd=check_copy, env=environment)
+        self.cli("restore", "--backup", plan["backup"]["id"])
+        self.assertEqual(before, self.files())
+
+    def test_candidate_python_apply_check_noop_and_restore(self):
+        self.exercise_module("python")
+
+    def test_candidate_typescript_apply_check_noop_and_restore(self):
+        self.exercise_module("typescript")
+
+    def test_candidate_java_apply_check_noop_and_restore(self):
+        self.exercise_module("java")
+
+    def test_candidate_react_apply_check_noop_and_restore(self):
+        self.exercise_module("react")
+
+    def test_candidate_stale_capabilities_block_apply_before_and_after_snapshot(self):
+        from project_generator import installed_version, transaction
+        from project_generator.transaction import TransactionError
+
+        diagrams_path = self.project / "scripts/diagrams.py"
+        original_diagrams = diagrams_path.read_bytes()
+        original_mode = stat.S_IMODE(diagrams_path.stat().st_mode)
+
+        for change in ("file", "attributes"):
+            with self.subTest(stage="before apply", change=change):
+                before = self.files()
+                plan = json.loads(self.cli("plan", "--module", "python", "--json").stdout)
+                self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+                if change == "file":
+                    diagrams_path.write_bytes(original_diagrams + b"# changed\n")
+                else:
+                    diagrams_path.chmod(original_mode ^ stat.S_IWUSR)
+                try:
+                    self.cli("apply", "--plan", str(self.plan_file),
+                             "--confirm", plan["plan_id"], expected=1)
+                finally:
+                    diagrams_path.chmod(original_mode)
+                    diagrams_path.write_bytes(original_diagrams)
+                self.assertEqual(before, self.files())
+
+        for change in ("file", "attributes"):
+            with self.subTest(stage="after snapshot", change=change):
+                before = self.files()
+                plan = json.loads(self.cli("plan", "--module", "python", "--json").stdout)
+                self.plan_file.write_text(json.dumps(plan), encoding="utf-8")
+                real_progress = transaction._multi_progress
+
+                def mutate_after_snapshot(backup, progress):
+                    real_progress(backup, progress)
+                    if change == "file":
+                        diagrams_path.write_bytes(original_diagrams + b"# changed\n")
+                    else:
+                        diagrams_path.chmod(original_mode ^ stat.S_IWUSR)
+
+                try:
+                    with (mock.patch.dict(os.environ, {"T0004_BACKUP_HOME": str(self.data)}),
+                          mock.patch.object(transaction, "_multi_progress",
+                                             side_effect=mutate_after_snapshot)):
+                        with self.assertRaises(TransactionError):
+                            transaction.apply(
+                                str(self.project), str(self.plan_file), plan["plan_id"],
+                                installed_version()
+                            )
+                finally:
+                    diagrams_path.chmod(original_mode)
+                    diagrams_path.write_bytes(original_diagrams)
+                self.assertEqual(before, self.files())
 
 
 if __name__ == "__main__":
