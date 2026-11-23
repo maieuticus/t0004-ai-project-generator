@@ -117,6 +117,13 @@ def _run_command(
         )
     status = "passed" if result.returncode == 0 else "failed"
     blocker = None if status == "passed" else f"command exited with {result.returncode}"
+    if status == "failed":
+        detail = (result.stderr or result.stdout).strip()
+        if detail:
+            print(
+                f"{criterion_id} failed:\n{detail[-4000:]}",
+                file=sys.stderr,
+            )
     return _criterion(
         criterion_id, status, platform.system(), " ".join(command), evidence_source, blocker,
     )
