@@ -4,7 +4,14 @@ Alle wesentlichen Änderungen am Template. Format: [SemVer](https://semver.org/l
 Template wird getrennt vom Generator versioniert. Kategorien: Arbeitsregeln, Specify/Tooling,
 Projektstruktur, Adapter, CI, Sicherheit, Breaking Changes, Migrationshinweise.
 
-## [Unveröffentlicht]
+## [0.2.0] – 2026-11-23
+
+### Release-Readiness
+- Repositoryweiter Verifier mit lokalen und aggregierten Linux-/Windows-
+  Evidenzberichten für Checks, Integrationen sowie `new` und `migrate`.
+- Bestehende CI um plattformgetrennte Reports und die abschließende
+  Release-Readiness-Aggregation erweitert.
+- Spec-Kit-Pfadübergaben ohne dynamisches `eval` umgesetzt und abgesichert.
 
 ### Python-Modul
 - `new` und `plan --module python` planen `python@0.1.0` mit `src/`-Layout, Beispiel,
