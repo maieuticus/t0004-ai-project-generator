@@ -452,6 +452,32 @@ class T0003Integration(unittest.TestCase):
         return self.cli("apply", "--plan", str(self.plan_file),
                         "--confirm", confirm or plan["plan_id"], expected=expected)
 
+    def test_release_gate_new_python(self):
+        before = self.file_states()
+        plan = self.plan()
+        self.assertEqual(plan["module"], "python")
+        self.assertEqual(plan["conflicts"], [])
+        self.assertEqual(before, self.file_states())
+
+        self.apply(plan)
+        checked = json.loads(self.cli("check", "--json").stdout)
+        self.assertTrue(checked["valid"])
+        self.assertTrue((self.project / "src/project_app/__main__.py").is_file())
+        project_check = self.run_command([sys.executable, "scripts/check.py"])
+        self.assertIn("Dokumentlinks", project_check.stdout)
+
+    def test_release_gate_migrate_read_only(self):
+        before = self.files()
+        index_before = (self.project / ".git/index").read_bytes()
+
+        result = json.loads(self.cli("migrate", str(self.project), "--json").stdout)
+
+        self.assertEqual(result["kind"], "read_only_migration_analysis")
+        self.assertIn("A", result["strategies"])
+        self.assertIn("B", result["strategies"])
+        self.assertEqual(before, self.files())
+        self.assertEqual(index_before, (self.project / ".git/index").read_bytes())
+
     def snapshot(self, plan, before):
         backup = self.data / "t0004-generator" / "backups" / (".t0004-backup-" + plan["backup"]["id"])
         self.assertTrue(backup.is_dir())

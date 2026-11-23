@@ -29,10 +29,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "25"
-      - run: python scripts/check.py
-      - run: python -m unittest discover -s .github/template-tests -v
-      - name: Generator and local fixture tests
-        run: python -m unittest discover -s tests -v
       - run: python -m pip install --no-deps .
       - run: t0004-generator version
       - run: t0004-generator check
@@ -44,14 +40,22 @@ jobs:
         env:
           T0004_T0003_CANDIDATE_MIRROR: ${{ runner.temp }}/t0003-candidate.git
         run: python scripts/prepare_candidate_ci.py
-      - name: Candidate template integration
-        env:
-          T0004_T0003_CANDIDATE_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
-        run: python -m unittest integration.test_t0003_integration.CandidateTemplateIntegration -v
-      - name: Historical pinned template integration (credential-free)
+      - name: Repository and public integration verification
         env:
           T0004_T0003_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
-        run: python -m unittest integration.test_t0003_integration.T0003Integration -v
+          T0004_T0003_CANDIDATE_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/verify.py --json | tee "${RUNNER_TEMP}/verification-${RUNNER_OS}.json"
+      - name: Upload platform verification report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verification-${{ runner.os }}
+          path: ${{ runner.temp }}/verification-${{ runner.os }}.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Fetch pinned template refs (manual main only)
         id: prepare_template
         if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
@@ -73,3 +77,28 @@ jobs:
           T0004_T0003_CANDIDATE_MIRROR: ${{ steps.prepare_candidate.outputs.candidate_mirror }}
           T0004_SKIP_CANDIDATE_INTEGRATION: "1"
         run: python -m unittest discover -s integration -v
+
+  release-readiness:
+    if: always()
+    needs: baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Download platform verification reports
+        if: always()
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: verification-*
+          path: verification-reports
+          merge-multiple: true
+      - name: Aggregate release readiness
+        run: >-
+          python scripts/verify.py --aggregate
+          verification-reports/verification-Linux.json
+          verification-reports/verification-Windows.json --json

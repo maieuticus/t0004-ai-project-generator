@@ -89,10 +89,15 @@ class PrivateAccessWorkflows(unittest.TestCase):
     def test_local_fixture_checks_are_not_secret_gated(self):
         ci = WORKFLOWS[0].read_text(encoding="utf-8")
         docker = WORKFLOWS[1].read_text(encoding="utf-8")
+        verify_step = ci.split(
+            "- name: Repository and public integration verification\n", 1,
+        )[1].split("- name: Upload platform verification report\n", 1)[0]
+        verify_script = (ROOT / "scripts/verify.py").read_text(encoding="utf-8")
         self.assertIn(
-            "- name: Generator and local fixture tests\n"
-            "        run: python -m unittest discover -s tests -v", ci
+            "python scripts/verify.py --json", verify_step,
         )
+        self.assertNotRegex(verify_step, r"(?m)^\s+if:")
+        self.assertIn('"unittest", "discover", "-s", "tests"', verify_script)
         self.assertIn(
             "- name: Docker and PostgreSQL validation (local fixture)\n"
             "        run: python tests/docker_fixture_ci.py", docker

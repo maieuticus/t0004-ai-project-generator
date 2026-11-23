@@ -160,7 +160,7 @@ _persist_feature_json() {
     fi
 }
 
-get_feature_paths() {
+set_feature_paths() {
     # Read-only callers (e.g. check-prerequisites.sh --paths-only) pass
     # --no-persist so pure path resolution never writes .specify/feature.json,
     # which would dirty the working tree or overwrite a pinned value (issue #3025).
@@ -216,19 +216,31 @@ get_feature_paths() {
         current_branch="${feature_dir_trimmed##*/}"
     fi
 
-    # Use printf '%q' to safely quote values, preventing shell injection
-    # via crafted branch names or paths containing special characters
-    printf 'REPO_ROOT=%q\n' "$repo_root"
-    printf 'CURRENT_BRANCH=%q\n' "$current_branch"
-    printf 'FEATURE_DIR=%q\n' "$feature_dir"
-    printf 'FEATURE_SPEC=%q\n' "$feature_dir/spec.md"
-    printf 'IMPL_PLAN=%q\n' "$feature_dir/plan.md"
-    printf 'TASKS=%q\n' "$feature_dir/tasks.md"
-    printf 'RESEARCH=%q\n' "$feature_dir/research.md"
-    printf 'DATA_MODEL=%q\n' "$feature_dir/data-model.md"
-    printf 'QUICKSTART=%q\n' "$feature_dir/quickstart.md"
-    printf 'CONTRACTS_DIR=%q\n' "$feature_dir/contracts"
+    REPO_ROOT="$repo_root"
+    CURRENT_BRANCH="$current_branch"
+    FEATURE_DIR="$feature_dir"
+    FEATURE_SPEC="$feature_dir/spec.md"
+    IMPL_PLAN="$feature_dir/plan.md"
+    TASKS="$feature_dir/tasks.md"
+    RESEARCH="$feature_dir/research.md"
+    DATA_MODEL="$feature_dir/data-model.md"
+    QUICKSTART="$feature_dir/quickstart.md"
+    CONTRACTS_DIR="$feature_dir/contracts"
 }
+
+get_feature_paths() (
+    set_feature_paths "$@" || return 1
+    printf 'REPO_ROOT=%q\n' "$REPO_ROOT"
+    printf 'CURRENT_BRANCH=%q\n' "$CURRENT_BRANCH"
+    printf 'FEATURE_DIR=%q\n' "$FEATURE_DIR"
+    printf 'FEATURE_SPEC=%q\n' "$FEATURE_SPEC"
+    printf 'IMPL_PLAN=%q\n' "$IMPL_PLAN"
+    printf 'TASKS=%q\n' "$TASKS"
+    printf 'RESEARCH=%q\n' "$RESEARCH"
+    printf 'DATA_MODEL=%q\n' "$DATA_MODEL"
+    printf 'QUICKSTART=%q\n' "$QUICKSTART"
+    printf 'CONTRACTS_DIR=%q\n' "$CONTRACTS_DIR"
+)
 
 # Check if jq is available for safe JSON construction
 has_jq() {

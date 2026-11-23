@@ -544,9 +544,30 @@ löscht keine fremden Build-Ausgaben. Strategie B bleibt nicht modulfreigegeben.
 
 - Generator-Version und gewählte Module/Profiles werden in Zielprojekten dokumentiert.
 - Änderungen werden in Tests und Changelog nachvollziehbar abgesichert.
-- `verify` prüft abschließend die Integrationskompatibilität von t0003 und t0004 sowie die
-  verpflichtenden Praxistests für `new` und `migrate` unter Linux und Windows.
 - Stabile Releases von t0003 und t0004 werden getrennt versioniert und veröffentlicht.
+
+### Repositoryweite Release-Verifikation
+
+- `python scripts/verify.py` ist ein Repository-Gate und kein installierter
+  Zielprojekt-Befehl. Es führt Repository-Checks, Template- und Generatortests,
+  gepinnte öffentliche Integrationen sowie die praktischen Szenarien aus.
+- Ein lokaler Lauf berichtet nur den aktuellen Host. Fehlende Voraussetzungen
+  oder nicht ausgeführte Nachweise sind `not_verified`; fehlgeschlagene Checks
+  sind `failed`. Lokale Evidenz allein belegt keine plattformübergreifende
+  Release-Bereitschaft.
+- Jedes Kriterium weist `evidence_source` als `local` oder `hosted` aus; für
+  einen fehlenden Plattformbericht weist das Aggregat `not_available` aus.
+  Fehlende oder widersprüchliche Herkunftsangaben werden zurückgewiesen.
+- Der CI-Matrixlauf auf Linux und Windows erzeugt je einen JSON-Bericht. Ein
+  separater Abschlussjob aggregiert genau einen Bericht je Plattform; das
+  Gesamtergebnis ist nur dann `ready`, wenn alle erforderlichen Kriterien
+  bestanden sind. Fehlende oder doppelte Plattformberichte verhindern `ready`.
+- Die vier erforderlichen Praxisszenarien sind Python-Modul-`new` auf Linux und
+  Windows sowie read-only `migrate` auf Linux und Windows. Die Migration prüft,
+  dass Projektdateien und Git-Index unverändert bleiben.
+- Die Berichte belegen weder private Template-Authentifizierung noch das
+  Erstellen eines GitHub-Repositories über „Use this template“. Verifikation
+  ändert keine Release-Metadaten und veröffentlicht weder Tags noch Releases.
 
 ## Private GitHub-Zugriffe: Vertragsgrenze (T027)
 
