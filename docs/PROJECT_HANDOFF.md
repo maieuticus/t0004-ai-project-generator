@@ -22,7 +22,7 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
   `45122650785` und Secret scan `45122650793` bestanden ebenfalls. Die
   Berichte unterscheiden `local` und `hosted` als Evidenzquelle. Der Fix für
   die zunächst im Repository erzeugten Zwischenberichte ist in Commit
-  `3192e8f` enthalten. Feature 004 ist bis Commit `3192e8f` gepusht; Merge,
+  `3192e8f` enthalten. Feature 004 ist bis Commit `08674d1` gepusht; Merge,
   Release und private Authentifizierung bleiben separat und nicht verifiziert.
 - Die lokalen Spec-Kit-Pfadänderungen (`.specify/scripts/bash/` und
   `tests/test_speckit_paths.py`) bestehen unabhängig von Feature 004 fort und
