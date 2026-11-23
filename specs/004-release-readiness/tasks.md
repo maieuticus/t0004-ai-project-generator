@@ -56,7 +56,7 @@ No separate foundational tasks.
 
 ### Tests and Implementation for User Story 2
 
-- [ ] T003 [US2] Add a practical Python-module `new` integration scenario in `integration/test_t0003_integration.py` that uses an approved pinned source, creates an isolated project, applies the reviewed plan, passes the project check, and records the result on Linux and Windows. Implemented; the local Linux run passes. Windows evidence remains pending in T008.
+- [x] T003 [US2] Add a practical Python-module `new` integration scenario in `integration/test_t0003_integration.py` that uses an approved pinned source, creates an isolated project, applies the reviewed plan, passes the project check, and records the result on Linux and Windows. Local Linux and Hosted Ubuntu/Windows runs pass; Hosted evidence is recorded in `docs/PROJECT_HANDOFF.md` (run `45122650789`).
 
 **Checkpoint**: The `new` scenario is run by the verification suite on both operating systems; a missing platform result remains not verified.
 
@@ -70,7 +70,7 @@ No separate foundational tasks.
 
 ### Tests and Implementation for User Story 3
 
-- [ ] T004 [US3] Add a practical `migrate` integration scenario in `integration/test_t0003_integration.py` that records the read-only inventory and strategy comparison on both platforms and asserts the source project remains unchanged. Implemented; the local Linux run passes. Windows evidence remains pending in T008.
+- [x] T004 [US3] Add a practical `migrate` integration scenario in `integration/test_t0003_integration.py` that records the read-only inventory and strategy comparison on both platforms and asserts the source project remains unchanged. Local Linux and Hosted Ubuntu/Windows runs pass; Hosted evidence is recorded in `docs/PROJECT_HANDOFF.md` (run `45122650789`).
 
 **Checkpoint**: The `migrate` scenario passes independently on both operating systems; any missing or changed-source result blocks readiness.
 
@@ -83,7 +83,7 @@ No separate foundational tasks.
 - [x] T005 Update `.github/workflows/ci.yml` to replace duplicate check/test/public-integration steps with `python scripts/verify.py` after preparing the credential-free pinned mirrors; upload one JSON report per platform; add a final job that runs aggregate mode; preserve toolchain setup, unique CLI smoke checks, and the separate private-authentication path. Workflow pins artifact actions to verified commit SHAs; hosted execution is tracked in T008.
 - [x] T006 [P] Document the repository-level verification invocation, status meanings, and local-versus-hosted evidence boundary in `README.md`.
 - [x] T007 [P] Document the verification contract, four practical scenarios, and unverified private-authentication boundary in `docs/GENERATOR_CONTRACT.md`.
-- [ ] T008 Run `python scripts/check.py`, template tests, generator tests, pinned integrations, and `git diff --check`; record exact local and hosted evidence plus any unverified items in `docs/PROJECT_HANDOFF.md`. Local Linux verification passed all seven criteria with the pinned mirrors, and `git diff --check` passed. Hosted Linux/Windows evidence remains not verified until the authorized push and CI run.
+- [x] T008 Run `python scripts/check.py`, template tests, generator tests, pinned integrations, and `git diff --check`; record exact local and hosted evidence plus any unverified items in `docs/PROJECT_HANDOFF.md`. Local and Hosted Linux/Windows evidence is recorded in `docs/PROJECT_HANDOFF.md`; Hosted Generator-Basisprüfung `45122650789`, Docker validation `45122650785`, and Secret scan `45122650793` passed.
 
 ---
 

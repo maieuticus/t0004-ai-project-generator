@@ -5,26 +5,25 @@ Flüchtiger Arbeitsstand. Entscheidungen stehen in [DV_KONZEPT.md](DV_KONZEPT.md
 
 ## Aktueller Stand
 
-- **Release Readiness 004 — lokale Umsetzung und CI-Verkabelung abgeschlossen; Hosted-Nachweis offen:**
+- **Release Readiness 004 — lokale Umsetzung, Hosted-Nachweis und Aggregation abgeschlossen:**
   Branch `feature/verify-release-prerequisites` basiert auf dem gemergten
   `origin/main`-Stand. Spezifikation, Plan, Aufgaben und Analyze-Prüfung liegen
   unter `specs/004-release-readiness/`; die vier Analyze-Befunde wurden nach
   Nutzerfreigabe behoben. Die Anforderungen-Checkliste hat 16/16 erledigte Punkte.
-  T001–T002, T005–T007 sowie T009 sind umgesetzt; neun gezielte Verify-Tests
-  bestanden. Die `new`- und read-only-`migrate`-Praxisszenarien sind ergänzt
-  und lokal auf Linux bestanden. Der vollständige
+  T001–T009 sind umgesetzt. Neun gezielte Verify-Tests, 321 Generator-Tests
+  (7 übersprungen), 22 Template-/Workflowtests und `git diff --check`
+  bestanden lokal. Die `new`- und read-only-`migrate`-Praxisszenarien sind
+  ergänzt und lokal auf Linux bestanden. Der vollständige
   lokale Verifier bestand mit den credential-freien Mirrors alle sieben
   Kriterien: Repository-Checks, Template- und Generatortests, historische und
-  Kandidaten-Integrationen sowie `new` und `migrate` auf Linux. `git diff --check`
-  und 22 Template-/Workflowtests bestanden. Die CI ersetzt doppelte Prüfungen
-  durch den Verifier, lädt je Plattform einen JSON-Bericht hoch und aggregiert
-  beide Berichte in einem Abschlussjob; Artifact-Aktionen sind auf verifizierte
-  Commit-SHAs gepinnt. Jedes Kriterium kennzeichnet `evidence_source` als
-  `local` oder `hosted`; inkonsistente Herkunft wird bei der Aggregation
-  abgelehnt. T003/T004 bleiben wegen des fehlenden Windows-Nachweises offen;
-  T008 wartet auf Hosted-CI. Feature 004 wurde noch nicht gepusht; es gab
-  keinen Hosted-Lauf und keine Veröffentlichung. Private Authentifizierung
-  bleibt getrennt und nicht verifiziert.
+  Kandidaten-Integrationen sowie `new` und `migrate` auf Linux. Die Hosted-CI
+  `45122650789` bestand auf Ubuntu und Windows einschließlich der vier
+  Praxistests und der finalen Verify-Aggregation; Docker validation
+  `45122650785` und Secret scan `45122650793` bestanden ebenfalls. Die
+  Berichte unterscheiden `local` und `hosted` als Evidenzquelle. Der Fix für
+  die zunächst im Repository erzeugten Zwischenberichte ist in Commit
+  `3192e8f` enthalten. Feature 004 ist bis Commit `3192e8f` gepusht; Merge,
+  Release und private Authentifizierung bleiben separat und nicht verifiziert.
 - Die lokalen Spec-Kit-Pfadänderungen (`.specify/scripts/bash/` und
   `tests/test_speckit_paths.py`) bestehen unabhängig von Feature 004 fort und
   wurden nicht verändert.
