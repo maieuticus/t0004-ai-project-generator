@@ -28,6 +28,25 @@ python -m unittest discover -s .github/template-tests -v
 python -m unittest discover -s tests -v
 ```
 
+Repositoryweite Release-Prüfung (nur aktueller Host):
+
+```text
+python scripts/verify.py
+python scripts/verify.py --json
+```
+
+Für Integrationsnachweise müssen `T0004_T0003_MIRROR` und
+`T0004_T0003_CANDIDATE_MIRROR` auf den vorbereiteten Mirror zeigen. Ein lokaler
+Lauf kann höchstens den eigenen Host als `passed`, `failed` oder `not_verified`
+melden. Erst `--aggregate LINUX_REPORT WINDOWS_REPORT` kombiniert je einen
+Linux- und Windows-Bericht zu `ready`, `not_ready` oder `not_verified`; die CI
+lädt die Berichte als Workflow-Artefakte hoch und führt diese Aggregation aus.
+Jedes Kriterium weist seine `evidence_source` (`local` oder `hosted`, bei einem
+fehlenden Plattformbericht `not_available`) aus.
+Private Authentifizierung und das Erstellen eines Repositories über „Use this
+template“ sind nicht Teil des Nachweises. Die Prüfung veröffentlicht nichts und
+ändert weder `VERSION` noch `CHANGELOG.md`.
+
 ## Integration mit maieuticus/t0003-ai-project-template
 
 Nach `python -m pip install --no-deps .` kann ein credential-freier Mirror mit den
@@ -107,8 +126,8 @@ werden vor dem ersten Projekt-Schreibzugriff erneut geprüft. Die gepinnten Zust
 wurden auf Linux und Windows getestet; die private Authentifizierung und das tatsächliche
 Erstellen eines Repositories über „Use this template“ bleiben davon unberührt.
 
-Weitere Technologiemodule, SDD-Initialisierung, Generator-Upgrades
-und das vollständige technologieabhängige `verify` sind nicht verfügbar.
+Weitere Technologiemodule, SDD-Initialisierung und Generator-Upgrades
+sind nicht verfügbar.
 
 `--module java` plant den Java-25-/Maven-Starter mit Format 4. Der feste
 Projektcheck-Adapter startet `mvnw.cmd` unter Windows und `sh mvnw` unter Unix;
