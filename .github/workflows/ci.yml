@@ -47,13 +47,13 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          python scripts/verify.py --json | tee "verification-${RUNNER_OS}.json"
+          python scripts/verify.py --json | tee "${RUNNER_TEMP}/verification-${RUNNER_OS}.json"
       - name: Upload platform verification report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verification-${{ runner.os }}
-          path: verification-${{ runner.os }}.json
+          path: ${{ runner.temp }}/verification-${{ runner.os }}.json
           if-no-files-found: warn
           retention-days: 7
       - name: Fetch pinned template refs (manual main only)
